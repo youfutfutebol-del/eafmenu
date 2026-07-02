@@ -2,8 +2,16 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>EAF Menu — Painel</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#E5342A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EAF Menu">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="icon" href="/icons/icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   :root {
@@ -226,11 +234,81 @@
   .toast.show { transform: translateX(0); }
   .toast b { display:block; font-size:12px; color: var(--red); margin-bottom:2px; }
 
+  /* ---------------- Instalar PWA ---------------- */
+  .install-btn {
+    display:none; align-items:center; gap:6px; background:#fff; color:var(--red); border:1px solid var(--red);
+    border-radius:8px; padding:9px 13px; font-size:12.5px; font-weight:800;
+  }
+  .install-btn.show { display:inline-flex; }
+  .login-card .install-btn { width:100%; justify-content:center; margin-bottom:12px; }
+  .sidebar .install-btn { width:100%; justify-content:center; background:transparent; color:#fff; border-color:#3a3a3a; margin-bottom:8px; }
+
+  /* ---------------- Mobile topbar / drawer ---------------- */
+  .mobile-topbar { display:none; }
+  .drawer-overlay { display:none; }
+
   @media (max-width: 800px) {
-    .sidebar { display:none; }
-    .main { padding: 18px; }
+    .layout { flex-direction: column; }
+
+    .mobile-topbar {
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      background: var(--sidebar); color:#fff; padding: 12px 14px;
+      position: sticky; top:0; z-index:60;
+      padding-top: max(12px, env(safe-area-inset-top));
+    }
+    .mobile-topbar__brand { display:flex; align-items:center; gap:9px; min-width:0; }
+    .mobile-topbar__logo { width:30px; height:30px; background:var(--red); border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12.5px; flex-shrink:0; }
+    .mobile-topbar__title { font-weight:800; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .hamburger-btn {
+      background:transparent; border:none; color:#fff; font-size:20px; padding:6px 8px; border-radius:8px; line-height:1; flex-shrink:0;
+    }
+    .hamburger-btn:active { background: var(--sidebar-hover); }
+
+    .drawer-overlay {
+      display:block; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:90;
+      opacity:0; pointer-events:none; transition: opacity .2s ease;
+    }
+    .drawer-overlay.show { opacity:1; pointer-events:auto; }
+
+    .sidebar {
+      position:fixed; top:0; left:0; bottom:0; z-index:95; width: 78vw; max-width:280px;
+      transform: translateX(-100%); transition: transform .22s cubic-bezier(.2,.9,.3,1.1);
+      overflow-y:auto; padding-top: max(18px, env(safe-area-inset-top));
+    }
+    .sidebar.open { transform: translateX(0); }
+
+    .main { padding: 16px; }
     .order-row, .mov-row { flex-wrap: wrap; }
     .summary-row { grid-template-columns: 1fr; }
+
+    .main__header { gap:10px; }
+    .main__title { font-size:18px; }
+    .filter-row { padding:10px 12px; gap:10px; }
+    .filter-count { margin-left:0; width:100%; }
+
+    .modal-bg { align-items:flex-end; }
+    .modal { width:100%; max-width:100%; border-radius:16px 16px 0 0; max-height:90vh; padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
+
+    /* Tabelas viram cards empilhados no mobile */
+    .data-table thead { display:none; }
+    .data-table, .data-table tbody, .data-table tr, .data-table td { display:block; width:100%; }
+    .data-table { border:none; background:transparent; }
+    .data-table tr {
+      background:#fff; border:1px solid var(--border); border-radius:12px; margin-bottom:10px; padding: 4px 4px;
+    }
+    .data-table tr:has(.empty-state) { border:none; background:transparent; padding:0; }
+    .data-table td {
+      border-bottom:1px dashed var(--border); padding: 10px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .data-table td:last-child { border-bottom:none; }
+    .data-table td[colspan] { display:block; }
+    .data-table td::before {
+      content: attr(data-label); font-size:10.5px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; flex-shrink:0;
+    }
+    .data-table td:has(.prod-row-name)::before,
+    .data-table td:has(.empty-state)::before { display:none; }
+    .data-table td:has(.prod-row-name) { justify-content:flex-start; }
+    .row-actions { justify-content:flex-end; flex-wrap:wrap; }
   }
 </style>
 </head>
@@ -242,6 +320,8 @@
     <div class="badge">EM</div>
     <h2>EAF Menu</h2>
     <p>Entre com o e-mail cadastrado como equipe do restaurante</p>
+
+    <button class="install-btn" id="installBtnLogin" onclick="installApp()">⬇ Instalar aplicativo</button>
 
     <div id="stepEmail">
       <input type="email" id="emailInput" placeholder="seu@email.com">
@@ -259,8 +339,17 @@
 
 <!-- ==================== APP ==================== -->
 <div id="app">
+  <div class="mobile-topbar">
+    <button class="hamburger-btn" onclick="openDrawer()" aria-label="Abrir menu">☰</button>
+    <div class="mobile-topbar__brand">
+      <div class="mobile-topbar__logo">EM</div>
+      <div class="mobile-topbar__title" id="mobileRestauranteNome">EAF Menu</div>
+    </div>
+    <div style="width:32px"></div>
+  </div>
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
   <div class="layout">
-    <div class="sidebar">
+    <div class="sidebar" id="sidebarEl">
       <div class="sidebar__brand">
         <div class="sidebar__logo">EM</div>
         <div>
@@ -284,6 +373,7 @@
       <button class="navitem" onclick="emConstrucao()"><span class="ic">🛵</span> PWA do Motoboy</button>
 
       <div class="sidebar__footer">
+        <button class="install-btn" id="installBtnApp" onclick="installApp()">⬇ Instalar aplicativo</button>
         <div class="admin-badge">
           <div class="admin-badge__row"><span class="admin-badge__dot"></span> <span id="userNome">—</span></div>
           <span class="admin-badge__role" id="userRole">—</span>
@@ -851,6 +941,7 @@
     document.getElementById('userNome').textContent = userRow.nome;
     document.getElementById('userRole').textContent = userRow.role.toUpperCase();
     document.getElementById('restauranteNome').textContent = userRow.restaurantes?.nome || 'EAF Menu';
+    document.getElementById('mobileRestauranteNome').textContent = userRow.restaurantes?.nome || 'EAF Menu';
 
     // Financeiro e Gestão de Equipe só aparecem pra Dono/Gerente
     if (userRow.role === 'dono' || userRow.role === 'gerente') {
@@ -894,9 +985,23 @@
     if (view === 'entregadores') loadEntregadores();
     if (view === 'equipe') loadEquipe();
     if (view === 'marca') loadMarca();
+
+    closeDrawer();
   }
 
   function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  // =====================================================================
+  // MENU GAVETA (mobile)
+  // =====================================================================
+  function openDrawer() {
+    document.getElementById('sidebarEl').classList.add('open');
+    document.getElementById('drawerOverlay').classList.add('show');
+  }
+  function closeDrawer() {
+    document.getElementById('sidebarEl').classList.remove('open');
+    document.getElementById('drawerOverlay').classList.remove('show');
+  }
 
   function emConstrucao() { showToast('Em construção', 'Essa tela ainda não foi implementada nesta versão.'); }
 
@@ -1229,10 +1334,10 @@
     }
     tbody.innerHTML = categoriasCache.map(c => `
       <tr>
-        <td><b>${c.nome}</b></td>
-        <td>${c.ordem}</td>
-        <td>${contagem[c.id] || 0} produto(s)</td>
-        <td>
+        <td data-label="Nome"><b>${c.nome}</b></td>
+        <td data-label="Ordem">${c.ordem}</td>
+        <td data-label="Produtos">${contagem[c.id] || 0} produto(s)</td>
+        <td data-label="Ações">
           <div class="row-actions">
             <button onclick='openCategoria(${JSON.stringify(c)})'>Editar</button>
             <button class="danger" onclick="deleteCategoria('${c.id}', ${contagem[c.id] || 0})">Excluir</button>
@@ -1356,16 +1461,16 @@
 
       return `
         <tr>
-          <td>
+          <td data-label="Produto">
             <div class="prod-row-name">
               <div class="prod-thumb">${thumb}</div>
               <div class="prod-name-text"><b>${p.nome}</b>${p.descricao ? `<span>${p.descricao}</span>` : ''}</div>
             </div>
           </td>
-          <td>${p.categorias?.nome || 'Sem categoria'}</td>
-          <td>${precoHtml}</td>
-          <td><span class="status-pill ${p.ativo ? 'ativo' : 'inativo'}">${p.ativo ? 'Ativo' : 'Inativo'}</span></td>
-          <td>
+          <td data-label="Categoria">${p.categorias?.nome || 'Sem categoria'}</td>
+          <td data-label="Preço">${precoHtml}</td>
+          <td data-label="Status"><span class="status-pill ${p.ativo ? 'ativo' : 'inativo'}">${p.ativo ? 'Ativo' : 'Inativo'}</span></td>
+          <td data-label="Ações">
             <div class="row-actions">
               <button onclick="editProduto('${p.id}')">Editar</button>
               <button onclick="toggleProdutoAtivo('${p.id}', ${p.ativo})">${p.ativo ? 'Ocultar' : 'Reativar'}</button>
@@ -1651,12 +1756,12 @@
     }
     tbody.innerHTML = filtrados.map(c => `
       <tr>
-        <td><b>${c.nome}</b></td>
-        <td>${c.telefone || '—'}</td>
-        <td>${c.stats.qtd}</td>
-        <td>${formatMoeda(c.stats.total)}</td>
-        <td>${c.stats.ultimo ? formatData(c.stats.ultimo) : '—'}</td>
-        <td><div class="row-actions"><button onclick='openClienteEdit(${JSON.stringify({ id: c.id, nome: c.nome, telefone: c.telefone })})'>Editar</button></div></td>
+        <td data-label="Nome"><b>${c.nome}</b></td>
+        <td data-label="Telefone">${c.telefone || '—'}</td>
+        <td data-label="Pedidos">${c.stats.qtd}</td>
+        <td data-label="Total gasto">${formatMoeda(c.stats.total)}</td>
+        <td data-label="Último pedido">${c.stats.ultimo ? formatData(c.stats.ultimo) : '—'}</td>
+        <td data-label="Ações"><div class="row-actions"><button onclick='openClienteEdit(${JSON.stringify({ id: c.id, nome: c.nome, telefone: c.telefone })})'>Editar</button></div></td>
       </tr>`).join('');
   }
 
@@ -1704,11 +1809,11 @@
     }
     tbody.innerHTML = entregadoresCache.map(e => `
       <tr>
-        <td><b>${e.nome}</b></td>
-        <td>${e.telefone || '—'}</td>
-        <td>${VEICULO_LABEL[e.veiculo] || e.veiculo || '—'}${e.placa ? ' · ' + e.placa : ''}</td>
-        <td><span class="status-pill ${e.ativo ? 'ativo' : 'inativo'}">${e.ativo ? 'Ativo' : 'Inativo'}</span></td>
-        <td>
+        <td data-label="Nome"><b>${e.nome}</b></td>
+        <td data-label="Telefone">${e.telefone || '—'}</td>
+        <td data-label="Veículo">${VEICULO_LABEL[e.veiculo] || e.veiculo || '—'}${e.placa ? ' · ' + e.placa : ''}</td>
+        <td data-label="Status"><span class="status-pill ${e.ativo ? 'ativo' : 'inativo'}">${e.ativo ? 'Ativo' : 'Inativo'}</span></td>
+        <td data-label="Ações">
           <div class="row-actions">
             <button onclick='openEntregador(${JSON.stringify(e)})'>Editar</button>
             <button onclick="toggleEntregadorAtivo('${e.id}', ${e.ativo})">${e.ativo ? 'Desativar' : 'Reativar'}</button>
@@ -1785,10 +1890,10 @@
     } else {
       tbody.innerHTML = equipeCache.map(u => `
         <tr>
-          <td><b>${u.nome}</b></td>
-          <td>${u.email || '—'}</td>
-          <td><span class="status-pill ativo">${ROLE_LABEL[u.role] || u.role}</span></td>
-          <td>
+          <td data-label="Nome"><b>${u.nome}</b></td>
+          <td data-label="E-mail">${u.email || '—'}</td>
+          <td data-label="Cargo"><span class="status-pill ativo">${ROLE_LABEL[u.role] || u.role}</span></td>
+          <td data-label="Ações">
             <div class="row-actions">
               <select onchange="mudarRole('${u.id}', this.value)" style="border:1px solid var(--border); border-radius:7px; padding:5px 8px; font-size:11.5px;" ${u.id === currentUser.id ? 'disabled' : ''}>
                 ${Object.keys(ROLE_LABEL).map(r => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}
@@ -1805,10 +1910,10 @@
     } else {
       tbodyConv.innerHTML = convitesCache.map(c => `
         <tr>
-          <td><b>${c.nome}</b></td>
-          <td>${c.email}</td>
-          <td><span class="status-pill inativo">${ROLE_LABEL[c.role] || c.role}</span></td>
-          <td><div class="row-actions"><button class="danger" onclick="cancelarConvite('${c.id}')">Cancelar convite</button></div></td>
+          <td data-label="Nome"><b>${c.nome}</b></td>
+          <td data-label="E-mail">${c.email}</td>
+          <td data-label="Cargo"><span class="status-pill inativo">${ROLE_LABEL[c.role] || c.role}</span></td>
+          <td data-label="Ações"><div class="row-actions"><button class="danger" onclick="cancelarConvite('${c.id}')">Cancelar convite</button></div></td>
         </tr>`).join('');
     }
   }
@@ -1967,6 +2072,42 @@
     t.classList.add('show');
     clearTimeout(t._timer);
     t._timer = setTimeout(() => t.classList.remove('show'), 3600);
+  }
+
+  // =====================================================================
+  // PWA — INSTALAÇÃO E SERVICE WORKER
+  // =====================================================================
+  let deferredInstallPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    document.getElementById('installBtnLogin')?.classList.add('show');
+    document.getElementById('installBtnApp')?.classList.add('show');
+  });
+
+  async function installApp() {
+    if (!deferredInstallPrompt) {
+      showToast('Instalação', 'Use o menu do navegador (⋮ ou Compartilhar) e escolha "Adicionar à tela inicial".');
+      return;
+    }
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    document.getElementById('installBtnLogin')?.classList.remove('show');
+    document.getElementById('installBtnApp')?.classList.remove('show');
+    if (outcome === 'accepted') showToast('App instalado', 'O EAF Menu já está na sua tela inicial.');
+  }
+
+  window.addEventListener('appinstalled', () => {
+    document.getElementById('installBtnLogin')?.classList.remove('show');
+    document.getElementById('installBtnApp')?.classList.remove('show');
+  });
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch((err) => console.warn('SW falhou:', err));
+    });
   }
 
   // =====================================================================
