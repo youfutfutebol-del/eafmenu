@@ -259,10 +259,10 @@
       <button class="navitem" id="navFinanceiro" onclick="switchView('financeiro')" style="display:none"><span class="ic">💲</span> Painel Financeiro</button>
       <button class="navitem" id="navProdutos" onclick="switchView('produtos')"><span class="ic">🛍️</span> Produtos</button>
       <button class="navitem" id="navCategorias" onclick="switchView('categorias')"><span class="ic">🗂️</span> Categorias</button>
-      <button class="navitem" onclick="emConstrucao()"><span class="ic">👥</span> Clientes</button>
-      <button class="navitem" onclick="emConstrucao()"><span class="ic">🚚</span> Entregadores (Motoboys)</button>
-      <button class="navitem" onclick="emConstrucao()"><span class="ic">🛡️</span> Gestão de Equipe</button>
-      <button class="navitem" onclick="emConstrucao()"><span class="ic">⚙️</span> Personalizar Marca</button>
+      <button class="navitem" id="navClientes" onclick="switchView('clientes')"><span class="ic">👥</span> Clientes</button>
+      <button class="navitem" id="navEntregadores" onclick="switchView('entregadores')"><span class="ic">🚚</span> Entregadores (Motoboys)</button>
+      <button class="navitem" id="navEquipe" onclick="switchView('equipe')" style="display:none"><span class="ic">🛡️</span> Gestão de Equipe</button>
+      <button class="navitem" id="navMarca" onclick="switchView('marca')" style="display:none"><span class="ic">⚙️</span> Personalizar Marca</button>
 
       <div class="sidebar__divider"></div>
       <div class="sidebar__section-label">Acessar PWAs</div>
@@ -408,6 +408,107 @@
         </table>
       </div>
 
+      <!-- ==================== VIEW: CLIENTES ==================== -->
+      <div class="view" id="viewClientes">
+        <div class="main__header">
+          <div>
+            <h1 class="main__title">Clientes</h1>
+            <p class="main__subtitle">Base de clientes formada automaticamente a partir dos pedidos</p>
+          </div>
+          <div class="actions">
+            <input id="clienteBusca" placeholder="Buscar por nome ou telefone..." oninput="renderClientesTable()" style="padding:9px 12px; border:1px solid var(--border); border-radius:9px; font-size:12.5px; min-width:220px;">
+          </div>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr><th>Nome</th><th>Telefone</th><th>Pedidos</th><th>Total gasto</th><th>Último pedido</th><th>Ações</th></tr>
+          </thead>
+          <tbody id="clientesTableBody">
+            <tr><td colspan="6"><div class="empty-state"><div class="ic">👥</div><h4>Nenhum cliente cadastrado ainda</h4><p>Clientes aparecem aqui assim que fazem o primeiro pedido.</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ==================== VIEW: ENTREGADORES ==================== -->
+      <div class="view" id="viewEntregadores">
+        <div class="main__header">
+          <div>
+            <h1 class="main__title">Entregadores (Motoboys)</h1>
+            <p class="main__subtitle">Cadastre a equipe de entrega do restaurante</p>
+          </div>
+          <div class="actions">
+            <button class="btn primary" onclick="openEntregador()">+ Novo Entregador</button>
+          </div>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr><th>Nome</th><th>Telefone</th><th>Veículo</th><th>Status</th><th>Ações</th></tr>
+          </thead>
+          <tbody id="entregadoresTableBody">
+            <tr><td colspan="5"><div class="empty-state"><div class="ic">🚚</div><h4>Nenhum entregador cadastrado</h4></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ==================== VIEW: GESTÃO DE EQUIPE ==================== -->
+      <div class="view" id="viewEquipe">
+        <div class="main__header">
+          <div>
+            <h1 class="main__title">Gestão de Equipe</h1>
+            <p class="main__subtitle">Convide colaboradores e gerencie os cargos de acesso ao painel</p>
+          </div>
+          <div class="actions">
+            <button class="btn primary" onclick="openMembro()">+ Convidar Membro</button>
+          </div>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr><th>Nome</th><th>E-mail</th><th>Cargo</th><th>Ações</th></tr>
+          </thead>
+          <tbody id="equipeTableBody">
+            <tr><td colspan="4"><div class="empty-state"><div class="ic">🛡️</div><h4>Nenhum membro cadastrado</h4></div></td></tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top:22px;">
+          <p class="main__subtitle" style="margin-bottom:10px; font-weight:800; color:var(--ink); font-size:13px;">Convites pendentes</p>
+          <table class="data-table">
+            <thead>
+              <tr><th>Nome</th><th>E-mail</th><th>Cargo</th><th>Ações</th></tr>
+            </thead>
+            <tbody id="convitesTableBody">
+              <tr><td colspan="4"><div class="empty-state"><div class="ic">✉️</div><h4>Nenhum convite pendente</h4></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ==================== VIEW: PERSONALIZAR MARCA ==================== -->
+      <div class="view" id="viewMarca">
+        <div class="main__header">
+          <div>
+            <h1 class="main__title">Personalizar Marca</h1>
+            <p class="main__subtitle">Identidade visual e dados de contato usados no cardápio público</p>
+          </div>
+        </div>
+
+        <div style="background:#fff; border:1px solid var(--border); border-radius:12px; padding:22px 24px; max-width:520px;">
+          <div class="field"><label>Nome do restaurante</label><input id="mkNome" placeholder="Ex: EAF Menu"></div>
+          <div class="field"><label>URL do logo</label><input id="mkLogoUrl" placeholder="https://..."></div>
+          <div class="field"><label>Cor de destaque</label><input id="mkCor" type="color" style="height:40px; padding:4px;"></div>
+          <div class="field"><label>WhatsApp de contato</label><input id="mkWhatsapp" placeholder="(41) 9...."></div>
+          <div class="field"><label>Endereço</label><input id="mkEndereco" placeholder="Rua, número, bairro, cidade"></div>
+          <div class="field"><label>Instagram</label><input id="mkInstagram" placeholder="@seurestaurante"></div>
+          <div class="field"><label>Horário de funcionamento</label><input id="mkHorario" placeholder="Ex: Ter a Dom, 18h às 23h"></div>
+          <div class="modal-actions" style="margin-top:6px;">
+            <button class="btn primary" onclick="submitMarca()" style="flex:none; padding:10px 20px;">Salvar alterações</button>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -513,6 +614,70 @@
   </div>
 </div>
 
+<!-- ==================== MODAL: entregador ==================== -->
+<div class="modal-bg" id="entregadorModalBg">
+  <div class="modal">
+    <h3 id="entregadorModalTitle">Novo entregador</h3>
+    <input type="hidden" id="entId">
+    <div class="field"><label>Nome</label><input id="entNome" placeholder="Ex: João Silva"></div>
+    <div class="field"><label>Telefone</label><input id="entTelefone" placeholder="(41) 9...."></div>
+    <div class="field"><label>Veículo</label>
+      <select id="entVeiculo">
+        <option value="moto">Moto</option>
+        <option value="bike">Bicicleta</option>
+        <option value="carro">Carro</option>
+        <option value="a_pe">A pé</option>
+      </select>
+    </div>
+    <div class="field"><label>Placa (opcional)</label><input id="entPlaca" placeholder="ABC-1234"></div>
+    <div class="field">
+      <label style="display:flex; align-items:center; gap:8px; font-weight:600; color:var(--ink);">
+        <input type="checkbox" id="entAtivo" checked style="width:auto;"> Entregador ativo
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeEntregador()">Cancelar</button>
+      <button class="btn primary" onclick="submitEntregador()">Salvar entregador</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: convidar membro da equipe ==================== -->
+<div class="modal-bg" id="membroModalBg">
+  <div class="modal">
+    <h3>Convidar membro da equipe</h3>
+    <div class="field"><label>Nome</label><input id="mbNome" placeholder="Nome completo"></div>
+    <div class="field"><label>E-mail</label><input id="mbEmail" type="email" placeholder="email@exemplo.com"></div>
+    <div class="field"><label>Cargo</label>
+      <select id="mbRole">
+        <option value="gerente">Gerente</option>
+        <option value="atendente">Atendente</option>
+        <option value="cozinha">Cozinha</option>
+        <option value="dono">Dono</option>
+      </select>
+    </div>
+    <p style="font-size:11.5px; color:var(--muted); margin:-4px 0 12px;">A pessoa receberá acesso assim que fizer login pela primeira vez com esse e-mail.</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeMembro()">Cancelar</button>
+      <button class="btn primary" onclick="submitMembro()">Enviar convite</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: editar cliente ==================== -->
+<div class="modal-bg" id="clienteModalBg">
+  <div class="modal">
+    <h3>Editar cliente</h3>
+    <input type="hidden" id="cliId">
+    <div class="field"><label>Nome</label><input id="cliNome"></div>
+    <div class="field"><label>Telefone</label><input id="cliTelefone"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeClienteEdit()">Cancelar</button>
+      <button class="btn primary" onclick="submitClienteEdit()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
 <script>
@@ -558,6 +723,11 @@
   let produtosAdminCache = [];
   let tipoPrecoAtual = 'unico';
   let camposTamanhoAtivos = []; // [{id, nome}] do grupo selecionado (existente ou recém-criado)
+
+  let clientesCache = [];
+  let entregadoresCache = [];
+  let equipeCache = [];
+  let convitesCache = [];
 
   // =====================================================================
   // LOGIN (OTP por e-mail)
@@ -605,11 +775,38 @@
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return; // fica na tela de login
 
-    const { data: userRow, error: userErr } = await sb
+    let { data: userRow, error: userErr } = await sb
       .from('usuarios')
-      .select('id, nome, role, restaurante_id, restaurantes(nome)')
+      .select('id, nome, email, role, restaurante_id, restaurantes(nome)')
       .eq('id', session.user.id)
       .single();
+
+    // se ainda não existe cadastro pelo id, verifica se há um convite pendente para esse e-mail
+    if ((userErr || !userRow) && session.user.email) {
+      const { data: convite } = await sb.from('convites_equipe')
+        .select('id, nome, role, restaurante_id')
+        .eq('email', session.user.email)
+        .maybeSingle();
+
+      if (convite) {
+        const { data: novoUsuario, error: criaErr } = await sb.from('usuarios')
+          .insert({
+            id: session.user.id,
+            nome: convite.nome,
+            email: session.user.email,
+            role: convite.role,
+            restaurante_id: convite.restaurante_id
+          })
+          .select('id, nome, email, role, restaurante_id, restaurantes(nome)')
+          .single();
+
+        if (!criaErr) {
+          userRow = novoUsuario;
+          userErr = null;
+          await sb.from('convites_equipe').delete().eq('id', convite.id);
+        }
+      }
+    }
 
     if (userErr || !userRow) {
       setLoginMsg('Este e-mail não está cadastrado como equipe de nenhum restaurante.', true);
@@ -626,9 +823,14 @@
     document.getElementById('userRole').textContent = userRow.role.toUpperCase();
     document.getElementById('restauranteNome').textContent = userRow.restaurantes?.nome || 'EAF Menu';
 
-    // Financeiro só aparece pra Dono/Gerente
+    // Financeiro e Gestão de Equipe só aparecem pra Dono/Gerente
     if (userRow.role === 'dono' || userRow.role === 'gerente') {
       document.getElementById('navFinanceiro').style.display = 'flex';
+      document.getElementById('navEquipe').style.display = 'flex';
+    }
+    // Personalizar Marca só aparece pro Dono
+    if (userRow.role === 'dono') {
+      document.getElementById('navMarca').style.display = 'flex';
     }
 
     await loadProdutos();
@@ -644,21 +846,28 @@
   function switchView(view) {
     // trava dupla: mesmo que alguém force o clique via console, sem permissão não carrega nada
     if (view === 'financeiro' && !(currentUser?.role === 'dono' || currentUser?.role === 'gerente')) return;
+    if (view === 'equipe' && !(currentUser?.role === 'dono' || currentUser?.role === 'gerente')) return;
+    if (view === 'marca' && currentUser?.role !== 'dono') return;
 
     currentView = view;
-    document.getElementById('viewPedidos').classList.toggle('active', view === 'pedidos');
-    document.getElementById('viewFinanceiro').classList.toggle('active', view === 'financeiro');
-    document.getElementById('viewProdutos').classList.toggle('active', view === 'produtos');
-    document.getElementById('viewCategorias').classList.toggle('active', view === 'categorias');
-    document.getElementById('navPedidos').classList.toggle('active', view === 'pedidos');
-    document.getElementById('navFinanceiro').classList.toggle('active', view === 'financeiro');
-    document.getElementById('navProdutos').classList.toggle('active', view === 'produtos');
-    document.getElementById('navCategorias').classList.toggle('active', view === 'categorias');
+    const views = ['pedidos', 'financeiro', 'produtos', 'categorias', 'clientes', 'entregadores', 'equipe', 'marca'];
+    views.forEach(v => {
+      const viewEl = document.getElementById('view' + capitalize(v));
+      if (viewEl) viewEl.classList.toggle('active', view === v);
+      const navEl = document.getElementById('nav' + capitalize(v));
+      if (navEl) navEl.classList.toggle('active', view === v);
+    });
 
     if (view === 'financeiro') loadMovimentacoes();
     if (view === 'produtos') loadProdutosAdmin();
     if (view === 'categorias') loadCategoriasAdmin();
+    if (view === 'clientes') loadClientes();
+    if (view === 'entregadores') loadEntregadores();
+    if (view === 'equipe') loadEquipe();
+    if (view === 'marca') loadMarca();
   }
+
+  function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
   function emConstrucao() { showToast('Em construção', 'Essa tela ainda não foi implementada nesta versão.'); }
 
@@ -1303,6 +1512,297 @@
     showToast('Produto salvo', nome);
     await loadProdutosAdmin();
     await loadProdutos(); // atualiza o cardápio do pedido manual também
+  }
+
+  // =====================================================================
+  // CLIENTES
+  // =====================================================================
+  async function loadClientes() {
+    const { data: clientes, error } = await sb.from('clientes')
+      .select('id, nome, telefone')
+      .eq('restaurante_id', restauranteId)
+      .order('nome', { ascending: true });
+    if (error) { showToast('Erro ao carregar clientes', error.message); return; }
+
+    const { data: pedidosCliente } = await sb.from('pedidos')
+      .select('cliente_id, total, criado_em')
+      .eq('restaurante_id', restauranteId);
+
+    const stats = {};
+    (pedidosCliente || []).forEach(p => {
+      if (!p.cliente_id) return;
+      if (!stats[p.cliente_id]) stats[p.cliente_id] = { qtd: 0, total: 0, ultimo: null };
+      stats[p.cliente_id].qtd += 1;
+      stats[p.cliente_id].total += Number(p.total);
+      if (!stats[p.cliente_id].ultimo || new Date(p.criado_em) > new Date(stats[p.cliente_id].ultimo)) {
+        stats[p.cliente_id].ultimo = p.criado_em;
+      }
+    });
+
+    clientesCache = (clientes || []).map(c => ({ ...c, stats: stats[c.id] || { qtd: 0, total: 0, ultimo: null } }));
+    renderClientesTable();
+  }
+
+  function renderClientesTable() {
+    const busca = (document.getElementById('clienteBusca')?.value || '').trim().toLowerCase();
+    const filtrados = clientesCache.filter(c =>
+      !busca || c.nome.toLowerCase().includes(busca) || (c.telefone || '').includes(busca)
+    );
+
+    const tbody = document.getElementById('clientesTableBody');
+    if (filtrados.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="ic">👥</div><h4>Nenhum cliente encontrado</h4></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = filtrados.map(c => `
+      <tr>
+        <td><b>${c.nome}</b></td>
+        <td>${c.telefone || '—'}</td>
+        <td>${c.stats.qtd}</td>
+        <td>${formatMoeda(c.stats.total)}</td>
+        <td>${c.stats.ultimo ? formatData(c.stats.ultimo) : '—'}</td>
+        <td><div class="row-actions"><button onclick='openClienteEdit(${JSON.stringify({ id: c.id, nome: c.nome, telefone: c.telefone })})'>Editar</button></div></td>
+      </tr>`).join('');
+  }
+
+  function openClienteEdit(c) {
+    document.getElementById('cliId').value = c.id;
+    document.getElementById('cliNome').value = c.nome || '';
+    document.getElementById('cliTelefone').value = c.telefone || '';
+    document.getElementById('clienteModalBg').classList.add('show');
+  }
+  function closeClienteEdit() { document.getElementById('clienteModalBg').classList.remove('show'); }
+
+  async function submitClienteEdit() {
+    const id = document.getElementById('cliId').value;
+    const nome = document.getElementById('cliNome').value.trim();
+    const telefone = document.getElementById('cliTelefone').value.trim();
+    if (!nome) { showToast('Faltou o nome', 'Informe o nome do cliente.'); return; }
+
+    const { error } = await sb.from('clientes').update({ nome, telefone }).eq('id', id);
+    if (error) { showToast('Erro ao salvar', error.message); return; }
+    closeClienteEdit();
+    showToast('Cliente atualizado', nome);
+    await loadClientes();
+  }
+
+  // =====================================================================
+  // ENTREGADORES (MOTOBOYS)
+  // =====================================================================
+  async function loadEntregadores() {
+    const { data, error } = await sb.from('entregadores')
+      .select('id, nome, telefone, veiculo, placa, ativo')
+      .eq('restaurante_id', restauranteId)
+      .order('nome', { ascending: true });
+    if (error) { showToast('Erro ao carregar entregadores', error.message); return; }
+    entregadoresCache = data || [];
+    renderEntregadoresTable();
+  }
+
+  const VEICULO_LABEL = { moto: 'Moto', bike: 'Bicicleta', carro: 'Carro', a_pe: 'A pé' };
+
+  function renderEntregadoresTable() {
+    const tbody = document.getElementById('entregadoresTableBody');
+    if (entregadoresCache.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="ic">🚚</div><h4>Nenhum entregador cadastrado</h4></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = entregadoresCache.map(e => `
+      <tr>
+        <td><b>${e.nome}</b></td>
+        <td>${e.telefone || '—'}</td>
+        <td>${VEICULO_LABEL[e.veiculo] || e.veiculo || '—'}${e.placa ? ' · ' + e.placa : ''}</td>
+        <td><span class="status-pill ${e.ativo ? 'ativo' : 'inativo'}">${e.ativo ? 'Ativo' : 'Inativo'}</span></td>
+        <td>
+          <div class="row-actions">
+            <button onclick='openEntregador(${JSON.stringify(e)})'>Editar</button>
+            <button onclick="toggleEntregadorAtivo('${e.id}', ${e.ativo})">${e.ativo ? 'Desativar' : 'Reativar'}</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  }
+
+  function openEntregador(e) {
+    document.getElementById('entregadorModalTitle').textContent = e ? 'Editar entregador' : 'Novo entregador';
+    document.getElementById('entId').value = e ? e.id : '';
+    document.getElementById('entNome').value = e ? e.nome : '';
+    document.getElementById('entTelefone').value = e ? (e.telefone || '') : '';
+    document.getElementById('entVeiculo').value = e ? (e.veiculo || 'moto') : 'moto';
+    document.getElementById('entPlaca').value = e ? (e.placa || '') : '';
+    document.getElementById('entAtivo').checked = e ? e.ativo : true;
+    document.getElementById('entregadorModalBg').classList.add('show');
+  }
+  function closeEntregador() { document.getElementById('entregadorModalBg').classList.remove('show'); }
+
+  async function submitEntregador() {
+    const id = document.getElementById('entId').value || null;
+    const nome = document.getElementById('entNome').value.trim();
+    if (!nome) { showToast('Faltou o nome', 'Informe o nome do entregador.'); return; }
+    const payload = {
+      nome,
+      telefone: document.getElementById('entTelefone').value.trim() || null,
+      veiculo: document.getElementById('entVeiculo').value,
+      placa: document.getElementById('entPlaca').value.trim() || null,
+      ativo: document.getElementById('entAtivo').checked,
+      restaurante_id: restauranteId
+    };
+    const { error } = id
+      ? await sb.from('entregadores').update(payload).eq('id', id)
+      : await sb.from('entregadores').insert(payload);
+    if (error) { showToast('Erro ao salvar', error.message); return; }
+    closeEntregador();
+    showToast('Entregador salvo', nome);
+    await loadEntregadores();
+  }
+
+  async function toggleEntregadorAtivo(id, ativoAtual) {
+    const { error } = await sb.from('entregadores').update({ ativo: !ativoAtual }).eq('id', id);
+    if (error) { showToast('Erro', error.message); return; }
+    await loadEntregadores();
+  }
+
+  // =====================================================================
+  // GESTÃO DE EQUIPE
+  // =====================================================================
+  const ROLE_LABEL = { dono: 'Dono', gerente: 'Gerente', atendente: 'Atendente', cozinha: 'Cozinha' };
+
+  async function loadEquipe() {
+    const { data: usuarios, error } = await sb.from('usuarios')
+      .select('id, nome, email, role')
+      .eq('restaurante_id', restauranteId)
+      .order('nome', { ascending: true });
+    if (error) { showToast('Erro ao carregar equipe', error.message); return; }
+    equipeCache = usuarios || [];
+
+    const { data: convites, error: convErr } = await sb.from('convites_equipe')
+      .select('id, nome, email, role')
+      .eq('restaurante_id', restauranteId)
+      .order('nome', { ascending: true });
+    if (!convErr) convitesCache = convites || [];
+
+    renderEquipeTable();
+  }
+
+  function renderEquipeTable() {
+    const tbody = document.getElementById('equipeTableBody');
+    if (equipeCache.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="ic">🛡️</div><h4>Nenhum membro cadastrado</h4></div></td></tr>`;
+    } else {
+      tbody.innerHTML = equipeCache.map(u => `
+        <tr>
+          <td><b>${u.nome}</b></td>
+          <td>${u.email || '—'}</td>
+          <td><span class="status-pill ativo">${ROLE_LABEL[u.role] || u.role}</span></td>
+          <td>
+            <div class="row-actions">
+              <select onchange="mudarRole('${u.id}', this.value)" style="border:1px solid var(--border); border-radius:7px; padding:5px 8px; font-size:11.5px;" ${u.id === currentUser.id ? 'disabled' : ''}>
+                ${Object.keys(ROLE_LABEL).map(r => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}
+              </select>
+              ${u.id === currentUser.id ? '' : `<button class="danger" onclick="removerMembro('${u.id}', '${u.nome.replace(/'/g, "\\'")}')">Remover</button>`}
+            </div>
+          </td>
+        </tr>`).join('');
+    }
+
+    const tbodyConv = document.getElementById('convitesTableBody');
+    if (convitesCache.length === 0) {
+      tbodyConv.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="ic">✉️</div><h4>Nenhum convite pendente</h4></div></td></tr>`;
+    } else {
+      tbodyConv.innerHTML = convitesCache.map(c => `
+        <tr>
+          <td><b>${c.nome}</b></td>
+          <td>${c.email}</td>
+          <td><span class="status-pill inativo">${ROLE_LABEL[c.role] || c.role}</span></td>
+          <td><div class="row-actions"><button class="danger" onclick="cancelarConvite('${c.id}')">Cancelar convite</button></div></td>
+        </tr>`).join('');
+    }
+  }
+
+  function openMembro() {
+    document.getElementById('mbNome').value = '';
+    document.getElementById('mbEmail').value = '';
+    document.getElementById('mbRole').value = 'atendente';
+    document.getElementById('membroModalBg').classList.add('show');
+  }
+  function closeMembro() { document.getElementById('membroModalBg').classList.remove('show'); }
+
+  async function submitMembro() {
+    const nome = document.getElementById('mbNome').value.trim();
+    const email = document.getElementById('mbEmail').value.trim().toLowerCase();
+    const role = document.getElementById('mbRole').value;
+    if (!nome) { showToast('Faltou o nome', 'Informe o nome do convidado.'); return; }
+    if (!email) { showToast('Faltou o e-mail', 'Informe o e-mail do convidado.'); return; }
+
+    const jaExiste = equipeCache.some(u => (u.email || '').toLowerCase() === email) ||
+                      convitesCache.some(c => c.email.toLowerCase() === email);
+    if (jaExiste) { showToast('E-mail já cadastrado', 'Esse e-mail já faz parte da equipe ou já tem convite pendente.'); return; }
+
+    const { error } = await sb.from('convites_equipe').insert({ nome, email, role, restaurante_id: restauranteId });
+    if (error) { showToast('Erro ao convidar', error.message); return; }
+    closeMembro();
+    showToast('Convite enviado', `${nome} terá acesso ao fazer login com ${email}`);
+    await loadEquipe();
+  }
+
+  async function mudarRole(id, novoRole) {
+    const { error } = await sb.from('usuarios').update({ role: novoRole }).eq('id', id);
+    if (error) { showToast('Erro ao mudar cargo', error.message); await loadEquipe(); return; }
+    showToast('Cargo atualizado', '');
+    await loadEquipe();
+  }
+
+  async function removerMembro(id, nome) {
+    if (!confirm(`Remover ${nome} da equipe? A pessoa perde o acesso ao painel.`)) return;
+    const { error } = await sb.from('usuarios').delete().eq('id', id);
+    if (error) { showToast('Erro ao remover', error.message); return; }
+    showToast('Membro removido', nome);
+    await loadEquipe();
+  }
+
+  async function cancelarConvite(id) {
+    const { error } = await sb.from('convites_equipe').delete().eq('id', id);
+    if (error) { showToast('Erro ao cancelar', error.message); return; }
+    showToast('Convite cancelado', '');
+    await loadEquipe();
+  }
+
+  // =====================================================================
+  // PERSONALIZAR MARCA
+  // =====================================================================
+  async function loadMarca() {
+    const { data, error } = await sb.from('restaurantes')
+      .select('id, nome, logo_url, cor_destaque, whatsapp, endereco, instagram, horario_funcionamento')
+      .eq('id', restauranteId)
+      .single();
+    if (error) { showToast('Erro ao carregar dados da marca', error.message); return; }
+
+    document.getElementById('mkNome').value = data.nome || '';
+    document.getElementById('mkLogoUrl').value = data.logo_url || '';
+    document.getElementById('mkCor').value = data.cor_destaque || '#E5342A';
+    document.getElementById('mkWhatsapp').value = data.whatsapp || '';
+    document.getElementById('mkEndereco').value = data.endereco || '';
+    document.getElementById('mkInstagram').value = data.instagram || '';
+    document.getElementById('mkHorario').value = data.horario_funcionamento || '';
+  }
+
+  async function submitMarca() {
+    const nome = document.getElementById('mkNome').value.trim();
+    if (!nome) { showToast('Faltou o nome', 'Informe o nome do restaurante.'); return; }
+
+    const payload = {
+      nome,
+      logo_url: document.getElementById('mkLogoUrl').value.trim() || null,
+      cor_destaque: document.getElementById('mkCor').value || null,
+      whatsapp: document.getElementById('mkWhatsapp').value.trim() || null,
+      endereco: document.getElementById('mkEndereco').value.trim() || null,
+      instagram: document.getElementById('mkInstagram').value.trim() || null,
+      horario_funcionamento: document.getElementById('mkHorario').value.trim() || null
+    };
+
+    const { error } = await sb.from('restaurantes').update(payload).eq('id', restauranteId);
+    if (error) { showToast('Erro ao salvar', error.message); return; }
+    document.getElementById('restauranteNome').textContent = nome;
+    showToast('Marca atualizada', 'As alterações já valem para o cardápio público.');
   }
 
   // =====================================================================
