@@ -188,6 +188,20 @@
   .price-toggle button { flex:1; border:1px solid var(--border); background:#fff; padding:8px; border-radius:8px; font-size:12px; font-weight:700; color: var(--muted); }
   .price-toggle button.active { background: var(--ink); color:#fff; border-color: var(--ink); }
 
+  .price-tags { display:flex; flex-wrap:wrap; gap:4px; }
+  .price-tag { font-size:11px; background:#F4F4F5; color:var(--ink); padding:2px 8px; border-radius:20px; white-space:nowrap; }
+  .price-tag b { color: var(--ink); }
+
+  .novo-tamanho-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+  .novo-tamanho-row input.nome { flex:1; }
+  .novo-tamanho-row input.preco { width:100px; }
+  .novo-tamanho-row button.remove {
+    border:none; background:#F4F4F5; color:var(--muted); font-size:14px; width:30px; height:34px;
+    border-radius:7px; flex-shrink:0; line-height:1;
+  }
+  .novo-tamanho-row button.remove:hover { background:#FEE2E2; color:var(--red); }
+  .novos-tamanhos-empty { font-size:12px; color:var(--muted); margin:2px 0 8px; }
+
   /* ---------------- Modal ---------------- */
   .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:80; align-items:center; justify-content:center; }
   .modal-bg.show { display:flex; }
@@ -591,9 +605,10 @@
         </select>
 
         <div id="novoGrupoFields" style="display:none; margin-top:8px;">
-          <input id="pNovoGrupoNome" placeholder="Nome do grupo (ex: Tamanho da Pizza)" style="margin-bottom:6px;">
-          <input id="pNovoGrupoTamanhos" placeholder="Tamanhos separados por vírgula (ex: Pequena, Média, Grande)">
-          <button type="button" class="add-item-btn" onclick="gerarCamposPreco()">Gerar campos de preço</button>
+          <input id="pNovoGrupoNome" placeholder="Nome do grupo (ex: Tamanho da Pizza, Tamanho do Açaí...)" style="margin-bottom:10px;">
+          <label style="display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:6px;">Tamanhos e preços (use os nomes que fizer sentido pra você: 30cm, P, Individual, etc.)</label>
+          <div id="novosTamanhosRows"></div>
+          <button type="button" class="add-item-btn" onclick="addNovoTamanhoRow()">+ adicionar tamanho</button>
         </div>
 
         <div id="camposPrecoTamanhos" style="margin-top:10px;"></div>
@@ -735,7 +750,8 @@
   let gruposTamanhoCache = [];
   let produtosAdminCache = [];
   let tipoPrecoAtual = 'unico';
-  let camposTamanhoAtivos = []; // [{id, nome}] do grupo selecionado (existente ou recém-criado)
+  let camposTamanhoAtivos = []; // [{id, nome}] do grupo selecionado (já existente no banco)
+  let novosTamanhosState = []; // [{nome, preco}] linhas do grupo novo, ainda sem id no banco
 
   let clientesCache = [];
   let entregadoresCache = [];
@@ -1319,10 +1335,20 @@
       return;
     }
     tbody.innerHTML = produtosAdminCache.map(p => {
-      const precos = (p.produto_precos || []).filter(pp => pp.ativo).map(pp => Number(pp.preco));
-      let precoTexto = '—';
-      if (precos.length === 1) precoTexto = formatMoeda(precos[0]);
-      else if (precos.length > 1) precoTexto = `${formatMoeda(Math.min(...precos))} – ${formatMoeda(Math.max(...precos))}`;
+      const precosAtivos = (p.produto_precos || []).filter(pp => pp.ativo);
+
+      let precoHtml = '—';
+      if (precosAtivos.length === 1 && !precosAtivos[0].opcoes_tamanho) {
+        // preço único, sem tamanho
+        precoHtml = formatMoeda(precosAtivos[0].preco);
+      } else if (precosAtivos.length >= 1) {
+        // vários tamanhos: lista nome do tamanho + valor, cada um
+        precoHtml = '<div class="price-tags">' + precosAtivos
+          .slice()
+          .sort((a, b) => Number(a.preco) - Number(b.preco))
+          .map(pp => `<span class="price-tag">${pp.opcoes_tamanho?.nome || 'Único'}: <b>${formatMoeda(pp.preco)}</b></span>`)
+          .join('') + '</div>';
+      }
 
       const thumb = p.imagem_url
         ? `<img src="${p.imagem_url}" alt="">`
@@ -1337,7 +1363,7 @@
             </div>
           </td>
           <td>${p.categorias?.nome || 'Sem categoria'}</td>
-          <td>${precoTexto}</td>
+          <td>${precoHtml}</td>
           <td><span class="status-pill ${p.ativo ? 'ativo' : 'inativo'}">${p.ativo ? 'Ativo' : 'Inativo'}</span></td>
           <td>
             <div class="row-actions">
@@ -1369,23 +1395,53 @@
 
   function onGrupoTamanhoChange() {
     const val = document.getElementById('pGrupoTamanho').value;
-    document.getElementById('novoGrupoFields').style.display = val === '__novo__' ? 'block' : 'none';
     document.getElementById('camposPrecoTamanhos').innerHTML = '';
     camposTamanhoAtivos = [];
 
-    if (val && val !== '__novo__') {
-      const grupo = gruposTamanhoCache.find(g => g.id === val);
-      camposTamanhoAtivos = (grupo?.opcoes_tamanho || []).map(o => ({ id: o.id, nome: o.nome }));
-      renderCamposPreco();
+    if (val === '__novo__') {
+      document.getElementById('novoGrupoFields').style.display = 'block';
+      document.getElementById('pNovoGrupoNome').value = '';
+      novosTamanhosState = [];
+      addNovoTamanhoRow();
+      addNovoTamanhoRow();
+    } else {
+      document.getElementById('novoGrupoFields').style.display = 'none';
+      novosTamanhosState = [];
+      if (val) {
+        const grupo = gruposTamanhoCache.find(g => g.id === val);
+        camposTamanhoAtivos = (grupo?.opcoes_tamanho || []).map(o => ({ id: o.id, nome: o.nome }));
+        renderCamposPreco();
+      }
     }
   }
 
-  function gerarCamposPreco() {
-    const nomes = document.getElementById('pNovoGrupoTamanhos').value
-      .split(',').map(s => s.trim()).filter(Boolean);
-    if (nomes.length === 0) { showToast('Faltou os tamanhos', 'Digite ao menos um tamanho, separado por vírgula.'); return; }
-    camposTamanhoAtivos = nomes.map(nome => ({ id: null, nome })); // id null = ainda não existe no banco
-    renderCamposPreco();
+  // Linhas dinâmicas de "nome do tamanho + preço" para quando o usuário está criando um grupo novo
+  function addNovoTamanhoRow(nome, preco) {
+    novosTamanhosState.push({ nome: nome || '', preco: preco || '' });
+    renderNovosTamanhosRows();
+  }
+
+  function removeNovoTamanhoRow(idx) {
+    novosTamanhosState.splice(idx, 1);
+    renderNovosTamanhosRows();
+  }
+
+  function atualizarNovoTamanho(idx, campo, valor) {
+    if (novosTamanhosState[idx]) novosTamanhosState[idx][campo] = valor;
+  }
+
+  function renderNovosTamanhosRows() {
+    const wrap = document.getElementById('novosTamanhosRows');
+    if (novosTamanhosState.length === 0) {
+      wrap.innerHTML = `<p class="novos-tamanhos-empty">Nenhum tamanho ainda. Clique em "+ adicionar tamanho".</p>`;
+      return;
+    }
+    wrap.innerHTML = novosTamanhosState.map((t, i) => `
+      <div class="novo-tamanho-row">
+        <input class="nome" placeholder="Ex: 30cm" value="${t.nome}" oninput="atualizarNovoTamanho(${i}, 'nome', this.value)">
+        <input class="preco" type="number" step="0.01" min="0" placeholder="0,00" value="${t.preco}" oninput="atualizarNovoTamanho(${i}, 'preco', this.value)">
+        <button type="button" class="remove" onclick="removeNovoTamanhoRow(${i})" title="Remover">✕</button>
+      </div>`).join('');
   }
 
   function renderCamposPreco(precoExistente) {
@@ -1412,9 +1468,10 @@
     document.getElementById('pGrupoTamanho').value = '';
     document.getElementById('novoGrupoFields').style.display = 'none';
     document.getElementById('pNovoGrupoNome').value = '';
-    document.getElementById('pNovoGrupoTamanhos').value = '';
+    document.getElementById('novosTamanhosRows').innerHTML = '';
     document.getElementById('camposPrecoTamanhos').innerHTML = '';
     camposTamanhoAtivos = [];
+    novosTamanhosState = [];
     setTipoPreco('unico');
     document.getElementById('produtoModalBg').classList.add('show');
   }
@@ -1439,6 +1496,8 @@
       document.getElementById('pImagemPlaceholder').style.display = 'block';
     }
     document.getElementById('pAtivo').checked = p.ativo;
+    document.getElementById('novoGrupoFields').style.display = 'none';
+    novosTamanhosState = [];
 
     const precos = p.produto_precos || [];
     const comTamanho = precos.some(pp => pp.opcao_tamanho_id);
@@ -1484,11 +1543,17 @@
     } else {
       let grupoSelecionado = document.getElementById('pGrupoTamanho').value;
 
-      // cria o grupo novo, se for o caso, antes de salvar o produto
       if (grupoSelecionado === '__novo__') {
+        // grupo criado na hora, com os nomes e preços que o usuário definiu livremente
         const novoNome = document.getElementById('pNovoGrupoNome').value.trim();
-        if (!novoNome) { showToast('Faltou o nome do grupo', 'Dê um nome ao grupo de tamanho.'); return; }
-        if (camposTamanhoAtivos.length === 0) { showToast('Gere os campos de preço', 'Clique em "Gerar campos de preço" antes de salvar.'); return; }
+        if (!novoNome) { showToast('Faltou o nome do grupo', 'Dê um nome ao grupo de tamanho (ex: Tamanho da Pizza).'); return; }
+
+        const tamanhosValidos = novosTamanhosState
+          .map(t => ({ nome: (t.nome || '').trim(), preco: parseFloat(t.preco) }))
+          .filter(t => t.nome);
+
+        if (tamanhosValidos.length === 0) { showToast('Adicione os tamanhos', 'Clique em "+ adicionar tamanho" e preencha o nome de cada um (ex: 30cm, 35cm, 40cm).'); return; }
+        if (tamanhosValidos.some(t => !t.preco || t.preco <= 0)) { showToast('Preço inválido', 'Informe um preço maior que zero para cada tamanho.'); return; }
 
         const { data: grupo, error: grupoErr } = await sb.from('grupos_tamanho')
           .insert({ nome: novoNome, restaurante_id: restauranteId }).select().single();
@@ -1496,25 +1561,28 @@
         grupo_tamanho_id = grupo.id;
 
         const { data: opcoesInseridas, error: opcErr } = await sb.from('opcoes_tamanho')
-          .insert(camposTamanhoAtivos.map((t, i) => ({ grupo_id: grupo.id, nome: t.nome, ordem: i })))
+          .insert(tamanhosValidos.map((t, i) => ({ grupo_id: grupo.id, nome: t.nome, ordem: i })))
           .select();
         if (opcErr) { showToast('Erro ao criar tamanhos', opcErr.message); return; }
-        camposTamanhoAtivos = opcoesInseridas.map(o => ({ id: o.id, nome: o.nome }));
+
+        const opcoesOrdenadas = opcoesInseridas.slice().sort((a, b) => a.ordem - b.ordem);
+        precosParaSalvar = opcoesOrdenadas.map((o, i) => ({ opcao_tamanho_id: o.id, preco: tamanhosValidos[i].preco }));
+
         await loadGruposTamanho();
       } else if (grupoSelecionado) {
+        // grupo já existente: só edita os preços dos tamanhos que já foram definidos antes
         grupo_tamanho_id = grupoSelecionado;
+        const inputs = [...document.querySelectorAll('.precoTamanhoInput')];
+        if (inputs.length === 0) { showToast('Faltaram os preços', 'Preencha o preço de cada tamanho.'); return; }
+        precosParaSalvar = inputs.map((inp, i) => {
+          const preco = parseFloat(inp.value);
+          return { opcao_tamanho_id: camposTamanhoAtivos[i].id, preco };
+        });
+        if (precosParaSalvar.some(p => !p.preco || p.preco <= 0)) { showToast('Preço inválido', 'Todos os tamanhos precisam de um preço maior que zero.'); return; }
       } else {
         showToast('Selecione um grupo', 'Escolha ou crie um grupo de tamanho.');
         return;
       }
-
-      const inputs = [...document.querySelectorAll('.precoTamanhoInput')];
-      if (inputs.length === 0) { showToast('Faltaram os preços', 'Preencha o preço de cada tamanho.'); return; }
-      precosParaSalvar = inputs.map((inp, i) => {
-        const preco = parseFloat(inp.value);
-        return { opcao_tamanho_id: camposTamanhoAtivos[i].id, preco };
-      });
-      if (precosParaSalvar.some(p => !p.preco || p.preco <= 0)) { showToast('Preço inválido', 'Todos os tamanhos precisam de um preço maior que zero.'); return; }
     }
 
     const payload = { nome, categoria_id, grupo_tamanho_id, descricao, imagem_url, ativo, restaurante_id: restauranteId };
