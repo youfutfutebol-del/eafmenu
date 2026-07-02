@@ -558,7 +558,20 @@
       <select id="pCategoria"><option value="">Sem categoria</option></select>
     </div>
     <div class="field"><label>Descrição (opcional)</label><input id="pDescricao" placeholder="Ex: Molho, mussarela, calabresa e cebola"></div>
-    <div class="field"><label>URL da imagem (opcional)</label><input id="pImagemUrl" placeholder="https://..."></div>
+    <div class="field">
+      <label>Imagem do produto</label>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div id="pImagemThumb" style="width:56px; height:56px; border-radius:9px; background:#F4F4F5; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+          <img id="pImagemPreview" style="display:none; width:100%; height:100%; object-fit:cover;">
+          <span id="pImagemPlaceholder" style="font-size:20px;">🍕</span>
+        </div>
+        <div style="flex:1; min-width:0;">
+          <input type="file" id="pImagemArquivo" accept="image/*" onchange="onImagemProdutoSelecionada(this)">
+          <div id="pImagemStatus" style="font-size:11px; color:var(--muted); margin-top:4px;"></div>
+        </div>
+      </div>
+      <input type="hidden" id="pImagemUrl">
+    </div>
 
     <div class="field">
       <label>Preço</label>
@@ -1390,6 +1403,10 @@
     document.getElementById('pCategoria').value = '';
     document.getElementById('pDescricao').value = '';
     document.getElementById('pImagemUrl').value = '';
+    document.getElementById('pImagemArquivo').value = '';
+    document.getElementById('pImagemPreview').style.display = 'none';
+    document.getElementById('pImagemPlaceholder').style.display = 'block';
+    document.getElementById('pImagemStatus').textContent = '';
     document.getElementById('pAtivo').checked = true;
     document.getElementById('pPrecoUnico').value = '';
     document.getElementById('pGrupoTamanho').value = '';
@@ -1411,6 +1428,16 @@
     document.getElementById('pCategoria').value = p.categoria_id || '';
     document.getElementById('pDescricao').value = p.descricao || '';
     document.getElementById('pImagemUrl').value = p.imagem_url || '';
+    document.getElementById('pImagemArquivo').value = '';
+    document.getElementById('pImagemStatus').textContent = '';
+    if (p.imagem_url) {
+      document.getElementById('pImagemPreview').src = p.imagem_url;
+      document.getElementById('pImagemPreview').style.display = 'block';
+      document.getElementById('pImagemPlaceholder').style.display = 'none';
+    } else {
+      document.getElementById('pImagemPreview').style.display = 'none';
+      document.getElementById('pImagemPlaceholder').style.display = 'block';
+    }
     document.getElementById('pAtivo').checked = p.ativo;
 
     const precos = p.produto_precos || [];
@@ -1803,6 +1830,41 @@
     if (error) { showToast('Erro ao salvar', error.message); return; }
     document.getElementById('restauranteNome').textContent = nome;
     showToast('Marca atualizada', 'As alterações já valem para o cardápio público.');
+  }
+
+  // =====================================================================
+  // UPLOAD DE IMAGEM (Supabase Storage)
+  // =====================================================================
+  async function uploadImagem(file, pasta) {
+    const extensao = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const nomeArquivo = `${restauranteId}/${pasta}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${extensao}`;
+    const { error } = await sb.storage.from('imagens').upload(nomeArquivo, file, {
+      upsert: false,
+      contentType: file.type
+    });
+    if (error) { showToast('Erro ao enviar imagem', error.message); return null; }
+    const { data } = sb.storage.from('imagens').getPublicUrl(nomeArquivo);
+    return data.publicUrl;
+  }
+
+  async function onImagemProdutoSelecionada(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { showToast('Arquivo inválido', 'Selecione um arquivo de imagem.'); return; }
+    if (file.size > 5 * 1024 * 1024) { showToast('Imagem muito grande', 'Escolha uma imagem de até 5MB.'); return; }
+
+    document.getElementById('pImagemPreview').src = URL.createObjectURL(file);
+    document.getElementById('pImagemPreview').style.display = 'block';
+    document.getElementById('pImagemPlaceholder').style.display = 'none';
+    document.getElementById('pImagemStatus').textContent = 'Enviando imagem...';
+
+    const url = await uploadImagem(file, 'produtos');
+    if (url) {
+      document.getElementById('pImagemUrl').value = url;
+      document.getElementById('pImagemStatus').textContent = 'Imagem enviada ✓';
+    } else {
+      document.getElementById('pImagemStatus').textContent = 'Falha no envio, tente novamente.';
+    }
   }
 
   // =====================================================================
