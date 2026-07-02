@@ -1,16 +1,14 @@
 // EAF Menu — Service Worker
-// Estratégia simples: cache do "app shell" (o próprio painel.html + ícones),
+// Estratégia simples: cache do "app shell" (o próprio index.html + ícones),
 // sempre tentando a rede primeiro para os dados (Supabase), e caindo pro
 // cache só quando estiver offline. Isso evita mostrar pedidos desatualizados.
 
 const CACHE_NAME = 'eaf-menu-cache-v1';
 const APP_SHELL = [
-  '/painel.html',
+  '/index.html',
   '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/icon-maskable-192.png',
-  '/icons/icon-maskable-512.png'
+  '/icons/icon192.png',
+  '/icons/icon512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -47,6 +45,6 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match('/painel.html')))
+      .catch(() => caches.match(request).then((cached) => cached || caches.match('/index.html')))
   );
 });
