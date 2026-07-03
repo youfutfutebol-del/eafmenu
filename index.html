@@ -31,74 +31,46 @@
   body { margin:0; background: var(--bg); color: var(--ink); }
   button { font-family: inherit; cursor: pointer; }
   input, select { font-family: inherit; }
-
-  #loginScreen {
-    min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--sidebar);
-  }
-  .login-card {
-    background:#fff; border-radius:14px; padding: 34px 30px; width: 340px; text-align:center;
-  }
-  .login-card .badge {
-    width:42px; height:42px; background:var(--red); border-radius:10px; margin: 0 auto 14px;
-    display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:15px;
-  }
+  #loginScreen { min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--sidebar); }
+  .login-card { background:#fff; border-radius:14px; padding: 34px 30px; width: 340px; text-align:center; }
+  .login-card .badge { width:42px; height:42px; background:var(--red); border-radius:10px; margin: 0 auto 14px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:15px; }
   .login-card h2 { margin: 0 0 4px; font-size:17px; }
   .login-card p { margin:0 0 20px; font-size:12.5px; color:var(--muted); }
-  .login-card input {
-    width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:13.5px; margin-bottom:10px;
-  }
-  .login-card button.primary {
-    width:100%; background: var(--red); color:#fff; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:13.5px;
-  }
+  .login-card input { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:13.5px; margin-bottom:10px; }
+  .login-card button.primary { width:100%; background: var(--red); color:#fff; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:13.5px; }
   .login-card button.primary:disabled { opacity:.5; }
   .login-msg { font-size:12px; margin-top:12px; color: var(--muted); min-height:16px; }
   .login-msg.error { color: var(--red); }
-
   #app { display:none; min-height:100vh; }
   .layout { display:flex; min-height:100vh; }
-
-  .sidebar {
-    width: 240px; background: var(--sidebar); color:#fff; flex-shrink:0;
-    display:flex; flex-direction:column; padding: 18px 14px;
-  }
+  .sidebar { width: 240px; background: var(--sidebar); color:#fff; flex-shrink:0; display:flex; flex-direction:column; padding: 18px 14px; }
   .sidebar__brand { display:flex; align-items:center; gap:10px; padding: 4px 8px 20px; }
   .sidebar__logo { width:34px; height:34px; background:var(--red); border-radius:9px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; }
   .sidebar__title { font-weight:800; font-size:14.5px; line-height:1.2; }
   .sidebar__subtitle { font-size:11px; color:#9C9CA3; }
-
-  .navitem {
-    display:flex; align-items:center; gap:10px; padding: 10px 10px; border-radius:9px;
-    font-size:13px; font-weight:600; color:#D4D4D8; margin-bottom:2px; border:none; background:transparent;
-    width:100%; text-align:left;
-  }
+  .navitem { display:flex; align-items:center; gap:10px; padding: 10px 10px; border-radius:9px; font-size:13px; font-weight:600; color:#D4D4D8; margin-bottom:2px; border:none; background:transparent; width:100%; text-align:left; }
   .navitem:hover { background: var(--sidebar-hover); }
   .navitem.active { background: var(--red); color:#fff; }
   .navitem .ic { width:16px; text-align:center; }
-
   .sidebar__divider { height:1px; background:#2C2C2C; margin:14px 0; }
   .sidebar__section-label { font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:#77777D; padding: 0 10px 6px; }
-
   .sidebar__footer { margin-top:auto; }
   .admin-badge { background:#202020; border-radius:9px; padding:10px; margin-bottom:10px; }
   .admin-badge__row { display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; }
   .admin-badge__dot { width:7px; height:7px; border-radius:50%; background: var(--green); }
   .admin-badge__role { display:inline-block; margin-top:6px; background: var(--red); color:#fff; font-size:9.5px; font-weight:800; padding:2px 7px; border-radius:5px; letter-spacing:.03em; }
-
   .sound-toggle { display:flex; align-items:center; justify-content:space-between; padding:8px 10px; font-size:12.5px; color:#D4D4D8; }
   .switch { width:32px; height:18px; background:#3a3a3a; border-radius:20px; position:relative; border:none; }
   .switch.on { background: var(--green); }
   .switch::after { content:''; position:absolute; top:2px; left:2px; width:14px; height:14px; background:#fff; border-radius:50%; transition:.15s; }
   .switch.on::after { left:16px; }
-
   .logout-btn { width:100%; text-align:left; background:transparent; border:none; color:#F87171; font-size:12.5px; font-weight:700; padding:9px 10px; }
-
   .main { flex:1; padding: 26px 30px; min-width:0; }
   .view { display:none; }
   .view.active { display:block; }
   .main__header { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:18px; }
   .main__title { font-size: 21px; font-weight:800; margin:0 0 4px; letter-spacing:-.01em; }
   .main__subtitle { font-size:13px; color: var(--muted); margin:0; }
-
   .actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .btn { border-radius:9px; padding:9px 15px; font-size:12.5px; font-weight:700; border:1px solid var(--border); background:#fff; color:var(--ink); }
   .btn.primary { background: var(--red); border-color: var(--red); color:#fff; }
@@ -107,23 +79,17 @@
   .pill-status .dot { width:7px; height:7px; border-radius:50%; }
   .pill-status.on .dot { background: var(--green); }
   .pill-status.off .dot { background:#A1A1AA; }
-
-  .filter-row {
-    display:flex; align-items:center; gap:14px; background:#fff; border:1px solid var(--border); border-radius:12px;
-    padding: 12px 16px; margin-bottom:16px; flex-wrap:wrap;
-  }
+  .filter-row { display:flex; align-items:center; gap:14px; background:#fff; border:1px solid var(--border); border-radius:12px; padding: 12px 16px; margin-bottom:16px; flex-wrap:wrap; }
   .filter-label { font-size:11px; font-weight:800; color: var(--muted); letter-spacing:.04em; }
   .tabs { display:flex; gap:4px; }
   .tab { border:1px solid var(--border); background:#fff; padding:6px 13px; border-radius:8px; font-size:12.5px; font-weight:700; color: var(--muted); }
   .tab.active { background: var(--ink); color:#fff; border-color: var(--ink); }
   .filter-count { margin-left:auto; font-size:12px; color: var(--muted); }
-
   .order-list, .extrato-list { background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
   .empty-state { padding: 60px 20px; text-align:center; color: var(--muted); }
   .empty-state .ic { font-size:26px; margin-bottom:10px; }
   .empty-state h4 { margin:0 0 4px; color: var(--ink); font-size:14px; }
   .empty-state p { margin:0; font-size:12.5px; }
-
   .order-row { display:flex; align-items:center; gap:16px; padding:16px 18px; border-bottom:1px solid var(--border); }
   .order-row:last-child { border-bottom:none; }
   .order-main { flex:1; min-width:0; }
@@ -139,12 +105,9 @@
   .badge.status { background:#F4F4F5; color:#3F3F46; }
   .order-total { font-weight:800; font-size:14px; min-width:80px; text-align:right; flex-shrink:0; }
   .order-action { flex-shrink:0; }
-  .order-action button {
-    background: var(--ink); color:#fff; border:none; border-radius:8px; padding:8px 13px; font-size:12px; font-weight:700; white-space:nowrap;
-  }
+  .order-action button { background: var(--ink); color:#fff; border:none; border-radius:8px; padding:8px 13px; font-size:12px; font-weight:700; white-space:nowrap; }
   .order-action .done { color: var(--green); font-weight:800; font-size:12px; }
   .order-action .pago-btn { background:#fff; color: var(--ink); border:1px solid var(--border); margin-top:6px; }
-
   .summary-row { display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-bottom:18px; }
   .summary-card { background:#fff; border:1px solid var(--border); border-radius:12px; padding:18px; }
   .summary-card .label { font-size:11.5px; font-weight:800; color: var(--muted); letter-spacing:.03em; text-transform:uppercase; margin-bottom:8px; }
@@ -152,7 +115,6 @@
   .summary-card.entrada .value { color: var(--green); }
   .summary-card.saida .value { color: var(--red); }
   .summary-card.saldo .value { color: var(--ink); }
-
   .mov-row { display:flex; align-items:center; gap:16px; padding:14px 18px; border-bottom:1px solid var(--border); }
   .mov-row:last-child { border-bottom:none; }
   .mov-icon { width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
@@ -164,12 +126,8 @@
   .mov-valor { font-weight:800; font-size:14.5px; white-space:nowrap; }
   .mov-valor.entrada { color: var(--green); }
   .mov-valor.saida { color: var(--red); }
-
   .data-table { width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-  .data-table thead th {
-    text-align:left; font-size:11px; font-weight:800; color: var(--muted); text-transform:uppercase; letter-spacing:.04em;
-    padding: 12px 16px; border-bottom:1px solid var(--border); background:#FAFAFA;
-  }
+  .data-table thead th { text-align:left; font-size:11px; font-weight:800; color: var(--muted); text-transform:uppercase; letter-spacing:.04em; padding: 12px 16px; border-bottom:1px solid var(--border); background:#FAFAFA; }
   .data-table tbody td { padding: 12px 16px; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle; }
   .data-table tbody tr:last-child td { border-bottom:none; }
   .prod-row-name { display:flex; align-items:center; gap:10px; }
@@ -183,32 +141,23 @@
   .row-actions { display:flex; gap:6px; }
   .row-actions button { border:1px solid var(--border); background:#fff; border-radius:7px; padding:5px 10px; font-size:11.5px; font-weight:700; color: var(--ink); }
   .row-actions button.danger { color: var(--red); border-color:#FCA5A5; }
-
   .size-price-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
   .size-price-row span { flex:1; font-size:12.5px; color: var(--muted); }
   .size-price-row input { width:100px; }
   .price-toggle { display:flex; gap:6px; margin-bottom:10px; }
   .price-toggle button { flex:1; border:1px solid var(--border); background:#fff; padding:8px; border-radius:8px; font-size:12px; font-weight:700; color: var(--muted); }
   .price-toggle button.active { background: var(--ink); color:#fff; border-color: var(--ink); }
-
   .price-tags { display:flex; flex-wrap:wrap; gap:4px; }
   .price-tag { font-size:11px; background:#F4F4F5; color:var(--ink); padding:2px 8px; border-radius:20px; white-space:nowrap; }
   .price-tag b { color: var(--ink); }
-
   .novo-tamanho-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
   .novo-tamanho-row input.nome { flex:1; }
   .novo-tamanho-row input.preco { width:100px; }
-  .novo-tamanho-row button.remove {
-    border:none; background:#F4F4F5; color:var(--muted); font-size:14px; width:30px; height:34px;
-    border-radius:7px; flex-shrink:0; line-height:1;
-  }
+  .novo-tamanho-row button.remove { border:none; background:#F4F4F5; color:var(--muted); font-size:14px; width:30px; height:34px; border-radius:7px; flex-shrink:0; line-height:1; }
   .novo-tamanho-row button.remove:hover { background:#FEE2E2; color:var(--red); }
   .novos-tamanhos-empty { font-size:12px; color:var(--muted); margin:2px 0 8px; }
-
   .horarios-grid { display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
-  .horario-dia-row {
-    display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:9px; background:#FAFAFA;
-  }
+  .horario-dia-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:9px; background:#FAFAFA; }
   .horario-dia-row.fechado { opacity:.55; }
   .horario-dia-nome { width:88px; flex-shrink:0; font-size:12.5px; font-weight:700; }
   .horario-dia-row .switch { flex-shrink:0; }
@@ -216,7 +165,10 @@
   .horario-dia-tempos input[type="time"] { width:100%; padding:7px 8px; border:1px solid var(--border); border-radius:7px; font-size:12.5px; }
   .horario-dia-tempos span { font-size:11.5px; color:var(--muted); flex-shrink:0; }
   .horario-dia-fechado-label { flex:1; font-size:12px; color:var(--muted); font-style:italic; }
-
+  .cliente-lookup-box { margin-top:6px; padding:9px 10px; border-radius:8px; font-size:12px; display:none; }
+  .cliente-lookup-box.found { display:block; background:#DCFCE7; color:#15803D; }
+  .cliente-lookup-box.new { display:block; background:#F4F4F5; color:var(--muted); }
+  .cliente-lookup-box b { display:block; font-size:12.5px; margin-bottom:2px; }
   .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:80; align-items:center; justify-content:center; }
   .modal-bg.show { display:flex; }
   .modal { background:#fff; border-radius:14px; padding:22px 24px; width:420px; max-height:85vh; overflow:auto; }
@@ -230,88 +182,52 @@
   .modal-actions { display:flex; gap:8px; margin-top:16px; }
   .modal-actions .btn { flex:1; text-align:center; }
   .add-item-btn { font-size:12px; font-weight:700; color: var(--red); background:none; border:none; padding:4px 0; }
-
-  .toast {
-    position:fixed; top:16px; right:16px; z-index:100; background:#fff; border:1px solid var(--border); border-left:3px solid var(--red);
-    padding:12px 16px; border-radius:10px; font-size:12.5px; box-shadow:0 10px 30px rgba(0,0,0,.15);
-    transform: translateX(130%); transition: transform .3s cubic-bezier(.2,.9,.3,1.1); max-width:280px;
-  }
+  .endereco-fields { display:none; }
+  .endereco-fields.show { display:block; }
+  .endereco-row2 { display:flex; gap:8px; }
+  .endereco-row2 .field { flex:1; }
+  .toast { position:fixed; top:16px; right:16px; z-index:100; background:#fff; border:1px solid var(--border); border-left:3px solid var(--red); padding:12px 16px; border-radius:10px; font-size:12.5px; box-shadow:0 10px 30px rgba(0,0,0,.15); transform: translateX(130%); transition: transform .3s cubic-bezier(.2,.9,.3,1.1); max-width:280px; }
   .toast.show { transform: translateX(0); }
   .toast b { display:block; font-size:12px; color: var(--red); margin-bottom:2px; }
-
-  .install-btn {
-    display:none; align-items:center; gap:6px; background:#fff; color:var(--red); border:1px solid var(--red);
-    border-radius:8px; padding:9px 13px; font-size:12.5px; font-weight:800;
-  }
+  .install-btn { display:none; align-items:center; gap:6px; background:#fff; color:var(--red); border:1px solid var(--red); border-radius:8px; padding:9px 13px; font-size:12.5px; font-weight:800; }
   .install-btn.show { display:inline-flex; }
   .login-card .install-btn { width:100%; justify-content:center; margin-bottom:12px; }
   .sidebar .install-btn { width:100%; justify-content:center; background:transparent; color:#fff; border-color:#3a3a3a; margin-bottom:8px; }
-
   .mobile-topbar { display:none; }
   .drawer-overlay { display:none; }
-
   @media (max-width: 800px) {
     .layout { flex-direction: column; }
-
-    .mobile-topbar {
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      background: var(--sidebar); color:#fff; padding: 12px 14px;
-      position: sticky; top:0; z-index:60;
-      padding-top: max(12px, env(safe-area-inset-top));
-    }
+    .mobile-topbar { display:flex; align-items:center; justify-content:space-between; gap:10px; background: var(--sidebar); color:#fff; padding: 12px 14px; position: sticky; top:0; z-index:60; padding-top: max(12px, env(safe-area-inset-top)); }
     .mobile-topbar__brand { display:flex; align-items:center; gap:9px; min-width:0; }
     .mobile-topbar__logo { width:30px; height:30px; background:var(--red); border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12.5px; flex-shrink:0; }
     .mobile-topbar__title { font-weight:800; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .hamburger-btn {
-      background:transparent; border:none; color:#fff; font-size:20px; padding:6px 8px; border-radius:8px; line-height:1; flex-shrink:0;
-    }
+    .hamburger-btn { background:transparent; border:none; color:#fff; font-size:20px; padding:6px 8px; border-radius:8px; line-height:1; flex-shrink:0; }
     .hamburger-btn:active { background: var(--sidebar-hover); }
-
-    .drawer-overlay {
-      display:block; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:90;
-      opacity:0; pointer-events:none; transition: opacity .2s ease;
-    }
+    .drawer-overlay { display:block; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:90; opacity:0; pointer-events:none; transition: opacity .2s ease; }
     .drawer-overlay.show { opacity:1; pointer-events:auto; }
-
-    .sidebar {
-      position:fixed; top:0; left:0; bottom:0; z-index:95; width: 78vw; max-width:280px;
-      transform: translateX(-100%); transition: transform .22s cubic-bezier(.2,.9,.3,1.1);
-      overflow-y:auto; padding-top: max(18px, env(safe-area-inset-top));
-    }
+    .sidebar { position:fixed; top:0; left:0; bottom:0; z-index:95; width: 78vw; max-width:280px; transform: translateX(-100%); transition: transform .22s cubic-bezier(.2,.9,.3,1.1); overflow-y:auto; padding-top: max(18px, env(safe-area-inset-top)); }
     .sidebar.open { transform: translateX(0); }
-
     .main { padding: 16px; }
     .order-row, .mov-row { flex-wrap: wrap; }
     .summary-row { grid-template-columns: 1fr; }
-
     .main__header { gap:10px; }
     .main__title { font-size:18px; }
     .filter-row { padding:10px 12px; gap:10px; }
     .filter-count { margin-left:0; width:100%; }
-
     .modal-bg { align-items:flex-end; }
     .modal { width:100%; max-width:100%; border-radius:16px 16px 0 0; max-height:90vh; padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
-
     .data-table thead { display:none; }
     .data-table, .data-table tbody, .data-table tr, .data-table td { display:block; width:100%; }
     .data-table { border:none; background:transparent; }
-    .data-table tr {
-      background:#fff; border:1px solid var(--border); border-radius:12px; margin-bottom:10px; padding: 4px 4px;
-    }
+    .data-table tr { background:#fff; border:1px solid var(--border); border-radius:12px; margin-bottom:10px; padding: 4px 4px; }
     .data-table tr:has(.empty-state) { border:none; background:transparent; padding:0; }
-    .data-table td {
-      border-bottom:1px dashed var(--border); padding: 10px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px;
-    }
+    .data-table td { border-bottom:1px dashed var(--border); padding: 10px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
     .data-table td:last-child { border-bottom:none; }
     .data-table td[colspan] { display:block; }
-    .data-table td::before {
-      content: attr(data-label); font-size:10.5px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; flex-shrink:0;
-    }
-    .data-table td:has(.prod-row-name)::before,
-    .data-table td:has(.empty-state)::before { display:none; }
+    .data-table td::before { content: attr(data-label); font-size:10.5px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; flex-shrink:0; }
+    .data-table td:has(.prod-row-name)::before, .data-table td:has(.empty-state)::before { display:none; }
     .data-table td:has(.prod-row-name) { justify-content:flex-start; }
     .row-actions { justify-content:flex-end; flex-wrap:wrap; }
-
     .horario-dia-row { flex-wrap:wrap; }
     .horario-dia-tempos { width:100%; }
   }
@@ -324,15 +240,12 @@
     <div class="badge">EM</div>
     <h2>EAF Menu</h2>
     <p>Entre com o e-mail cadastrado como equipe do restaurante</p>
-
     <button class="install-btn" id="installBtnLogin" onclick="installApp()">⬇ Instalar aplicativo</button>
-
       <div id="stepLogin">
       <input type="email" id="emailInput" placeholder="seu@email.com">
       <input type="password" id="senhaInput" placeholder="Sua senha">
       <button class="primary" id="loginBtn" onclick="fazerLogin()">Entrar</button>
     </div>
-
     <a href="/esqueci-senha.html" style="display:block; text-align:center; margin-top:10px; font-size:12px; color:var(--muted);">Esqueci minha senha</a>
     <div class="login-msg" id="loginMsg"></div>
   </div>
@@ -357,7 +270,6 @@
           <div class="sidebar__subtitle">Restaurante</div>
         </div>
       </div>
-
       <button class="navitem active" id="navPedidos" onclick="switchView('pedidos')"><span class="ic">📋</span> Painel de Pedidos</button>
       <button class="navitem" id="navFinanceiro" onclick="switchView('financeiro')" style="display:none"><span class="ic">💲</span> Painel Financeiro</button>
       <button class="navitem" id="navProdutos" onclick="switchView('produtos')"><span class="ic">🛍️</span> Produtos</button>
@@ -366,12 +278,10 @@
       <button class="navitem" id="navEntregadores" onclick="switchView('entregadores')"><span class="ic">🚚</span> Entregadores (Motoboys)</button>
       <button class="navitem" id="navEquipe" onclick="switchView('equipe')" style="display:none"><span class="ic">🛡️</span> Gestão de Equipe</button>
       <button class="navitem" id="navMarca" onclick="switchView('marca')" style="display:none"><span class="ic">⚙️</span> Personalizar Marca</button>
-
       <div class="sidebar__divider"></div>
       <div class="sidebar__section-label">Acessar PWAs</div>
       <button class="navitem" onclick="abrirPwaCliente()"><span class="ic">📱</span> PWA do Cliente</button>
       <button class="navitem" onclick="emConstrucao()"><span class="ic">🛵</span> PWA do Motoboy</button>
-
       <div class="sidebar__footer">
         <button class="install-btn" id="installBtnApp" onclick="installApp()">⬇ Instalar aplicativo</button>
         <div class="admin-badge">
@@ -400,7 +310,6 @@
             <div class="pill-status on" id="connPill"><span class="dot"></span> <span id="connLabel">Conectado</span></div>
           </div>
         </div>
-
         <div class="filter-row">
           <span class="filter-label">FILTRO DE PAGAMENTO:</span>
           <div class="tabs" id="filterTabsPedidos">
@@ -410,7 +319,6 @@
           </div>
           <span class="filter-count" id="filterCountPedidos">Mostrando 0 de 0 pedidos</span>
         </div>
-
         <div class="order-list" id="orderList">
           <div class="empty-state">
             <div class="ic">📋</div>
@@ -430,7 +338,6 @@
             <button class="btn primary" onclick="openDespesa()">+ Lançar Despesa</button>
           </div>
         </div>
-
         <div class="summary-row">
           <div class="summary-card entrada">
             <div class="label">Entradas</div>
@@ -445,7 +352,6 @@
             <div class="value" id="totalSaldo">R$ 0,00</div>
           </div>
         </div>
-
         <div class="filter-row">
           <span class="filter-label">PERÍODO:</span>
           <div class="tabs" id="filterTabsFinanceiro">
@@ -456,7 +362,6 @@
           </div>
           <span class="filter-count" id="filterCountFinanceiro">Mostrando 0 lançamentos</span>
         </div>
-
         <div class="extrato-list" id="extratoList">
           <div class="empty-state">
             <div class="ic">💲</div>
@@ -476,11 +381,8 @@
             <button class="btn primary" onclick="openProduto()">+ Novo Produto</button>
           </div>
         </div>
-
         <table class="data-table">
-          <thead>
-            <tr><th>Foto / Nome</th><th>Categoria</th><th>Preço</th><th>Status</th><th>Ações</th></tr>
-          </thead>
+          <thead><tr><th>Foto / Nome</th><th>Categoria</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead>
           <tbody id="produtosTableBody">
             <tr><td colspan="5"><div class="empty-state"><div class="ic">🛍️</div><h4>Nenhum produto cadastrado</h4></div></td></tr>
           </tbody>
@@ -497,11 +399,8 @@
             <button class="btn primary" onclick="openCategoria()">+ Nova Categoria</button>
           </div>
         </div>
-
         <table class="data-table">
-          <thead>
-            <tr><th>Nome</th><th>Ordem</th><th>Produtos</th><th>Ações</th></tr>
-          </thead>
+          <thead><tr><th>Nome</th><th>Ordem</th><th>Produtos</th><th>Ações</th></tr></thead>
           <tbody id="categoriasTableBody">
             <tr><td colspan="4"><div class="empty-state"><div class="ic">🗂️</div><h4>Nenhuma categoria cadastrada</h4></div></td></tr>
           </tbody>
@@ -518,11 +417,8 @@
             <input id="clienteBusca" placeholder="Buscar por nome ou telefone..." oninput="renderClientesTable()" style="padding:9px 12px; border:1px solid var(--border); border-radius:9px; font-size:12.5px; min-width:220px;">
           </div>
         </div>
-
         <table class="data-table">
-          <thead>
-            <tr><th>Nome</th><th>Telefone</th><th>Pedidos</th><th>Total gasto</th><th>Último pedido</th><th>Ações</th></tr>
-          </thead>
+          <thead><tr><th>Nome</th><th>Telefone</th><th>Pedidos</th><th>Total gasto</th><th>Último pedido</th><th>Ações</th></tr></thead>
           <tbody id="clientesTableBody">
             <tr><td colspan="6"><div class="empty-state"><div class="ic">👥</div><h4>Nenhum cliente cadastrado ainda</h4><p>Clientes aparecem aqui assim que fazem o primeiro pedido.</p></div></td></tr>
           </tbody>
@@ -539,11 +435,8 @@
             <button class="btn primary" onclick="openEntregador()">+ Novo Entregador</button>
           </div>
         </div>
-
         <table class="data-table">
-          <thead>
-            <tr><th>Nome</th><th>Telefone</th><th>Veículo</th><th>Status</th><th>Ações</th></tr>
-          </thead>
+          <thead><tr><th>Nome</th><th>Telefone</th><th>Veículo</th><th>Status</th><th>Ações</th></tr></thead>
           <tbody id="entregadoresTableBody">
             <tr><td colspan="5"><div class="empty-state"><div class="ic">🚚</div><h4>Nenhum entregador cadastrado</h4></div></td></tr>
           </tbody>
@@ -560,22 +453,16 @@
             <button class="btn primary" onclick="openMembro()">+ Convidar Membro</button>
           </div>
         </div>
-
         <table class="data-table">
-          <thead>
-            <tr><th>Nome</th><th>E-mail</th><th>Cargo</th><th>Ações</th></tr>
-          </thead>
+          <thead><tr><th>Nome</th><th>E-mail</th><th>Cargo</th><th>Ações</th></tr></thead>
           <tbody id="equipeTableBody">
             <tr><td colspan="4"><div class="empty-state"><div class="ic">🛡️</div><h4>Nenhum membro cadastrado</h4></div></td></tr>
           </tbody>
         </table>
-
         <div style="margin-top:22px;">
           <p class="main__subtitle" style="margin-bottom:10px; font-weight:800; color:var(--ink); font-size:13px;">Convites pendentes</p>
           <table class="data-table">
-            <thead>
-              <tr><th>Nome</th><th>E-mail</th><th>Cargo</th><th>Ações</th></tr>
-            </thead>
+            <thead><tr><th>Nome</th><th>E-mail</th><th>Cargo</th><th>Ações</th></tr></thead>
             <tbody id="convitesTableBody">
               <tr><td colspan="4"><div class="empty-state"><div class="ic">✉️</div><h4>Nenhum convite pendente</h4></div></td></tr>
             </tbody>
@@ -590,7 +477,6 @@
             <p class="main__subtitle">Identidade visual e dados de contato usados no cardápio público</p>
           </div>
         </div>
-
         <div style="background:#fff; border:1px solid var(--border); border-radius:12px; padding:22px 24px; max-width:560px;">
           <div class="field"><label>Nome do restaurante</label><input id="mkNome" placeholder="Ex: EAF Menu"></div>
           <div class="field"><label>Link do cardápio (slug)</label><input id="mkSlug" placeholder="ex: pizzaria-do-joao" oninput="atualizarLinkCardapioPreview()"></div>
@@ -599,13 +485,11 @@
           <div class="field"><label>WhatsApp de contato</label><input id="mkWhatsapp" placeholder="(41) 9...."></div>
           <div class="field"><label>Endereço</label><input id="mkEndereco" placeholder="Rua, número, bairro, cidade"></div>
           <div class="field"><label>Instagram</label><input id="mkInstagram" placeholder="@seurestaurante"></div>
-
           <div class="field">
             <label>Horário de funcionamento</label>
             <div class="horarios-grid" id="horariosGrid"></div>
             <p style="font-size:11px; color:var(--muted); margin:2px 0 0;">Esse horário aparece no cardápio do cliente como informação — ele não bloqueia pedidos automaticamente fora do horário.</p>
           </div>
-
           <div class="modal-actions" style="margin-top:6px;">
             <button class="btn primary" onclick="submitMarca()" style="flex:none; padding:10px 20px;">Salvar alterações</button>
           </div>
@@ -624,10 +508,22 @@
 <div class="modal-bg" id="manualModalBg">
   <div class="modal">
     <h3>Lançar pedido manual</h3>
+    <div class="field">
+      <label>Telefone</label>
+      <input id="mCliTel" placeholder="(41) 9...." oninput="onTelefoneManualInput()" onblur="buscarClientePorTelefone()">
+      <div class="cliente-lookup-box" id="clienteLookupBox"></div>
+    </div>
     <div class="field"><label>Nome do cliente</label><input id="mCliNome" placeholder="Nome"></div>
-    <div class="field"><label>Telefone</label><input id="mCliTel" placeholder="(41) 9...."></div>
     <div class="field"><label>Tipo</label>
-      <select id="mTipo"><option value="retirada">Retirada</option><option value="entrega">Entrega</option></select>
+      <select id="mTipo" onchange="onTipoManualChange()"><option value="retirada">Retirada</option><option value="entrega">Entrega</option></select>
+    </div>
+    <div class="endereco-fields" id="enderecoFields">
+      <div class="field"><label>Endereço (rua)</label><input id="mEndLogradouro" placeholder="Rua das Flores"></div>
+      <div class="endereco-row2">
+        <div class="field"><label>Número</label><input id="mEndNumero" placeholder="123"></div>
+        <div class="field"><label>Bairro</label><input id="mEndBairro" placeholder="Centro"></div>
+      </div>
+      <div class="field"><label>Complemento (opcional)</label><input id="mEndComplemento" placeholder="Apto, bloco, ponto de referência..."></div>
     </div>
     <div class="field"><label>Itens</label><div id="mItens"></div>
       <button class="add-item-btn" onclick="addItemLine()">+ adicionar item</button>
@@ -677,53 +573,44 @@
       </div>
       <input type="hidden" id="pImagemUrl">
     </div>
-
     <div class="field">
       <label>Preço</label>
       <div class="price-toggle">
         <button type="button" id="btnPrecoUnico" class="active" onclick="setTipoPreco('unico')">Preço único</button>
         <button type="button" id="btnPrecoTamanhos" onclick="setTipoPreco('tamanhos')">Vários tamanhos</button>
       </div>
-
       <div id="blocoPrecoUnico">
         <input id="pPrecoUnico" type="number" step="0.01" min="0" placeholder="0,00">
       </div>
-
       <div id="blocoPrecoTamanhos" style="display:none">
         <select id="pGrupoTamanho" onchange="onGrupoTamanhoChange()">
           <option value="">Selecione um grupo de tamanho...</option>
           <option value="__novo__">+ Criar novo grupo de tamanho</option>
         </select>
-
         <div id="grupoMaxSaboresExistenteWrap" style="display:none; margin-top:10px;">
           <label style="display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:5px;">Quantos sabores o cliente pode combinar nesse tamanho?</label>
           <input id="pGrupoMaxSaboresExistente" type="number" min="1" value="1" style="width:100px;">
           <p style="font-size:11px; color:var(--muted); margin:4px 0 0;">1 = sem combinação. 2 = ex: pizza meio a meio. Vale para todos os produtos desse grupo de tamanho.</p>
         </div>
-
         <div id="novoGrupoFields" style="display:none; margin-top:8px;">
           <input id="pNovoGrupoNome" placeholder="Nome do grupo (ex: Tamanho da Pizza, Tamanho do Açaí...)" style="margin-bottom:10px;">
           <label style="display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:6px;">Tamanhos e preços (use os nomes que fizer sentido pra você: 30cm, P, Individual, etc.)</label>
           <div id="novosTamanhosRows"></div>
           <button type="button" class="add-item-btn" onclick="addNovoTamanhoRow()">+ adicionar tamanho</button>
-
           <div style="margin-top:12px;">
             <label style="display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:5px;">Quantos sabores o cliente pode combinar nesse tamanho?</label>
             <input id="pNovoGrupoMaxSabores" type="number" min="1" value="1" style="width:100px;">
             <p style="font-size:11px; color:var(--muted); margin:4px 0 0;">1 = sem combinação. 2 = ex: pizza meio a meio (o preço cobrado é a média entre os sabores escolhidos).</p>
           </div>
         </div>
-
         <div id="camposPrecoTamanhos" style="margin-top:10px;"></div>
       </div>
     </div>
-
     <div class="field">
       <label style="display:flex; align-items:center; gap:8px; font-weight:600; color:var(--ink);">
         <input type="checkbox" id="pAtivo" checked style="width:auto;"> Produto ativo (visível no cardápio)
       </label>
     </div>
-
     <div class="modal-actions">
       <button class="btn" onclick="closeProduto()">Cancelar</button>
       <button class="btn primary" onclick="submitProduto()">Salvar produto</button>
@@ -780,7 +667,7 @@
       <select id="mbRole">
         <option value="gerente">Gerente</option>
         <option value="atendente">Atendente</option>
-        <option value="cozinha">Cozinha</option>
+        <option value="motoboy">Motoboy</option>
         <option value="dono">Dono</option>
       </select>
     </div>
@@ -856,6 +743,11 @@
   const HORA_RESET_PEDIDOS = 5;
   let diaComercialAtualKey = null;
   let resetPedidosInterval = null;
+
+  // Estado do lookup de cliente por telefone no pedido manual
+  let clienteEncontradoAtual = null;   // { id, nome, telefone } ou null
+  let enderecoEncontradoAtual = null;  // { id, logradouro, numero, bairro, complemento } ou null
+  let buscaTelefoneTimer = null;
 
 async function fazerLogin() {
   if (!sb) { setLoginMsg('Ainda carregando configuração, aguarde...', false); return; }
@@ -1016,6 +908,15 @@ function setLoginMsg(msg, isError) {
     return inicioDiaComercial(refDate).toISOString();
   }
 
+  // Retorna a data (YYYY-MM-DD) do dia comercial atual — usada como chave do contador diário de pedidos.
+  function diaComercialData(refDate) {
+    const inicio = inicioDiaComercial(refDate);
+    const y = inicio.getFullYear();
+    const m = String(inicio.getMonth() + 1).padStart(2, '0');
+    const d = String(inicio.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
   function formatHoraCurta(d) {
     return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   }
@@ -1056,7 +957,7 @@ function setLoginMsg(msg, isError) {
     const { data, error } = await sb
       .from('pedidos')
       .select(`
-        id, tipo, status, pago, forma_pagamento, total, criado_em,
+        id, numero_diario, tipo, status, pago, forma_pagamento, total, criado_em,
         clientes ( nome ),
         enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento ),
         itens_pedido ( quantidade, produtos ( nome ), itens_pedido_sabores ( produtos ( nome ) ) )
@@ -1100,11 +1001,18 @@ const NEXT_LABEL = {
   em_preparo: 'Marcar pronto', saiu_para_entrega: 'Marcar entregue'
 };
 const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
+const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
   function timeAgo(iso) {
     const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
     if (min < 1) return 'agora';
     if (min < 60) return min + ' min atrás';
     return Math.floor(min/60) + 'h' + (min%60) + 'min atrás';
+  }
+
+  // Código de exibição do pedido: usa o número diário quando disponível,
+  // com fallback pros 8 primeiros caracteres do UUID (pedidos antigos, sem numero_diario).
+  function codigoPedido(o) {
+    return (o.numero_diario != null) ? ('#' + o.numero_diario) : ('#' + o.id.slice(0,8).toUpperCase());
   }
 
   function renderOrders() {
@@ -1133,8 +1041,8 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
         : '';
 
       let actionHtml;
-      if (o.status === 'concluido') {
-        actionHtml = `<div class="done">✓ Concluído</div>`;
+      if (STATUS_FINAIS.includes(o.status)) {
+        actionHtml = `<div class="done">✓ ${STATUS_LABEL[o.status] || 'Concluído'}</div>`;
       } else {
         actionHtml = `<button onclick="advanceStatus('${o.id}','${o.status}','${o.tipo}')">${NEXT_LABEL[o.status] || 'Avançar'}</button>`;
       }
@@ -1145,7 +1053,7 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
       return `
         <div class="order-row">
           <div class="order-main">
-            <div class="order-code">#${o.id.slice(0,8).toUpperCase()} · ${timeAgo(o.criado_em)}</div>
+            <div class="order-code">${codigoPedido(o)} · ${timeAgo(o.criado_em)}</div>
             <div class="order-cliente">${cliente}</div>
             <div class="order-itens">${itens || 'sem itens'}</div>
             ${enderecoLinha}
@@ -1165,7 +1073,7 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
 
   async function advanceStatus(id, status, tipo) {
     let next = FLOW[FLOW.indexOf(status) + 1];
-    if (status === 'em_preparo' && tipo === 'retirada') next = 'concluido';
+    if (status === 'em_preparo' && tipo === 'retirada') next = 'retirado';
     const { error } = await sb.from('pedidos').update({ status: next }).eq('id', id);
     if (error) { showToast('Erro', error.message); return; }
     await loadPedidos();
@@ -1180,10 +1088,90 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
 
   function openManualOrder() {
     document.getElementById('mItens').innerHTML = '';
+    document.getElementById('mCliTel').value = '';
+    document.getElementById('mCliNome').value = '';
+    document.getElementById('mTipo').value = 'retirada';
+    document.getElementById('mEndLogradouro').value = '';
+    document.getElementById('mEndNumero').value = '';
+    document.getElementById('mEndBairro').value = '';
+    document.getElementById('mEndComplemento').value = '';
+    limparLookupCliente();
+    onTipoManualChange();
     addItemLine();
     document.getElementById('manualModalBg').classList.add('show');
   }
   function closeManualOrder() { document.getElementById('manualModalBg').classList.remove('show'); }
+
+  function onTipoManualChange() {
+    const isEntrega = document.getElementById('mTipo').value === 'entrega';
+    document.getElementById('enderecoFields').classList.toggle('show', isEntrega);
+  }
+
+  function limparLookupCliente() {
+    clienteEncontradoAtual = null;
+    enderecoEncontradoAtual = null;
+    const box = document.getElementById('clienteLookupBox');
+    box.className = 'cliente-lookup-box';
+    box.innerHTML = '';
+  }
+
+  function onTelefoneManualInput() {
+    // Se o telefone mudar depois de já ter encontrado/preenchido um cliente, invalida o match anterior.
+    if (clienteEncontradoAtual) limparLookupCliente();
+    clearTimeout(buscaTelefoneTimer);
+    const tel = document.getElementById('mCliTel').value.trim();
+    if (tel.length < 8) return;
+    // Busca automática com um pequeno debounce, sem depender só do onblur.
+    buscaTelefoneTimer = setTimeout(buscarClientePorTelefone, 500);
+  }
+
+  // Busca cliente pelo telefone dentro do restaurante atual, e pré-preenche nome/endereço se encontrar.
+  async function buscarClientePorTelefone() {
+    const tel = document.getElementById('mCliTel').value.trim();
+    const box = document.getElementById('clienteLookupBox');
+    if (!tel) { limparLookupCliente(); return; }
+
+    const { data: cliente, error } = await sb.from('clientes')
+      .select('id, nome, telefone')
+      .eq('restaurante_id', restauranteId)
+      .eq('telefone', tel)
+      .maybeSingle();
+
+    if (error) { console.error(error); return; }
+
+    if (cliente) {
+      clienteEncontradoAtual = cliente;
+      document.getElementById('mCliNome').value = cliente.nome;
+
+      const { data: enderecos } = await sb.from('enderecos_cliente')
+        .select('id, logradouro, numero, bairro, complemento, padrao')
+        .eq('cliente_id', cliente.id)
+        .order('padrao', { ascending: false })
+        .limit(1);
+
+      if (enderecos && enderecos.length > 0) {
+        enderecoEncontradoAtual = enderecos[0];
+        document.getElementById('mEndLogradouro').value = enderecos[0].logradouro || '';
+        document.getElementById('mEndNumero').value = enderecos[0].numero || '';
+        document.getElementById('mEndBairro').value = enderecos[0].bairro || '';
+        document.getElementById('mEndComplemento').value = enderecos[0].complemento || '';
+      } else {
+        enderecoEncontradoAtual = null;
+      }
+
+      const { count } = await sb.from('pedidos')
+        .select('id', { count: 'exact', head: true })
+        .eq('cliente_id', cliente.id);
+
+      box.className = 'cliente-lookup-box found';
+      box.innerHTML = `<b>✓ Cliente encontrado</b>${count || 0} pedido(s) anterior(es) · dados preenchidos automaticamente`;
+    } else {
+      clienteEncontradoAtual = null;
+      enderecoEncontradoAtual = null;
+      box.className = 'cliente-lookup-box new';
+      box.innerHTML = `<b>Cliente novo</b>Será cadastrado automaticamente ao lançar o pedido.`;
+    }
+  }
 
   function addItemLine() {
     const wrap = document.getElementById('mItens');
@@ -1200,13 +1188,50 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
   async function submitManualOrder() {
     const nome = document.getElementById('mCliNome').value.trim();
     if (!nome) { showToast('Faltou o nome', 'Informe o nome do cliente.'); return; }
+    const telefone = document.getElementById('mCliTel').value.trim();
     const tipo = document.getElementById('mTipo').value;
     const forma = document.getElementById('mForma').value;
 
-    const { data: cliente, error: cliErr } = await sb.from('clientes')
-      .insert({ nome, telefone: document.getElementById('mCliTel').value.trim(), restaurante_id: restauranteId, auth_user_id: null })
-      .select().single();
-    if (cliErr) { showToast('Erro ao criar cliente', cliErr.message); return; }
+    // Reutiliza o cliente encontrado pelo telefone; só cria um novo se não houve match.
+    let clienteId;
+    if (clienteEncontradoAtual && clienteEncontradoAtual.telefone === telefone) {
+      clienteId = clienteEncontradoAtual.id;
+      if (clienteEncontradoAtual.nome !== nome) {
+        await sb.from('clientes').update({ nome }).eq('id', clienteId);
+      }
+    } else {
+      const { data: cliente, error: cliErr } = await sb.from('clientes')
+        .insert({ nome, telefone: telefone || null, restaurante_id: restauranteId, auth_user_id: null })
+        .select().single();
+      if (cliErr) { showToast('Erro ao criar cliente', cliErr.message); return; }
+      clienteId = cliente.id;
+    }
+
+    // Endereço de entrega (só quando o tipo é entrega)
+    let enderecoId = null;
+    if (tipo === 'entrega') {
+      const logradouro = document.getElementById('mEndLogradouro').value.trim();
+      const numero = document.getElementById('mEndNumero').value.trim();
+      const bairro = document.getElementById('mEndBairro').value.trim();
+      const complemento = document.getElementById('mEndComplemento').value.trim();
+      if (!logradouro) { showToast('Faltou o endereço', 'Informe o endereço de entrega.'); return; }
+
+      const mesmoEnderecoDoLookup = enderecoEncontradoAtual
+        && enderecoEncontradoAtual.logradouro === logradouro
+        && (enderecoEncontradoAtual.numero || '') === numero
+        && (enderecoEncontradoAtual.bairro || '') === bairro
+        && (enderecoEncontradoAtual.complemento || '') === complemento;
+
+      if (mesmoEnderecoDoLookup) {
+        enderecoId = enderecoEncontradoAtual.id;
+      } else {
+        const { data: novoEndereco, error: endErr } = await sb.from('enderecos_cliente')
+          .insert({ cliente_id: clienteId, logradouro, numero, bairro, complemento: complemento || null })
+          .select().single();
+        if (endErr) { showToast('Erro ao salvar endereço', endErr.message); return; }
+        enderecoId = novoEndereco.id;
+      }
+    }
 
     const linhas = [...document.querySelectorAll('#mItens .item-line')].map(row => ({
       precoId: row.querySelector('.mItemPreco').value,
@@ -1224,8 +1249,21 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
       itensParaInserir.push({ produto_id: produto.id, opcao_tamanho_id: preco.opcoes_tamanho ? l.precoId : null, quantidade: l.qtd, preco_unitario: preco.preco });
     }
 
+    // Numeração diária do pedido: incremento atômico via função no banco (proximo_numero_diario).
+    const dataPedido = diaComercialData();
+    const { data: numeroDiario, error: numeroErr } = await sb.rpc('proximo_numero_diario', {
+      p_restaurante_id: restauranteId,
+      p_data: dataPedido
+    });
+    if (numeroErr) { showToast('Erro ao gerar número do pedido', numeroErr.message); return; }
+
     const { data: pedido, error: pedErr } = await sb.from('pedidos')
-      .insert({ restaurante_id: restauranteId, cliente_id: cliente.id, tipo, forma_pagamento: forma, subtotal: total, total, status: 'recebido' })
+      .insert({
+        restaurante_id: restauranteId, cliente_id: clienteId, tipo, forma_pagamento: forma,
+        subtotal: total, total, status: 'recebido',
+        numero_diario: numeroDiario, data_pedido: dataPedido,
+        endereco_entrega_id: enderecoId
+      })
       .select().single();
     if (pedErr) { showToast('Erro ao criar pedido', pedErr.message); return; }
 
@@ -1234,7 +1272,7 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     if (itensErr) { showToast('Erro ao salvar itens', itensErr.message); return; }
 
     closeManualOrder();
-    showToast('Pedido lançado', nome + ' · R$ ' + total.toFixed(2).replace('.', ','));
+    showToast('Pedido #' + numeroDiario + ' lançado', nome + ' · R$ ' + total.toFixed(2).replace('.', ','));
     await loadPedidos();
   }
 
@@ -1278,8 +1316,8 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
   }
 
   function renderExtrato() {
-    const totalEntradas = movimentacoes.filter(m => m.tipo === 'entrada').reduce((s, m) => s + Number(m.valor), 0);
-    const totalSaidas = movimentacoes.filter(m => m.tipo === 'saida').reduce((s, m) => s + Number(m.valor), 0);
+    const totalEntradas = movimentacoes.filter(m => m.tipo === 'receita').reduce((s, m) => s + Number(m.valor), 0);
+    const totalSaidas = movimentacoes.filter(m => m.tipo === 'despesa').reduce((s, m) => s + Number(m.valor), 0);
 
     document.getElementById('totalEntradas').textContent = formatMoeda(totalEntradas);
     document.getElementById('totalSaidas').textContent = formatMoeda(totalSaidas);
@@ -1293,15 +1331,16 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     }
 
     list.innerHTML = movimentacoes.map(m => {
-      const isEntrada = m.tipo === 'entrada';
+      const isEntrada = m.tipo === 'receita';
+      const classeVisual = isEntrada ? 'entrada' : 'saida';
       return `
         <div class="mov-row">
-          <div class="mov-icon ${m.tipo}">${isEntrada ? '⬆️' : '⬇️'}</div>
+          <div class="mov-icon ${classeVisual}">${isEntrada ? '⬆️' : '⬇️'}</div>
           <div class="mov-main">
             <p class="mov-desc">${m.descricao}</p>
             <div class="mov-meta">${formatData(m.criado_em)}${m.pedido_id ? ' · gerado automaticamente' : ' · lançamento manual'}</div>
           </div>
-          <div class="mov-valor ${m.tipo}">${isEntrada ? '+' : '-'} ${formatMoeda(m.valor)}</div>
+          <div class="mov-valor ${classeVisual}">${isEntrada ? '+' : '-'} ${formatMoeda(m.valor)}</div>
         </div>`;
     }).join('');
   }
@@ -1321,7 +1360,7 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
 
     const { error } = await sb.from('movimentacoes_financeiras').insert({
       restaurante_id: restauranteId,
-      tipo: 'saida',
+      tipo: 'despesa',
       descricao,
       valor,
       criado_por: currentUser.id
@@ -1871,7 +1910,7 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     await loadEntregadores();
   }
 
-  const ROLE_LABEL = { dono: 'Dono', gerente: 'Gerente', atendente: 'Atendente', cozinha: 'Cozinha' };
+  const ROLE_LABEL = { dono: 'Dono', gerente: 'Gerente', atendente: 'Atendente', motoboy: 'Motoboy' };
 
   async function loadEquipe() {
     const { data: usuarios, error } = await sb.from('usuarios')
