@@ -1051,8 +1051,8 @@
       .from('pedidos')
       .select(`
         id, tipo, status, pago, forma_pagamento, total, criado_em,
-        endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_complemento,
         clientes ( nome ),
+        enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento ),
         itens_pedido ( quantidade, produtos ( nome ), itens_pedido_sabores ( produtos ( nome ) ) )
       `)
       .eq('restaurante_id', restauranteId)
@@ -1117,15 +1117,17 @@
 
     list.innerHTML = filtered.map(o => {
       const itens = (o.itens_pedido || []).map(i => {
-        const nomeSabores = i.produtos?.nome || (i.pedido_item_sabores || []).map(s => s.produtos?.nome).filter(Boolean).join(' + ') || 'item';
+        const nomeSabores = i.produtos?.nome || (i.itens_pedido_sabores || []).map(s => s.produtos?.nome).filter(Boolean).join(' + ') || 'item';
         return `${i.quantidade}x ${nomeSabores}`;
       }).join(' · ');
       const cliente = o.clientes?.nome || 'Cliente balcão';
       const tipoBadge = o.tipo === 'entrega' ? `<span class="badge entrega">🛵 entrega</span>` : `<span class="badge retirada">🏠 retirada</span>`;
       const pagoBadge = o.pago ? `<span class="badge pago">pago</span>` : `<span class="badge pendente">pendente</span>`;
       const statusBadge = `<span class="badge status">${STATUS_LABEL[o.status] || o.status}</span>`;
-      const enderecoLinha = (o.tipo === 'entrega' && o.endereco_rua)
-        ? `<div class="order-itens" style="margin-top:2px;">📍 ${o.endereco_rua}${o.endereco_numero ? ', ' + o.endereco_numero : ''}${o.endereco_bairro ? ' - ' + o.endereco_bairro : ''}</div>`
+
+      const end = o.enderecos_cliente;
+      const enderecoLinha = (o.tipo === 'entrega' && end?.logradouro)
+        ? `<div class="order-itens" style="margin-top:2px;">📍 ${end.logradouro}${end.numero ? ', ' + end.numero : ''}${end.bairro ? ' - ' + end.bairro : ''}</div>`
         : '';
 
       let actionHtml;
