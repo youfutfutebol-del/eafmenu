@@ -369,7 +369,7 @@
 
       <div class="sidebar__divider"></div>
       <div class="sidebar__section-label">Acessar PWAs</div>
-      <button class="navitem" onclick="emConstrucao()"><span class="ic">📱</span> PWA do Cliente</button>
+      <button class="navitem" onclick="abrirPwaCliente()"><span class="ic">📱</span> PWA do Cliente</button>
       <button class="navitem" onclick="emConstrucao()"><span class="ic">🛵</span> PWA do Motoboy</button>
 
       <div class="sidebar__footer">
@@ -601,6 +601,7 @@
 
         <div style="background:#fff; border:1px solid var(--border); border-radius:12px; padding:22px 24px; max-width:520px;">
           <div class="field"><label>Nome do restaurante</label><input id="mkNome" placeholder="Ex: EAF Menu"></div>
+          <div class="field"><label>Link do cardápio (slug)</label><input id="mkSlug" placeholder="ex: pizzaria-do-joao" oninput="atualizarLinkCardapioPreview()"></div>
           <div class="field"><label>URL do logo</label><input id="mkLogoUrl" placeholder="https://..."></div>
           <div class="field"><label>Cor de destaque</label><input id="mkCor" type="color" style="height:40px; padding:4px;"></div>
           <div class="field"><label>WhatsApp de contato</label><input id="mkWhatsapp" placeholder="(41) 9...."></div>
@@ -610,6 +611,11 @@
           <div class="modal-actions" style="margin-top:6px;">
             <button class="btn primary" onclick="submitMarca()" style="flex:none; padding:10px 20px;">Salvar alterações</button>
           </div>
+          <p style="font-size:12px; color:var(--muted); margin-top:16px;">
+            Link do cardápio do cliente:<br>
+            <b id="mkLinkPreview">—</b>
+            <button type="button" class="btn" style="padding:4px 10px; font-size:11px; margin-left:6px;" onclick="copiarLinkCardapio()">Copiar link</button>
+          </p>
         </div>
       </div>
 
@@ -694,11 +700,23 @@
           <option value="__novo__">+ Criar novo grupo de tamanho</option>
         </select>
 
+        <div id="grupoMaxSaboresExistenteWrap" style="display:none; margin-top:10px;">
+          <label style="display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:5px;">Quantos sabores o cliente pode combinar nesse tamanho?</label>
+          <input id="pGrupoMaxSaboresExistente" type="number" min="1" value="1" style="width:100px;">
+          <p style="font-size:11px; color:var(--muted); margin:4px 0 0;">1 = sem combinação. 2 = ex: pizza meio a meio. Vale para todos os produtos desse grupo de tamanho.</p>
+        </div>
+
         <div id="novoGrupoFields" style="display:none; margin-top:8px;">
           <input id="pNovoGrupoNome" placeholder="Nome do grupo (ex: Tamanho da Pizza, Tamanho do Açaí...)" style="margin-bottom:10px;">
           <label style="display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:6px;">Tamanhos e preços (use os nomes que fizer sentido pra você: 30cm, P, Individual, etc.)</label>
           <div id="novosTamanhosRows"></div>
           <button type="button" class="add-item-btn" onclick="addNovoTamanhoRow()">+ adicionar tamanho</button>
+
+          <div style="margin-top:12px;">
+            <label style="display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:5px;">Quantos sabores o cliente pode combinar nesse tamanho?</label>
+            <input id="pNovoGrupoMaxSabores" type="number" min="1" value="1" style="width:100px;">
+            <p style="font-size:11px; color:var(--muted); margin:4px 0 0;">1 = sem combinação. 2 = ex: pizza meio a meio (o preço cobrado é a média entre os sabores escolhidos).</p>
+          </div>
         </div>
 
         <div id="camposPrecoTamanhos" style="margin-top:10px;"></div>
@@ -825,6 +843,7 @@
   // =====================================================================
   let currentUser = null;
   let restauranteId = null;
+  let restauranteSlugAtual = null;
   let produtosCache = [];
   let orders = [];
   let filtroPedidos = 'todos';
@@ -896,7 +915,7 @@
 
     let { data: userRow, error: userErr } = await sb
       .from('usuarios')
-      .select('id, nome, email, role, restaurante_id, restaurantes(nome)')
+      .select('id, nome, email, role, restaurante_id, restaurantes(nome, slug)')
       .eq('id', session.user.id)
       .single();
 
@@ -916,7 +935,7 @@
             role: convite.role,
             restaurante_id: convite.restaurante_id
           })
-          .select('id, nome, email, role, restaurante_id, restaurantes(nome)')
+          .select('id, nome, email, role, restaurante_id, restaurantes(nome, slug)')
           .single();
 
         if (!criaErr) {
@@ -935,6 +954,7 @@
 
     currentUser = userRow;
     restauranteId = userRow.restaurante_id;
+    restauranteSlugAtual = userRow.restaurantes?.slug || null;
 
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
@@ -1005,6 +1025,15 @@
 
   function emConstrucao() { showToast('Em construção', 'Essa tela ainda não foi implementada nesta versão.'); }
 
+  function abrirPwaCliente() {
+    if (!restauranteSlugAtual) {
+      showToast('Configure o link primeiro', 'Vá em Personalizar Marca e defina o link (slug) do seu cardápio antes de abrir o app do cliente.');
+      switchView('marca');
+      return;
+    }
+    window.open('/cliente/?r=' + restauranteSlugAtual, '_blank');
+  }
+
   // =====================================================================
   // PEDIDOS — DADOS
   // =====================================================================
@@ -1022,8 +1051,9 @@
       .from('pedidos')
       .select(`
         id, tipo, status, pago, forma_pagamento, total, criado_em,
+        endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_complemento,
         clientes ( nome ),
-        itens_pedido ( quantidade, produtos ( nome ) )
+        itens_pedido ( quantidade, produtos ( nome ), pedido_item_sabores ( produtos ( nome ) ) )
       `)
       .eq('restaurante_id', restauranteId)
       .order('criado_em', { ascending: false })
@@ -1086,11 +1116,17 @@
     }
 
     list.innerHTML = filtered.map(o => {
-      const itens = (o.itens_pedido || []).map(i => `${i.quantidade}x ${i.produtos?.nome || 'item'}`).join(' · ');
+      const itens = (o.itens_pedido || []).map(i => {
+        const nomeSabores = i.produtos?.nome || (i.pedido_item_sabores || []).map(s => s.produtos?.nome).filter(Boolean).join(' + ') || 'item';
+        return `${i.quantidade}x ${nomeSabores}`;
+      }).join(' · ');
       const cliente = o.clientes?.nome || 'Cliente balcão';
       const tipoBadge = o.tipo === 'entrega' ? `<span class="badge entrega">🛵 entrega</span>` : `<span class="badge retirada">🏠 retirada</span>`;
       const pagoBadge = o.pago ? `<span class="badge pago">pago</span>` : `<span class="badge pendente">pendente</span>`;
       const statusBadge = `<span class="badge status">${STATUS_LABEL[o.status] || o.status}</span>`;
+      const enderecoLinha = (o.tipo === 'entrega' && o.endereco_rua)
+        ? `<div class="order-itens" style="margin-top:2px;">📍 ${o.endereco_rua}${o.endereco_numero ? ', ' + o.endereco_numero : ''}${o.endereco_bairro ? ' - ' + o.endereco_bairro : ''}</div>`
+        : '';
 
       let actionHtml;
       if (o.status === 'concluido') {
@@ -1108,6 +1144,7 @@
             <div class="order-code">#${o.id.slice(0,8).toUpperCase()} · ${timeAgo(o.criado_em)}</div>
             <div class="order-cliente">${cliente}</div>
             <div class="order-itens">${itens || 'sem itens'}</div>
+            ${enderecoLinha}
           </div>
           <div class="order-badges">${tipoBadge}${statusBadge}${pagoBadge}</div>
           <div class="order-total">R$ ${Number(o.total).toFixed(2).replace('.', ',')}</div>
@@ -1400,7 +1437,7 @@
   // =====================================================================
   async function loadGruposTamanho() {
     const { data, error } = await sb.from('grupos_tamanho')
-      .select('id, nome, opcoes_tamanho(id, nome, ordem)')
+      .select('id, nome, max_sabores, opcoes_tamanho(id, nome, ordem)')
       .eq('restaurante_id', restauranteId);
     if (!error) gruposTamanhoCache = (data || []).map(g => ({
       ...g,
@@ -1502,10 +1539,12 @@
     const val = document.getElementById('pGrupoTamanho').value;
     document.getElementById('camposPrecoTamanhos').innerHTML = '';
     camposTamanhoAtivos = [];
+    document.getElementById('grupoMaxSaboresExistenteWrap').style.display = 'none';
 
     if (val === '__novo__') {
       document.getElementById('novoGrupoFields').style.display = 'block';
       document.getElementById('pNovoGrupoNome').value = '';
+      document.getElementById('pNovoGrupoMaxSabores').value = 1;
       novosTamanhosState = [];
       addNovoTamanhoRow();
       addNovoTamanhoRow();
@@ -1516,6 +1555,8 @@
         const grupo = gruposTamanhoCache.find(g => g.id === val);
         camposTamanhoAtivos = (grupo?.opcoes_tamanho || []).map(o => ({ id: o.id, nome: o.nome }));
         renderCamposPreco();
+        document.getElementById('grupoMaxSaboresExistenteWrap').style.display = 'block';
+        document.getElementById('pGrupoMaxSaboresExistente').value = grupo?.max_sabores || 1;
       }
     }
   }
@@ -1572,6 +1613,7 @@
     document.getElementById('pPrecoUnico').value = '';
     document.getElementById('pGrupoTamanho').value = '';
     document.getElementById('novoGrupoFields').style.display = 'none';
+    document.getElementById('grupoMaxSaboresExistenteWrap').style.display = 'none';
     document.getElementById('pNovoGrupoNome').value = '';
     document.getElementById('novosTamanhosRows').innerHTML = '';
     document.getElementById('camposPrecoTamanhos').innerHTML = '';
@@ -1602,6 +1644,7 @@
     }
     document.getElementById('pAtivo').checked = p.ativo;
     document.getElementById('novoGrupoFields').style.display = 'none';
+    document.getElementById('grupoMaxSaboresExistenteWrap').style.display = 'none';
     novosTamanhosState = [];
 
     const precos = p.produto_precos || [];
@@ -1621,6 +1664,8 @@
         const precoPorOpcao = {};
         precos.forEach(pp => { if (pp.opcao_tamanho_id) precoPorOpcao[pp.opcao_tamanho_id] = pp.preco; });
         renderCamposPreco(precoPorOpcao);
+        document.getElementById('grupoMaxSaboresExistenteWrap').style.display = 'block';
+        document.getElementById('pGrupoMaxSaboresExistente').value = grupo.max_sabores || 1;
       }
     }
 
@@ -1652,6 +1697,7 @@
         // grupo criado na hora, com os nomes e preços que o usuário definiu livremente
         const novoNome = document.getElementById('pNovoGrupoNome').value.trim();
         if (!novoNome) { showToast('Faltou o nome do grupo', 'Dê um nome ao grupo de tamanho (ex: Tamanho da Pizza).'); return; }
+        const novoMaxSabores = Math.max(1, parseInt(document.getElementById('pNovoGrupoMaxSabores').value || '1', 10));
 
         const tamanhosValidos = novosTamanhosState
           .map(t => ({ nome: (t.nome || '').trim(), preco: parseFloat(t.preco) }))
@@ -1661,7 +1707,7 @@
         if (tamanhosValidos.some(t => !t.preco || t.preco <= 0)) { showToast('Preço inválido', 'Informe um preço maior que zero para cada tamanho.'); return; }
 
         const { data: grupo, error: grupoErr } = await sb.from('grupos_tamanho')
-          .insert({ nome: novoNome, restaurante_id: restauranteId }).select().single();
+          .insert({ nome: novoNome, restaurante_id: restauranteId, max_sabores: novoMaxSabores }).select().single();
         if (grupoErr) { showToast('Erro ao criar grupo', grupoErr.message); return; }
         grupo_tamanho_id = grupo.id;
 
@@ -1675,7 +1721,7 @@
 
         await loadGruposTamanho();
       } else if (grupoSelecionado) {
-        // grupo já existente: só edita os preços dos tamanhos que já foram definidos antes
+        // grupo já existente: edita os preços dos tamanhos e a config de sabores combinados
         grupo_tamanho_id = grupoSelecionado;
         const inputs = [...document.querySelectorAll('.precoTamanhoInput')];
         if (inputs.length === 0) { showToast('Faltaram os preços', 'Preencha o preço de cada tamanho.'); return; }
@@ -1684,6 +1730,11 @@
           return { opcao_tamanho_id: camposTamanhoAtivos[i].id, preco };
         });
         if (precosParaSalvar.some(p => !p.preco || p.preco <= 0)) { showToast('Preço inválido', 'Todos os tamanhos precisam de um preço maior que zero.'); return; }
+
+        const maxSaboresEditado = Math.max(1, parseInt(document.getElementById('pGrupoMaxSaboresExistente').value || '1', 10));
+        const { error: grupoUpdateErr } = await sb.from('grupos_tamanho').update({ max_sabores: maxSaboresEditado }).eq('id', grupoSelecionado);
+        if (grupoUpdateErr) { showToast('Erro ao atualizar sabores do grupo', grupoUpdateErr.message); return; }
+        await loadGruposTamanho();
       } else {
         showToast('Selecione um grupo', 'Escolha ou crie um grupo de tamanho.');
         return;
@@ -1969,28 +2020,52 @@
   // =====================================================================
   // PERSONALIZAR MARCA
   // =====================================================================
+  function slugify(texto) {
+    return (texto || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+  }
+
+  function atualizarLinkCardapioPreview() {
+    const slug = document.getElementById('mkSlug').value.trim();
+    document.getElementById('mkLinkPreview').textContent = slug ? (location.origin + '/cliente/?r=' + slugify(slug)) : '—';
+  }
+
+  function copiarLinkCardapio() {
+    const texto = document.getElementById('mkLinkPreview').textContent;
+    if (!texto || texto === '—') { showToast('Defina o link primeiro', 'Preencha o campo "Link do cardápio" e salve.'); return; }
+    navigator.clipboard.writeText(texto).then(() => showToast('Link copiado', texto));
+  }
+
   async function loadMarca() {
     const { data, error } = await sb.from('restaurantes')
-      .select('id, nome, logo_url, cor_destaque, whatsapp, endereco, instagram, horario_funcionamento')
+      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horario_funcionamento')
       .eq('id', restauranteId)
       .single();
     if (error) { showToast('Erro ao carregar dados da marca', error.message); return; }
 
     document.getElementById('mkNome').value = data.nome || '';
+    document.getElementById('mkSlug').value = data.slug || '';
     document.getElementById('mkLogoUrl').value = data.logo_url || '';
     document.getElementById('mkCor').value = data.cor_destaque || '#E5342A';
     document.getElementById('mkWhatsapp').value = data.whatsapp || '';
     document.getElementById('mkEndereco').value = data.endereco || '';
     document.getElementById('mkInstagram').value = data.instagram || '';
     document.getElementById('mkHorario').value = data.horario_funcionamento || '';
+    atualizarLinkCardapioPreview();
   }
 
   async function submitMarca() {
     const nome = document.getElementById('mkNome').value.trim();
     if (!nome) { showToast('Faltou o nome', 'Informe o nome do restaurante.'); return; }
+    const slugDigitado = document.getElementById('mkSlug').value.trim();
+    const slugFinal = slugDigitado ? slugify(slugDigitado) : null;
 
     const payload = {
       nome,
+      slug: slugFinal,
       logo_url: document.getElementById('mkLogoUrl').value.trim() || null,
       cor_destaque: document.getElementById('mkCor').value || null,
       whatsapp: document.getElementById('mkWhatsapp').value.trim() || null,
@@ -2000,8 +2075,18 @@
     };
 
     const { error } = await sb.from('restaurantes').update(payload).eq('id', restauranteId);
-    if (error) { showToast('Erro ao salvar', error.message); return; }
+    if (error) {
+      if (error.message && error.message.toLowerCase().includes('duplicate')) {
+        showToast('Link já está em uso', 'Esse link (slug) já pertence a outro restaurante. Escolha outro.');
+      } else {
+        showToast('Erro ao salvar', error.message);
+      }
+      return;
+    }
     document.getElementById('restauranteNome').textContent = nome;
+    document.getElementById('mkSlug').value = slugFinal || '';
+    restauranteSlugAtual = slugFinal;
+    atualizarLinkCardapioPreview();
     showToast('Marca atualizada', 'As alterações já valem para o cardápio público.');
   }
 
