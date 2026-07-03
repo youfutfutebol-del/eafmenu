@@ -32,7 +32,6 @@
   button { font-family: inherit; cursor: pointer; }
   input, select { font-family: inherit; }
 
-  /* ---------------- Login screen ---------------- */
   #loginScreen {
     min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--sidebar);
   }
@@ -55,7 +54,6 @@
   .login-msg { font-size:12px; margin-top:12px; color: var(--muted); min-height:16px; }
   .login-msg.error { color: var(--red); }
 
-  /* ---------------- App shell ---------------- */
   #app { display:none; min-height:100vh; }
   .layout { display:flex; min-height:100vh; }
 
@@ -94,7 +92,6 @@
 
   .logout-btn { width:100%; text-align:left; background:transparent; border:none; color:#F87171; font-size:12.5px; font-weight:700; padding:9px 10px; }
 
-  /* ---------------- Main content ---------------- */
   .main { flex:1; padding: 26px 30px; min-width:0; }
   .view { display:none; }
   .view.active { display:block; }
@@ -148,7 +145,6 @@
   .order-action .done { color: var(--green); font-weight:800; font-size:12px; }
   .order-action .pago-btn { background:#fff; color: var(--ink); border:1px solid var(--border); margin-top:6px; }
 
-  /* ---------------- Cards de resumo (Financeiro) ---------------- */
   .summary-row { display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-bottom:18px; }
   .summary-card { background:#fff; border:1px solid var(--border); border-radius:12px; padding:18px; }
   .summary-card .label { font-size:11.5px; font-weight:800; color: var(--muted); letter-spacing:.03em; text-transform:uppercase; margin-bottom:8px; }
@@ -169,7 +165,6 @@
   .mov-valor.entrada { color: var(--green); }
   .mov-valor.saida { color: var(--red); }
 
-  /* ---------------- Tabelas (Produtos / Categorias) ---------------- */
   .data-table { width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
   .data-table thead th {
     text-align:left; font-size:11px; font-weight:800; color: var(--muted); text-transform:uppercase; letter-spacing:.04em;
@@ -210,7 +205,18 @@
   .novo-tamanho-row button.remove:hover { background:#FEE2E2; color:var(--red); }
   .novos-tamanhos-empty { font-size:12px; color:var(--muted); margin:2px 0 8px; }
 
-  /* ---------------- Modal ---------------- */
+  .horarios-grid { display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
+  .horario-dia-row {
+    display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:9px; background:#FAFAFA;
+  }
+  .horario-dia-row.fechado { opacity:.55; }
+  .horario-dia-nome { width:88px; flex-shrink:0; font-size:12.5px; font-weight:700; }
+  .horario-dia-row .switch { flex-shrink:0; }
+  .horario-dia-tempos { display:flex; align-items:center; gap:6px; flex:1; }
+  .horario-dia-tempos input[type="time"] { width:100%; padding:7px 8px; border:1px solid var(--border); border-radius:7px; font-size:12.5px; }
+  .horario-dia-tempos span { font-size:11.5px; color:var(--muted); flex-shrink:0; }
+  .horario-dia-fechado-label { flex:1; font-size:12px; color:var(--muted); font-style:italic; }
+
   .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:80; align-items:center; justify-content:center; }
   .modal-bg.show { display:flex; }
   .modal { background:#fff; border-radius:14px; padding:22px 24px; width:420px; max-height:85vh; overflow:auto; }
@@ -225,7 +231,6 @@
   .modal-actions .btn { flex:1; text-align:center; }
   .add-item-btn { font-size:12px; font-weight:700; color: var(--red); background:none; border:none; padding:4px 0; }
 
-  /* ---------------- Toast ---------------- */
   .toast {
     position:fixed; top:16px; right:16px; z-index:100; background:#fff; border:1px solid var(--border); border-left:3px solid var(--red);
     padding:12px 16px; border-radius:10px; font-size:12.5px; box-shadow:0 10px 30px rgba(0,0,0,.15);
@@ -234,7 +239,6 @@
   .toast.show { transform: translateX(0); }
   .toast b { display:block; font-size:12px; color: var(--red); margin-bottom:2px; }
 
-  /* ---------------- Instalar PWA ---------------- */
   .install-btn {
     display:none; align-items:center; gap:6px; background:#fff; color:var(--red); border:1px solid var(--red);
     border-radius:8px; padding:9px 13px; font-size:12.5px; font-weight:800;
@@ -243,7 +247,6 @@
   .login-card .install-btn { width:100%; justify-content:center; margin-bottom:12px; }
   .sidebar .install-btn { width:100%; justify-content:center; background:transparent; color:#fff; border-color:#3a3a3a; margin-bottom:8px; }
 
-  /* ---------------- Mobile topbar / drawer ---------------- */
   .mobile-topbar { display:none; }
   .drawer-overlay { display:none; }
 
@@ -289,7 +292,6 @@
     .modal-bg { align-items:flex-end; }
     .modal { width:100%; max-width:100%; border-radius:16px 16px 0 0; max-height:90vh; padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
 
-    /* Tabelas viram cards empilhados no mobile */
     .data-table thead { display:none; }
     .data-table, .data-table tbody, .data-table tr, .data-table td { display:block; width:100%; }
     .data-table { border:none; background:transparent; }
@@ -309,12 +311,14 @@
     .data-table td:has(.empty-state)::before { display:none; }
     .data-table td:has(.prod-row-name) { justify-content:flex-start; }
     .row-actions { justify-content:flex-end; flex-wrap:wrap; }
+
+    .horario-dia-row { flex-wrap:wrap; }
+    .horario-dia-tempos { width:100%; }
   }
 </style>
 </head>
 <body>
 
-<!-- ==================== LOGIN ==================== -->
 <div id="loginScreen">
   <div class="login-card">
     <div class="badge">EM</div>
@@ -334,7 +338,6 @@
   </div>
 </div>
 
-<!-- ==================== APP ==================== -->
 <div id="app">
   <div class="mobile-topbar">
     <button class="hamburger-btn" onclick="openDrawer()" aria-label="Abrir menu">☰</button>
@@ -385,12 +388,11 @@
 
     <div class="main">
 
-      <!-- ==================== VIEW: PEDIDOS ==================== -->
       <div class="view active" id="viewPedidos">
         <div class="main__header">
           <div>
             <h1 class="main__title">Monitor de Pedidos em Tempo Real</h1>
-            <p class="main__subtitle">Controle as preparações e entregas do restaurante</p>
+            <p class="main__subtitle" id="pedidosSubtitle">Controle as preparações e entregas do restaurante</p>
           </div>
           <div class="actions">
             <button class="btn primary" onclick="openManualOrder()">+ Lançar Pedido (Manual)</button>
@@ -418,7 +420,6 @@
         </div>
       </div>
 
-      <!-- ==================== VIEW: FINANCEIRO ==================== -->
       <div class="view" id="viewFinanceiro">
         <div class="main__header">
           <div>
@@ -465,7 +466,6 @@
         </div>
       </div>
 
-      <!-- ==================== VIEW: PRODUTOS ==================== -->
       <div class="view" id="viewProdutos">
         <div class="main__header">
           <div>
@@ -487,7 +487,6 @@
         </table>
       </div>
 
-      <!-- ==================== VIEW: CATEGORIAS ==================== -->
       <div class="view" id="viewCategorias">
         <div class="main__header">
           <div>
@@ -509,7 +508,6 @@
         </table>
       </div>
 
-      <!-- ==================== VIEW: CLIENTES ==================== -->
       <div class="view" id="viewClientes">
         <div class="main__header">
           <div>
@@ -531,7 +529,6 @@
         </table>
       </div>
 
-      <!-- ==================== VIEW: ENTREGADORES ==================== -->
       <div class="view" id="viewEntregadores">
         <div class="main__header">
           <div>
@@ -553,7 +550,6 @@
         </table>
       </div>
 
-      <!-- ==================== VIEW: GESTÃO DE EQUIPE ==================== -->
       <div class="view" id="viewEquipe">
         <div class="main__header">
           <div>
@@ -587,7 +583,6 @@
         </div>
       </div>
 
-      <!-- ==================== VIEW: PERSONALIZAR MARCA ==================== -->
       <div class="view" id="viewMarca">
         <div class="main__header">
           <div>
@@ -596,7 +591,7 @@
           </div>
         </div>
 
-        <div style="background:#fff; border:1px solid var(--border); border-radius:12px; padding:22px 24px; max-width:520px;">
+        <div style="background:#fff; border:1px solid var(--border); border-radius:12px; padding:22px 24px; max-width:560px;">
           <div class="field"><label>Nome do restaurante</label><input id="mkNome" placeholder="Ex: EAF Menu"></div>
           <div class="field"><label>Link do cardápio (slug)</label><input id="mkSlug" placeholder="ex: pizzaria-do-joao" oninput="atualizarLinkCardapioPreview()"></div>
           <div class="field"><label>URL do logo</label><input id="mkLogoUrl" placeholder="https://..."></div>
@@ -604,7 +599,13 @@
           <div class="field"><label>WhatsApp de contato</label><input id="mkWhatsapp" placeholder="(41) 9...."></div>
           <div class="field"><label>Endereço</label><input id="mkEndereco" placeholder="Rua, número, bairro, cidade"></div>
           <div class="field"><label>Instagram</label><input id="mkInstagram" placeholder="@seurestaurante"></div>
-          <div class="field"><label>Horário de funcionamento</label><input id="mkHorario" placeholder="Ex: Ter a Dom, 18h às 23h"></div>
+
+          <div class="field">
+            <label>Horário de funcionamento</label>
+            <div class="horarios-grid" id="horariosGrid"></div>
+            <p style="font-size:11px; color:var(--muted); margin:2px 0 0;">Esse horário aparece no cardápio do cliente como informação — ele não bloqueia pedidos automaticamente fora do horário.</p>
+          </div>
+
           <div class="modal-actions" style="margin-top:6px;">
             <button class="btn primary" onclick="submitMarca()" style="flex:none; padding:10px 20px;">Salvar alterações</button>
           </div>
@@ -620,7 +621,6 @@
   </div>
 </div>
 
-<!-- ==================== MODAL: lançar pedido manual ==================== -->
 <div class="modal-bg" id="manualModalBg">
   <div class="modal">
     <h3>Lançar pedido manual</h3>
@@ -642,7 +642,6 @@
   </div>
 </div>
 
-<!-- ==================== MODAL: lançar despesa ==================== -->
 <div class="modal-bg" id="despesaModalBg">
   <div class="modal">
     <h3>Lançar despesa</h3>
@@ -655,7 +654,6 @@
   </div>
 </div>
 
-<!-- ==================== MODAL: produto ==================== -->
 <div class="modal-bg" id="produtoModalBg">
   <div class="modal">
     <h3 id="produtoModalTitle">Novo produto</h3>
@@ -733,7 +731,6 @@
   </div>
 </div>
 
-<!-- ==================== MODAL: categoria ==================== -->
 <div class="modal-bg" id="categoriaModalBg">
   <div class="modal">
     <h3 id="categoriaModalTitle">Nova categoria</h3>
@@ -747,7 +744,6 @@
   </div>
 </div>
 
-<!-- ==================== MODAL: entregador ==================== -->
 <div class="modal-bg" id="entregadorModalBg">
   <div class="modal">
     <h3 id="entregadorModalTitle">Novo entregador</h3>
@@ -775,7 +771,6 @@
   </div>
 </div>
 
-<!-- ==================== MODAL: convidar membro da equipe ==================== -->
 <div class="modal-bg" id="membroModalBg">
   <div class="modal">
     <h3>Convidar membro da equipe</h3>
@@ -797,7 +792,6 @@
   </div>
 </div>
 
-<!-- ==================== MODAL: editar cliente ==================== -->
 <div class="modal-bg" id="clienteModalBg">
   <div class="modal">
     <h3>Editar cliente</h3>
@@ -814,11 +808,6 @@
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
 <script>
-  // =====================================================================
-  // CONFIGURAÇÃO
-  // =====================================================================
-  // As credenciais não ficam mais escritas aqui — vêm da função serverless
-  // /api/config.js, que lê as variáveis de ambiente configuradas na Vercel.
   let sb = null;
 
   async function initSupabase() {
@@ -835,9 +824,6 @@
     sb = supabase.createClient(url, anonKey);
   }
 
-  // =====================================================================
-  // ESTADO
-  // =====================================================================
   let currentUser = null;
   let restauranteId = null;
   let restauranteSlugAtual = null;
@@ -856,17 +842,21 @@
   let gruposTamanhoCache = [];
   let produtosAdminCache = [];
   let tipoPrecoAtual = 'unico';
-  let camposTamanhoAtivos = []; // [{id, nome}] do grupo selecionado (já existente no banco)
-  let novosTamanhosState = []; // [{nome, preco}] linhas do grupo novo, ainda sem id no banco
+  let camposTamanhoAtivos = [];
+  let novosTamanhosState = [];
 
   let clientesCache = [];
   let entregadoresCache = [];
   let equipeCache = [];
   let convitesCache = [];
 
- // ==================================================
-// LOGIN (e-mail + senha)
-// ==================================================
+  const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  let horariosSemanaState = null;
+
+  const HORA_RESET_PEDIDOS = 5;
+  let diaComercialAtualKey = null;
+  let resetPedidosInterval = null;
+
 async function fazerLogin() {
   if (!sb) { setLoginMsg('Ainda carregando configuração, aguarde...', false); return; }
 
@@ -892,19 +882,14 @@ function setLoginMsg(msg, isError) {
   el.className = 'login-msg' + (isError ? ' error' : '');
 }
 
-
-
   async function logout() {
     await sb.auth.signOut();
     location.reload();
   }
 
-  // =====================================================================
-  // BOOT — carrega usuário, restaurante, cardápio e pedidos
-  // =====================================================================
   async function boot() {
     const { data: { session } } = await sb.auth.getSession();
-    if (!session) return; // fica na tela de login
+    if (!session) return;
 
     let { data: userRow, error: userErr } = await sb
       .from('usuarios')
@@ -912,7 +897,6 @@ function setLoginMsg(msg, isError) {
       .eq('id', session.user.id)
       .single();
 
-    // se ainda não existe cadastro pelo id, verifica se há um convite pendente para esse e-mail
     if ((userErr || !userRow) && session.user.email) {
       const { data: convite } = await sb.from('convites_equipe')
         .select('id, nome, role, restaurante_id')
@@ -956,12 +940,10 @@ function setLoginMsg(msg, isError) {
     document.getElementById('restauranteNome').textContent = userRow.restaurantes?.nome || 'EAF Menu';
     document.getElementById('mobileRestauranteNome').textContent = userRow.restaurantes?.nome || 'EAF Menu';
 
-    // Financeiro e Gestão de Equipe só aparecem pra Dono/Gerente
     if (userRow.role === 'dono' || userRow.role === 'gerente') {
       document.getElementById('navFinanceiro').style.display = 'flex';
       document.getElementById('navEquipe').style.display = 'flex';
     }
-    // Personalizar Marca só aparece pro Dono
     if (userRow.role === 'dono') {
       document.getElementById('navMarca').style.display = 'flex';
     }
@@ -971,13 +953,10 @@ function setLoginMsg(msg, isError) {
     await loadGruposTamanho();
     await loadPedidos();
     subscribeRealtime();
+    iniciarResetDiarioPedidos();
   }
 
-  // =====================================================================
-  // NAVEGAÇÃO ENTRE VIEWS
-  // =====================================================================
   function switchView(view) {
-    // trava dupla: mesmo que alguém force o clique via console, sem permissão não carrega nada
     if (view === 'financeiro' && !(currentUser?.role === 'dono' || currentUser?.role === 'gerente')) return;
     if (view === 'equipe' && !(currentUser?.role === 'dono' || currentUser?.role === 'gerente')) return;
     if (view === 'marca' && currentUser?.role !== 'dono') return;
@@ -1004,9 +983,6 @@ function setLoginMsg(msg, isError) {
 
   function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
-  // =====================================================================
-  // MENU GAVETA (mobile)
-  // =====================================================================
   function openDrawer() {
     document.getElementById('sidebarEl').classList.add('open');
     document.getElementById('drawerOverlay').classList.add('show');
@@ -1027,9 +1003,45 @@ function setLoginMsg(msg, isError) {
     window.open('/cliente/?r=' + restauranteSlugAtual, '_blank');
   }
 
-  // =====================================================================
-  // PEDIDOS — DADOS
-  // =====================================================================
+  function inicioDiaComercial(refDate) {
+    const agora = refDate || new Date();
+    const inicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), HORA_RESET_PEDIDOS, 0, 0, 0);
+    if (agora.getHours() < HORA_RESET_PEDIDOS) {
+      inicio.setDate(inicio.getDate() - 1);
+    }
+    return inicio;
+  }
+
+  function diaComercialKey(refDate) {
+    return inicioDiaComercial(refDate).toISOString();
+  }
+
+  function formatHoraCurta(d) {
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function atualizarSubtituloPedidos() {
+    const el = document.getElementById('pedidosSubtitle');
+    if (!el) return;
+    const inicio = inicioDiaComercial();
+    el.textContent = 'Pedidos desde as ' + formatHoraCurta(inicio) + ' de hoje · reinicia automaticamente às ' + String(HORA_RESET_PEDIDOS).padStart(2,'0') + 'h';
+  }
+
+  function iniciarResetDiarioPedidos() {
+    diaComercialAtualKey = diaComercialKey();
+    atualizarSubtituloPedidos();
+    if (resetPedidosInterval) clearInterval(resetPedidosInterval);
+    resetPedidosInterval = setInterval(async () => {
+      const chaveAgora = diaComercialKey();
+      if (chaveAgora !== diaComercialAtualKey) {
+        diaComercialAtualKey = chaveAgora;
+        atualizarSubtituloPedidos();
+        await loadPedidos();
+        showToast('Painel reiniciado', 'Um novo dia comercial começou às ' + String(HORA_RESET_PEDIDOS).padStart(2,'0') + 'h.');
+      }
+    }, 60 * 1000);
+  }
+
   async function loadProdutos() {
     const { data, error } = await sb
       .from('produtos')
@@ -1040,6 +1052,7 @@ function setLoginMsg(msg, isError) {
   }
 
   async function loadPedidos() {
+    const inicio = inicioDiaComercial().toISOString();
     const { data, error } = await sb
       .from('pedidos')
       .select(`
@@ -1049,16 +1062,15 @@ function setLoginMsg(msg, isError) {
         itens_pedido ( quantidade, produtos ( nome ), itens_pedido_sabores ( produtos ( nome ) ) )
       `)
       .eq('restaurante_id', restauranteId)
+      .gte('criado_em', inicio)
       .order('criado_em', { ascending: false })
-      .limit(100);
+      .limit(200);
     if (error) { console.error(error); return; }
     orders = data || [];
+    atualizarSubtituloPedidos();
     renderOrders();
   }
 
-  // =====================================================================
-  // REALTIME (pedidos) — fica ativo mesmo se o usuário estiver na aba Financeiro
-  // =====================================================================
   function subscribeRealtime() {
     sb.channel('pedidos-restaurante-' + restauranteId)
       .on('postgres_changes',
@@ -1078,9 +1090,6 @@ function setLoginMsg(msg, isError) {
       });
   }
 
-  // =====================================================================
-  // PEDIDOS — RENDER
-  // =====================================================================
  const STATUS_LABEL = {
   recebido: 'Recebido', aceito: 'Aceito', em_preparo: 'Em preparo',
   saiu_para_entrega: 'Saiu p/ entrega', entregue: 'Entregue',
@@ -1154,9 +1163,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     renderOrders();
   }
 
-  // =====================================================================
-  // PEDIDOS — AÇÕES
-  // =====================================================================
   async function advanceStatus(id, status, tipo) {
     let next = FLOW[FLOW.indexOf(status) + 1];
     if (status === 'em_preparo' && tipo === 'retirada') next = 'concluido';
@@ -1169,13 +1175,9 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     const { error } = await sb.from('pedidos').update({ pago: true }).eq('id', id);
     if (error) { showToast('Erro', error.message); return; }
     await loadPedidos();
-    // se o usuário tiver acesso ao financeiro e estiver naquela aba, atualiza também
     if (currentView === 'financeiro') loadMovimentacoes();
   }
 
-  // =====================================================================
-  // PEDIDO MANUAL
-  // =====================================================================
   function openManualOrder() {
     document.getElementById('mItens').innerHTML = '';
     addItemLine();
@@ -1236,9 +1238,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     await loadPedidos();
   }
 
-  // =====================================================================
-  // FINANCEIRO — DADOS
-  // =====================================================================
   function periodoInicio() {
     const agora = new Date();
     if (periodo === 'hoje') {
@@ -1271,9 +1270,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     loadMovimentacoes();
   }
 
-  // =====================================================================
-  // FINANCEIRO — RENDER
-  // =====================================================================
   function formatMoeda(v) {
     return 'R$ ' + Number(v).toFixed(2).replace('.', ',');
   }
@@ -1310,9 +1306,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     }).join('');
   }
 
-  // =====================================================================
-  // FINANCEIRO — LANÇAR DESPESA (manual)
-  // =====================================================================
   function openDespesa() {
     document.getElementById('dDescricao').value = '';
     document.getElementById('dValor').value = '';
@@ -1340,9 +1333,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     await loadMovimentacoes();
   }
 
-  // =====================================================================
-  // CATEGORIAS — DADOS
-  // =====================================================================
   async function loadCategorias() {
     const { data, error } = await sb.from('categorias')
       .select('id, nome, ordem')
@@ -1354,7 +1344,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
 
   async function loadCategoriasAdmin() {
     await loadCategorias();
-    // conta quantos produtos usam cada categoria
     const { data: produtos } = await sb.from('produtos').select('id, categoria_id').eq('restaurante_id', restauranteId);
     const contagem = {};
     (produtos || []).forEach(p => { if (p.categoria_id) contagem[p.categoria_id] = (contagem[p.categoria_id] || 0) + 1; });
@@ -1386,9 +1375,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     sel.value = atual;
   }
 
-  // =====================================================================
-  // CATEGORIAS — MODAL / CRUD
-  // =====================================================================
   function openCategoria(cat) {
     document.getElementById('categoriaModalTitle').textContent = cat ? 'Editar categoria' : 'Nova categoria';
     document.getElementById('catId').value = cat ? cat.id : '';
@@ -1427,9 +1413,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     await loadCategoriasAdmin();
   }
 
-  // =====================================================================
-  // GRUPOS DE TAMANHO — DADOS
-  // =====================================================================
   async function loadGruposTamanho() {
     const { data, error } = await sb.from('grupos_tamanho')
       .select('id, nome, max_sabores, opcoes_tamanho(id, nome, ordem)')
@@ -1448,9 +1431,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
       '<option value="__novo__">+ Criar novo grupo de tamanho</option>';
   }
 
-  // =====================================================================
-  // PRODUTOS — DADOS
-  // =====================================================================
   async function loadProdutosAdmin() {
     const { data, error } = await sb.from('produtos')
       .select(`
@@ -1476,10 +1456,8 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
 
       let precoHtml = '—';
       if (precosAtivos.length === 1 && !precosAtivos[0].opcoes_tamanho) {
-        // preço único, sem tamanho
         precoHtml = formatMoeda(precosAtivos[0].preco);
       } else if (precosAtivos.length >= 1) {
-        // vários tamanhos: lista nome do tamanho + valor, cada um
         precoHtml = '<div class="price-tags">' + precosAtivos
           .slice()
           .sort((a, b) => Number(a.preco) - Number(b.preco))
@@ -1516,12 +1494,9 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     const { error } = await sb.from('produtos').update({ ativo: !ativoAtual }).eq('id', id);
     if (error) { showToast('Erro', error.message); return; }
     await loadProdutosAdmin();
-    await loadProdutos(); // atualiza também o cardápio usado no pedido manual
+    await loadProdutos();
   }
 
-  // =====================================================================
-  // PRODUTOS — MODAL
-  // =====================================================================
   function setTipoPreco(tipo) {
     tipoPrecoAtual = tipo;
     document.getElementById('btnPrecoUnico').classList.toggle('active', tipo === 'unico');
@@ -1556,7 +1531,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     }
   }
 
-  // Linhas dinâmicas de "nome do tamanho + preço" para quando o usuário está criando um grupo novo
   function addNovoTamanhoRow(nome, preco) {
     novosTamanhosState.push({ nome: nome || '', preco: preco || '' });
     renderNovosTamanhosRows();
@@ -1650,7 +1624,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
       document.getElementById('pPrecoUnico').value = precos[0]?.preco ?? '';
     } else {
       setTipoPreco('tamanhos');
-      // acha o grupo a que essas opções pertencem
       const opcaoIds = precos.map(pp => pp.opcao_tamanho_id).filter(Boolean);
       const grupo = gruposTamanhoCache.find(g => g.opcoes_tamanho.some(o => opcaoIds.includes(o.id)));
       if (grupo) {
@@ -1679,7 +1652,7 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     const ativo = document.getElementById('pAtivo').checked;
 
     let grupo_tamanho_id = null;
-    let precosParaSalvar = []; // [{ opcao_tamanho_id, preco }]
+    let precosParaSalvar = [];
 
     if (tipoPrecoAtual === 'unico') {
       const preco = parseFloat(document.getElementById('pPrecoUnico').value);
@@ -1689,7 +1662,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
       let grupoSelecionado = document.getElementById('pGrupoTamanho').value;
 
       if (grupoSelecionado === '__novo__') {
-        // grupo criado na hora, com os nomes e preços que o usuário definiu livremente
         const novoNome = document.getElementById('pNovoGrupoNome').value.trim();
         if (!novoNome) { showToast('Faltou o nome do grupo', 'Dê um nome ao grupo de tamanho (ex: Tamanho da Pizza).'); return; }
         const novoMaxSabores = Math.max(1, parseInt(document.getElementById('pNovoGrupoMaxSabores').value || '1', 10));
@@ -1716,7 +1688,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
 
         await loadGruposTamanho();
       } else if (grupoSelecionado) {
-        // grupo já existente: edita os preços dos tamanhos e a config de sabores combinados
         grupo_tamanho_id = grupoSelecionado;
         const inputs = [...document.querySelectorAll('.precoTamanhoInput')];
         if (inputs.length === 0) { showToast('Faltaram os preços', 'Preencha o preço de cada tamanho.'); return; }
@@ -1742,7 +1713,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     if (id) {
       const { error } = await sb.from('produtos').update(payload).eq('id', id);
       if (error) { showToast('Erro ao salvar produto', error.message); return; }
-      // recria os preços do zero, mais simples que fazer diff
       await sb.from('produto_precos').delete().eq('produto_id', id);
     } else {
       const { data: novoProduto, error } = await sb.from('produtos').insert(payload).select().single();
@@ -1757,12 +1727,9 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     closeProduto();
     showToast('Produto salvo', nome);
     await loadProdutosAdmin();
-    await loadProdutos(); // atualiza o cardápio do pedido manual também
+    await loadProdutos();
   }
 
-  // =====================================================================
-  // CLIENTES
-  // =====================================================================
   async function loadClientes() {
     const { data: clientes, error } = await sb.from('clientes')
       .select('id, nome, telefone')
@@ -1832,9 +1799,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     await loadClientes();
   }
 
-  // =====================================================================
-  // ENTREGADORES (MOTOBOYS)
-  // =====================================================================
   async function loadEntregadores() {
     const { data, error } = await sb.from('entregadores')
       .select('id, nome, telefone, veiculo, placa, ativo')
@@ -1907,9 +1871,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     await loadEntregadores();
   }
 
-  // =====================================================================
-  // GESTÃO DE EQUIPE
-  // =====================================================================
   const ROLE_LABEL = { dono: 'Dono', gerente: 'Gerente', atendente: 'Atendente', cozinha: 'Cozinha' };
 
   async function loadEquipe() {
@@ -2012,9 +1973,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     await loadEquipe();
   }
 
-  // =====================================================================
-  // PERSONALIZAR MARCA
-  // =====================================================================
   function slugify(texto) {
     return (texto || '')
       .toLowerCase()
@@ -2034,9 +1992,50 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     navigator.clipboard.writeText(texto).then(() => showToast('Link copiado', texto));
   }
 
+  function horariosSemanaPadrao() {
+    return DIAS_SEMANA.map((_, dia) => ({ dia, aberto: false, abre: '18:00', fecha: '23:00' }));
+  }
+
+  function normalizarHorariosSemana(valorBanco) {
+    const base = horariosSemanaPadrao();
+    if (Array.isArray(valorBanco)) {
+      valorBanco.forEach(item => {
+        const idx = base.findIndex(d => d.dia === item.dia);
+        if (idx >= 0) base[idx] = { dia: item.dia, aberto: !!item.aberto, abre: item.abre || '18:00', fecha: item.fecha || '23:00' };
+      });
+    }
+    return base;
+  }
+
+  function renderHorariosGrid() {
+    const wrap = document.getElementById('horariosGrid');
+    wrap.innerHTML = horariosSemanaState.map((d, i) => `
+      <div class="horario-dia-row ${d.aberto ? '' : 'fechado'}">
+        <span class="horario-dia-nome">${DIAS_SEMANA[d.dia]}</span>
+        <button type="button" class="switch ${d.aberto ? 'on' : ''}" onclick="toggleDiaAberto(${i})" aria-label="Abrir/fechar ${DIAS_SEMANA[d.dia]}"></button>
+        ${d.aberto
+          ? `<div class="horario-dia-tempos">
+               <input type="time" value="${d.abre}" onchange="atualizarHorarioDia(${i}, 'abre', this.value)">
+               <span>até</span>
+               <input type="time" value="${d.fecha}" onchange="atualizarHorarioDia(${i}, 'fecha', this.value)">
+             </div>`
+          : `<span class="horario-dia-fechado-label">Fechado nesse dia</span>`
+        }
+      </div>`).join('');
+  }
+
+  function toggleDiaAberto(idx) {
+    horariosSemanaState[idx].aberto = !horariosSemanaState[idx].aberto;
+    renderHorariosGrid();
+  }
+
+  function atualizarHorarioDia(idx, campo, valor) {
+    horariosSemanaState[idx][campo] = valor;
+  }
+
   async function loadMarca() {
     const { data, error } = await sb.from('restaurantes')
-      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horario_funcionamento')
+      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horarios_semana')
       .eq('id', restauranteId)
       .single();
     if (error) { showToast('Erro ao carregar dados da marca', error.message); return; }
@@ -2048,7 +2047,10 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     document.getElementById('mkWhatsapp').value = data.whatsapp || '';
     document.getElementById('mkEndereco').value = data.endereco || '';
     document.getElementById('mkInstagram').value = data.instagram || '';
-    document.getElementById('mkHorario').value = data.horario_funcionamento || '';
+
+    horariosSemanaState = normalizarHorariosSemana(data.horarios_semana);
+    renderHorariosGrid();
+
     atualizarLinkCardapioPreview();
   }
 
@@ -2066,7 +2068,7 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
       whatsapp: document.getElementById('mkWhatsapp').value.trim() || null,
       endereco: document.getElementById('mkEndereco').value.trim() || null,
       instagram: document.getElementById('mkInstagram').value.trim() || null,
-      horario_funcionamento: document.getElementById('mkHorario').value.trim() || null
+      horarios_semana: horariosSemanaState
     };
 
     const { error } = await sb.from('restaurantes').update(payload).eq('id', restauranteId);
@@ -2085,9 +2087,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     showToast('Marca atualizada', 'As alterações já valem para o cardápio público.');
   }
 
-  // =====================================================================
-  // UPLOAD DE IMAGEM (Supabase Storage)
-  // =====================================================================
   async function uploadImagem(file, pasta) {
     const extensao = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const nomeArquivo = `${restauranteId}/${pasta}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${extensao}`;
@@ -2120,9 +2119,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     }
   }
 
-  // =====================================================================
-  // SOM / TOAST / ALERTA
-  // =====================================================================
   function toggleSound() {
     soundOn = !soundOn;
     document.getElementById('soundSwitch').classList.toggle('on', soundOn);
@@ -2154,9 +2150,6 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     t._timer = setTimeout(() => t.classList.remove('show'), 3600);
   }
 
-  // =====================================================================
-  // PWA — INSTALAÇÃO E SERVICE WORKER
-  // =====================================================================
   let deferredInstallPrompt = null;
 
   window.addEventListener('beforeinstallprompt', (e) => {
@@ -2190,15 +2183,12 @@ const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
     });
   }
 
-  // =====================================================================
-  // INIT
-  // =====================================================================
   (async function start() {
     try {
       await initSupabase();
     } catch (e) {
       console.error(e);
-      return; // mensagem de erro já foi mostrada na tela de login
+      return;
     }
     await boot();
   })();
