@@ -1053,7 +1053,7 @@
         id, tipo, status, pago, forma_pagamento, total, criado_em,
         endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_complemento,
         clientes ( nome ),
-        itens_pedido ( quantidade, produtos ( nome ), pedido_item_sabores ( produtos ( nome ) ) )
+        itens_pedido ( quantidade, produtos ( nome ), itens_pedido_sabores ( produtos ( nome ) ) )
       `)
       .eq('restaurante_id', restauranteId)
       .order('criado_em', { ascending: false })
