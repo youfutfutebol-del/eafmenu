@@ -1088,16 +1088,16 @@
   // =====================================================================
   // PEDIDOS — RENDER
   // =====================================================================
-  const STATUS_LABEL = {
-    recebido: 'Recebido', aceito: 'Aceito', em_preparo: 'Em preparo',
-    a_caminho: 'A caminho', concluido: 'Concluído'
-  };
-  const NEXT_LABEL = {
-    recebido: 'Aceitar pedido', aceito: 'Iniciar preparo',
-    em_preparo: 'Marcar pronto', a_caminho: 'Marcar entregue'
-  };
-  const FLOW = ['recebido','aceito','em_preparo','a_caminho','concluido'];
-
+ const STATUS_LABEL = {
+  recebido: 'Recebido', aceito: 'Aceito', em_preparo: 'Em preparo',
+  saiu_para_entrega: 'Saiu p/ entrega', entregue: 'Entregue',
+  retirado: 'Retirado', cancelado: 'Cancelado'
+};
+const NEXT_LABEL = {
+  recebido: 'Aceitar pedido', aceito: 'Iniciar preparo',
+  em_preparo: 'Marcar pronto', saiu_para_entrega: 'Marcar entregue'
+};
+const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
   function timeAgo(iso) {
     const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
     if (min < 1) return 'agora';
