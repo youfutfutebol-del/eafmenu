@@ -67,6 +67,11 @@
     position:absolute; top:-5px; right:-5px; background:var(--accent); color:#fff; font-size:9.5px; font-weight:800;
     width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center;
   }
+  .btn-instalar {
+    display:none; align-items:center; gap:5px; border:1px solid var(--accent); background:#fff; color:var(--accent);
+    border-radius:9px; padding:8px 11px; font-size:11.5px; font-weight:800; flex-shrink:0; white-space:nowrap;
+  }
+  .btn-instalar.show { display:inline-flex; }
 
   /* ---------------- Categorias (tabs horizontais) ---------------- */
   .cat-tabs { display:flex; gap:7px; overflow-x:auto; padding: 12px 16px 4px; scrollbar-width:none; }
@@ -213,6 +218,7 @@
         <div class="topbar__nome" id="topNome">Restaurante</div>
         <div class="topbar__status" id="topStatus"><span class="dot"></span> <span id="topStatusTxt">Aberto agora</span></div>
       </div>
+      <button class="btn-instalar" id="btnInstalar" onclick="installApp()">⬇ Instalar</button>
       <button class="btn-pedidos" onclick="openMeusPedidos()">📦<span class="badge-count hidden" id="pedidosBadge">0</span></button>
     </div>
   </div>
@@ -1110,6 +1116,33 @@
     clearTimeout(t._timer);
     t._timer = setTimeout(() => t.classList.remove('show'), 3200);
   }
+
+  // =====================================================================
+  // PWA — INSTALAÇÃO
+  // =====================================================================
+  let deferredInstallPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    document.getElementById('btnInstalar')?.classList.add('show');
+  });
+
+  async function installApp() {
+    if (!deferredInstallPrompt) {
+      showToast('Instalação', 'Use o menu do navegador (⋮ ou Compartilhar) e escolha "Adicionar à tela inicial".');
+      return;
+    }
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    document.getElementById('btnInstalar')?.classList.remove('show');
+    if (outcome === 'accepted') showToast('App instalado', 'O cardápio já está na sua tela inicial.');
+  }
+
+  window.addEventListener('appinstalled', () => {
+    document.getElementById('btnInstalar')?.classList.remove('show');
+  });
 </script>
 </body>
 </html>
