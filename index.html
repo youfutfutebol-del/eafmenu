@@ -323,19 +323,15 @@
 
     <button class="install-btn" id="installBtnLogin" onclick="installApp()">⬇ Instalar aplicativo</button>
 
-    <div id="stepEmail">
+      <div id="stepLogin">
       <input type="email" id="emailInput" placeholder="seu@email.com">
-      <button class="primary" id="sendOtpBtn" onclick="sendOtp()">Enviar código</button>
+      <input type="password" id="senhaInput" placeholder="Sua senha">
+      <button class="primary" id="loginBtn" onclick="fazerLogin()">Entrar</button>
     </div>
 
-    <div id="stepCode" style="display:none">
-      <input type="text" id="codeInput" placeholder="Código de 6 dígitos" maxlength="6">
-      <button class="primary" id="verifyOtpBtn" onclick="verifyOtp()">Entrar</button>
-    </div>
-
+    <a href="/esqueci-senha.html" style="display:block; text-align:center; margin-top:10px; font-size:12px; color:var(--muted);">Esqueci minha senha</a>
     <div class="login-msg" id="loginMsg"></div>
   </div>
-</div>
 
 <!-- ==================== APP ==================== -->
 <div id="app">
@@ -867,39 +863,35 @@
   let equipeCache = [];
   let convitesCache = [];
 
-  // =====================================================================
-  // LOGIN (OTP por e-mail)
-  // =====================================================================
-  async function sendOtp() {
-    if (!sb) { setLoginMsg('Ainda carregando configuração, aguarde...', false); return; }
-    const email = document.getElementById('emailInput').value.trim();
-    if (!email) return;
-    pendingEmail = email;
-    setLoginMsg('Enviando código...', false);
-    document.getElementById('sendOtpBtn').disabled = true;
-    const { error } = await sb.auth.signInWithOtp({ email });
-    document.getElementById('sendOtpBtn').disabled = false;
-    if (error) { setLoginMsg(error.message, true); return; }
-    document.getElementById('stepEmail').style.display = 'none';
-    document.getElementById('stepCode').style.display = 'block';
-    setLoginMsg('Código enviado para ' + email, false);
-  }
+ // ==================================================
+// LOGIN (e-mail + senha)
+// ==================================================
+async function fazerLogin() {
+  if (!sb) { setLoginMsg('Ainda carregando configuração, aguarde...', false); return; }
 
-  async function verifyOtp() {
-    const token = document.getElementById('codeInput').value.trim();
-    if (!token) return;
-    document.getElementById('verifyOtpBtn').disabled = true;
-    const { error } = await sb.auth.verifyOtp({ email: pendingEmail, token, type: 'email' });
-    document.getElementById('verifyOtpBtn').disabled = false;
-    if (error) { setLoginMsg(error.message, true); return; }
-    await boot();
-  }
+  const email = document.getElementById('emailInput').value.trim();
+  const senha = document.getElementById('senhaInput').value;
+  if (!email || !senha) { setLoginMsg('Preencha e-mail e senha.', true); return; }
 
-  function setLoginMsg(msg, isError) {
-    const el = document.getElementById('loginMsg');
-    el.textContent = msg;
-    el.className = 'login-msg' + (isError ? ' error' : '');
-  }
+  setLoginMsg('Entrando...', false);
+  document.getElementById('loginBtn').disabled = true;
+
+  const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+
+  document.getElementById('loginBtn').disabled = false;
+
+  if (error) { setLoginMsg('E-mail ou senha incorretos.', true); return; }
+
+  await boot();
+}
+
+function setLoginMsg(msg, isError) {
+  const el = document.getElementById('loginMsg');
+  el.textContent = msg;
+  el.className = 'login-msg' + (isError ? ' error' : '');
+}
+
+
 
   async function logout() {
     await sb.auth.signOut();
