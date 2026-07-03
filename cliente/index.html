@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Cardápio</title>
+<link rel="manifest" href="/cliente/manifest.json">
+<meta name="theme-color" content="#E5342A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EAF Menu">
+<link rel="apple-touch-icon" href="/icons/icon192.png">
+<link rel="icon" href="/icons/icon192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root {
+    --red: #E5342A;
+    --red-dark: #C22A21;
+    --bg: #F7F7F8;
+    --border: #E4E4E7;
+    --ink: #18181B;
+    --muted: #71717A;
+    --green: #16A34A;
+    --amber: #D97706;
+    --accent: #E5342A; /* sobrescrito em runtime pela cor_destaque do restaurante */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; background: var(--bg); color: var(--ink); padding-bottom: 90px; }
+  button { font-family: inherit; cursor:pointer; }
+  input, select, textarea { font-family: inherit; }
+  img { max-width:100%; display:block; }
+  .hidden { display:none !important; }
+
+  /* ---------------- Tela: link inválido ---------------- */
+  #screenInvalido {
+    min-height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; padding:30px; text-align:center;
+  }
+  #screenInvalido .ic { font-size:34px; margin-bottom:14px; }
+  #screenInvalido h2 { margin:0 0 6px; font-size:17px; }
+  #screenInvalido p { margin:0; font-size:13px; color:var(--muted); max-width:280px; }
+
+  /* ---------------- Loading ---------------- */
+  #screenLoading { min-height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px; color:var(--muted); font-size:13px; }
+  .spinner { width:26px; height:26px; border-radius:50%; border:3px solid var(--border); border-top-color: var(--accent); animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------------- Header ---------------- */
+  .topbar {
+    position:sticky; top:0; z-index:40; background:#fff; border-bottom:1px solid var(--border);
+    padding: max(12px, env(safe-area-inset-top)) 16px 12px;
+  }
+  .topbar__row { display:flex; align-items:center; gap:11px; }
+  .topbar__logo { width:44px; height:44px; border-radius:11px; background:var(--accent); flex-shrink:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .topbar__logo img { width:100%; height:100%; object-fit:cover; }
+  .topbar__logo span { color:#fff; font-weight:800; font-size:16px; }
+  .topbar__info { min-width:0; flex:1; }
+  .topbar__nome { font-weight:800; font-size:15.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .topbar__status { font-size:11.5px; color:var(--muted); display:flex; align-items:center; gap:5px; margin-top:1px; }
+  .topbar__status .dot { width:6px; height:6px; border-radius:50%; background:var(--green); flex-shrink:0; }
+  .topbar__status.closed .dot { background:#A1A1AA; }
+  .btn-pedidos {
+    border:1px solid var(--border); background:#fff; border-radius:9px; padding:8px 10px; font-size:16px; position:relative; flex-shrink:0;
+  }
+  .btn-pedidos .badge-count {
+    position:absolute; top:-5px; right:-5px; background:var(--accent); color:#fff; font-size:9.5px; font-weight:800;
+    width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  }
+
+  /* ---------------- Categorias (tabs horizontais) ---------------- */
+  .cat-tabs { display:flex; gap:7px; overflow-x:auto; padding: 12px 16px 4px; scrollbar-width:none; }
+  .cat-tabs::-webkit-scrollbar { display:none; }
+  .cat-tab {
+    flex-shrink:0; border:1px solid var(--border); background:#fff; padding:7px 14px; border-radius:20px;
+    font-size:12.5px; font-weight:700; color:var(--muted); white-space:nowrap;
+  }
+  .cat-tab.active { background: var(--ink); color:#fff; border-color:var(--ink); }
+
+  /* ---------------- Lista de produtos ---------------- */
+  .cat-section { padding: 14px 16px 4px; }
+  .cat-section__title { font-size:14.5px; font-weight:800; margin: 4px 0 10px; }
+  .prod-card {
+    display:flex; gap:12px; background:#fff; border:1px solid var(--border); border-radius:13px; padding:12px; margin-bottom:10px;
+  }
+  .prod-card__info { flex:1; min-width:0; display:flex; flex-direction:column; }
+  .prod-card__nome { font-weight:800; font-size:14px; margin:0 0 3px; }
+  .prod-card__desc { font-size:12px; color:var(--muted); margin:0 0 8px; line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .prod-card__preco { font-weight:800; font-size:13.5px; margin-top:auto; }
+  .prod-card__preco .de { font-size:11px; color:var(--muted); font-weight:600; }
+  .prod-card__thumb { width:78px; height:78px; border-radius:10px; background:#F4F4F5; flex-shrink:0; overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:24px; }
+  .prod-card__thumb img { width:100%; height:100%; object-fit:cover; }
+  .prod-card__add {
+    align-self:flex-end; margin-top:6px; background: var(--accent); color:#fff; border:none; border-radius:8px;
+    padding:6px 13px; font-size:11.5px; font-weight:800;
+  }
+  .empty-cardapio { text-align:center; padding:60px 20px; color:var(--muted); }
+
+  /* ---------------- Bottom sheet genérico ---------------- */
+  .sheet-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:80; align-items:flex-end; justify-content:center; }
+  .sheet-bg.show { display:flex; }
+  .sheet {
+    background:#fff; width:100%; max-width:520px; max-height:92vh; overflow-y:auto; border-radius:18px 18px 0 0;
+    padding: 16px 18px calc(18px + env(safe-area-inset-bottom));
+  }
+  .sheet__handle { width:36px; height:4px; background:var(--border); border-radius:3px; margin: 0 auto 14px; }
+  .sheet h3 { margin:0 0 4px; font-size:16.5px; }
+  .sheet .sub { font-size:12.5px; color:var(--muted); margin:0 0 16px; }
+  .field { margin-bottom:12px; }
+  .field label { display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:5px; }
+  .field input, .field select { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:9px; font-size:13.5px; }
+  .field-row { display:flex; gap:10px; }
+  .field-row .field { flex:1; }
+  .btn { border-radius:10px; padding:12px; font-size:13.5px; font-weight:800; border:1px solid var(--border); background:#fff; color:var(--ink); width:100%; text-align:center; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color:#fff; }
+  .btn.primary:disabled { opacity:.5; }
+  .btn-row { display:flex; gap:8px; margin-top:14px; }
+  .btn-row .btn { flex:1; }
+  .link-btn { background:none; border:none; color:var(--accent); font-weight:700; font-size:12.5px; padding:8px 0; width:100%; text-align:center; }
+
+  /* ---------------- Detalhe do produto ---------------- */
+  .detalhe-thumb { width:100%; height:150px; border-radius:12px; background:#F4F4F5; overflow:hidden; margin-bottom:14px; display:flex; align-items:center; justify-content:center; font-size:34px; }
+  .detalhe-thumb img { width:100%; height:100%; object-fit:cover; }
+  .tamanho-opcoes, .sabor-opcoes { display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
+  .opcao-row {
+    display:flex; align-items:center; justify-content:space-between; gap:10px; border:1.5px solid var(--border);
+    border-radius:10px; padding:11px 13px; font-size:13px; font-weight:600;
+  }
+  .opcao-row.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, #fff); }
+  .opcao-row.disabled { opacity:.4; }
+  .opcao-row .preco { font-weight:800; color:var(--muted); font-size:12.5px; }
+  .opcao-row.selected .preco { color: var(--accent); }
+  .sabores-aviso { font-size:11.5px; color:var(--muted); margin: 2px 0 10px; }
+  .qtd-control { display:flex; align-items:center; gap:14px; justify-content:center; margin: 6px 0 14px; }
+  .qtd-control button { width:34px; height:34px; border-radius:50%; border:1px solid var(--border); background:#fff; font-size:16px; font-weight:700; }
+  .qtd-control .num { font-size:16px; font-weight:800; min-width:22px; text-align:center; }
+
+  /* ---------------- Carrinho flutuante ---------------- */
+  .cart-fab {
+    display:none; position:fixed; left:16px; right:16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index:50;
+    background: var(--accent); color:#fff; border:none; border-radius:13px; padding:14px 16px;
+    align-items:center; justify-content:space-between; box-shadow:0 8px 24px rgba(0,0,0,.2); max-width:488px; margin:0 auto;
+  }
+  .cart-fab.show { display:flex; }
+  .cart-fab__left { display:flex; align-items:center; gap:10px; font-weight:800; font-size:13.5px; }
+  .cart-fab__count { background:rgba(255,255,255,.25); border-radius:20px; padding:2px 9px; font-size:12px; }
+  .cart-fab__right { font-weight:800; font-size:13.5px; }
+
+  /* ---------------- Carrinho (sheet) ---------------- */
+  .cart-item { display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); align-items:flex-start; }
+  .cart-item:last-child { border-bottom:none; }
+  .cart-item__info { flex:1; min-width:0; }
+  .cart-item__nome { font-weight:700; font-size:13px; margin:0 0 2px; }
+  .cart-item__preco { font-size:12px; color:var(--muted); }
+  .cart-item__qtd { display:flex; align-items:center; gap:8px; }
+  .cart-item__qtd button { width:24px; height:24px; border-radius:50%; border:1px solid var(--border); background:#fff; font-size:13px; line-height:1; }
+  .cart-item__remove { background:none; border:none; color:var(--red); font-size:11px; font-weight:700; padding:4px 0; }
+  .cart-total-row { display:flex; justify-content:space-between; align-items:center; padding:14px 0 6px; font-size:14.5px; font-weight:800; border-top:1px solid var(--border); margin-top:6px; }
+  .cart-empty { text-align:center; padding:40px 10px; color:var(--muted); font-size:13px; }
+
+  /* ---------------- Checkout: steps ---------------- */
+  .step-dots { display:flex; gap:5px; margin-bottom:16px; }
+  .step-dots span { height:4px; flex:1; border-radius:3px; background:var(--border); }
+  .step-dots span.active { background: var(--accent); }
+  .tipo-toggle { display:flex; gap:8px; margin-bottom:16px; }
+  .tipo-toggle button { flex:1; border:1.5px solid var(--border); background:#fff; padding:12px; border-radius:10px; font-size:13px; font-weight:700; color:var(--muted); }
+  .tipo-toggle button.active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, #fff); }
+  .pin-input { display:flex; gap:8px; justify-content:center; margin: 4px 0 6px; }
+  .pin-input input { width:46px; height:52px; text-align:center; font-size:20px; font-weight:800; border:1.5px solid var(--border); border-radius:10px; }
+  .resumo-linha { display:flex; justify-content:space-between; font-size:13px; padding:6px 0; }
+  .resumo-linha.total { font-weight:800; font-size:14.5px; border-top:1px solid var(--border); margin-top:6px; padding-top:10px; }
+
+  /* ---------------- Meus pedidos / tracking ---------------- */
+  .pedido-card { background:#fff; border:1px solid var(--border); border-radius:13px; padding:16px; margin-bottom:12px; }
+  .pedido-card__top { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .pedido-card__codigo { font-family: 'SF Mono', ui-monospace, Menlo, monospace; font-size:12px; color:var(--muted); font-weight:700; }
+  .pedido-card__status { font-size:12px; font-weight:800; padding:4px 10px; border-radius:20px; background:#F4F4F5; }
+  .flow-bar { display:flex; gap:4px; margin: 12px 0 8px; }
+  .flow-bar span { height:5px; flex:1; border-radius:3px; background:var(--border); }
+  .flow-bar span.done { background: var(--green); }
+  .flow-bar span.cancel { background: var(--red); }
+  .flow-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); }
+  .pedido-card__itens { font-size:12px; color:var(--muted); margin-top:10px; }
+  .pedido-card__total { font-weight:800; font-size:14px; margin-top:8px; }
+
+  /* ---------------- Toast ---------------- */
+  .toast {
+    position:fixed; top:calc(10px + env(safe-area-inset-top)); left:16px; right:16px; z-index:100; background:#fff; border:1px solid var(--border); border-left:3px solid var(--accent);
+    padding:12px 16px; border-radius:10px; font-size:12.5px; box-shadow:0 10px 30px rgba(0,0,0,.15); max-width:488px; margin:0 auto;
+    transform: translateY(-140%); transition: transform .3s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .toast.show { transform: translateY(0); }
+  .toast b { display:block; font-size:12px; color: var(--accent); margin-bottom:2px; }
+</style>
+</head>
+<body>
+
+<div id="screenLoading"><div class="spinner"></div>Carregando cardápio...</div>
+
+<div id="screenInvalido" class="hidden">
+  <div class="ic">🔗</div>
+  <h2>Link inválido</h2>
+  <p>Esse link de cardápio não é válido ou o restaurante não foi encontrado. Confira o link com o restaurante.</p>
+</div>
+
+<div id="app" class="hidden">
+
+  <!-- ==================== TOPBAR ==================== -->
+  <div class="topbar">
+    <div class="topbar__row">
+      <div class="topbar__logo" id="topLogo"><span id="topLogoLetra">R</span></div>
+      <div class="topbar__info">
+        <div class="topbar__nome" id="topNome">Restaurante</div>
+        <div class="topbar__status" id="topStatus"><span class="dot"></span> <span id="topStatusTxt">Aberto agora</span></div>
+      </div>
+      <button class="btn-pedidos" onclick="openMeusPedidos()">📦<span class="badge-count hidden" id="pedidosBadge">0</span></button>
+    </div>
+  </div>
+
+  <!-- ==================== CATEGORIAS ==================== -->
+  <div class="cat-tabs" id="catTabs"></div>
+
+  <!-- ==================== CARDÁPIO ==================== -->
+  <div id="cardapioWrap"></div>
+
+</div>
+
+<!-- ==================== CART FAB ==================== -->
+<button class="cart-fab" id="cartFab" onclick="openCarrinho()">
+  <span class="cart-fab__left">🛒 <span class="cart-fab__count" id="cartCount">0</span> Ver carrinho</span>
+  <span class="cart-fab__right" id="cartFabTotal">R$ 0,00</span>
+</button>
+
+<!-- ==================== SHEET: detalhe do produto ==================== -->
+<div class="sheet-bg" id="sheetProduto">
+  <div class="sheet">
+    <div class="sheet__handle"></div>
+    <div class="detalhe-thumb" id="detThumb"><span id="detThumbPlaceholder">🍽️</span></div>
+    <h3 id="detNome">Produto</h3>
+    <p class="sub" id="detDesc"></p>
+
+    <div id="detTamanhoBlock" class="hidden">
+      <label style="display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:8px;">Escolha o tamanho</label>
+      <div class="tamanho-opcoes" id="detTamanhoOpcoes"></div>
+    </div>
+
+    <div id="detSaboresBlock" class="hidden" style="margin-top:14px;">
+      <label style="display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:4px;" id="detSaboresLabel">Escolha os sabores</label>
+      <p class="sabores-aviso" id="detSaboresAviso"></p>
+      <div class="sabor-opcoes" id="detSaboresOpcoes"></div>
+    </div>
+
+    <div class="qtd-control">
+      <button onclick="detAlterarQtd(-1)">−</button>
+      <span class="num" id="detQtd">1</span>
+      <button onclick="detAlterarQtd(1)">+</button>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="closeSheet('sheetProduto')">Cancelar</button>
+      <button class="btn primary" id="detAddBtn" onclick="confirmarAddCarrinho()">Adicionar · R$ 0,00</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SHEET: carrinho ==================== -->
+<div class="sheet-bg" id="sheetCarrinho">
+  <div class="sheet">
+    <div class="sheet__handle"></div>
+    <h3>Seu carrinho</h3>
+    <div id="carrinhoLista" style="margin-top:10px;"></div>
+    <div class="cart-total-row"><span>Total</span><span id="carrinhoTotal">R$ 0,00</span></div>
+    <div class="btn-row">
+      <button class="btn" onclick="closeSheet('sheetCarrinho')">Continuar comprando</button>
+      <button class="btn primary" onclick="abrirCheckout()">Finalizar pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SHEET: checkout ==================== -->
+<div class="sheet-bg" id="sheetCheckout">
+  <div class="sheet">
+    <div class="sheet__handle"></div>
+    <div class="step-dots">
+      <span id="dot1" class="active"></span><span id="dot2"></span><span id="dot3"></span><span id="dot4"></span>
+    </div>
+
+    <!-- Passo 1: identificação (sessão anônima do Supabase Auth por trás, sem OTP/senha) -->
+    <div id="stepIdent">
+      <h3>Como podemos te chamar?</h3>
+      <p class="sub">Só precisamos disso uma vez — na próxima compra o app já te reconhece.</p>
+
+      <div class="field"><label>Seu nome</label><input id="identNome" placeholder="Nome completo"></div>
+      <div class="field"><label>Telefone (WhatsApp)</label><input id="identTelefone" placeholder="(41) 9...." inputmode="tel" oninput="mascaraTelefone(this)"></div>
+      <p class="sub error hidden" id="identErro" style="color:var(--red);"></p>
+      <button class="btn primary" id="identContinuarBtn" onclick="continuarIdentificacao()">Continuar</button>
+    </div>
+
+    <!-- Passo 2: tipo + endereço -->
+    <div id="stepEntrega" class="hidden">
+      <h3>Entrega ou retirada?</h3>
+      <div class="tipo-toggle">
+        <button id="tipoEntregaBtn" class="active" onclick="setTipoPedido('entrega')">🛵 Entrega</button>
+        <button id="tipoRetiradaBtn" onclick="setTipoPedido('retirada')">🏠 Retirada</button>
+      </div>
+
+      <div id="blocoEndereco">
+        <div class="field-row">
+          <div class="field" style="flex:0 0 140px;"><label>CEP</label><input id="endCep" placeholder="00000-000" inputmode="numeric" oninput="mascaraCep(this)" onblur="buscarCep()"></div>
+          <div class="field" style="flex:1;"><label>Bairro</label><input id="endBairro"></div>
+        </div>
+        <div class="field"><label>Rua</label><input id="endRua"></div>
+        <div class="field-row">
+          <div class="field"><label>Número</label><input id="endNumero"></div>
+          <div class="field"><label>Complemento</label><input id="endComplemento" placeholder="Opcional"></div>
+        </div>
+        <div class="field"><label>Cidade</label><input id="endCidade"></div>
+      </div>
+
+      <button class="btn primary" onclick="confirmarEntrega()" style="margin-top:6px;">Continuar</button>
+      <button class="link-btn" onclick="voltarParaIdent()">Voltar</button>
+    </div>
+
+    <!-- Passo 3: pagamento -->
+    <div id="stepPagamento" class="hidden">
+      <h3>Forma de pagamento</h3>
+      <p class="sub">Só pra o restaurante se organizar — o pagamento é combinado na entrega/retirada.</p>
+      <div class="field"><select id="formaPagamento">
+        <option value="dinheiro">Dinheiro</option>
+        <option value="pix">Pix</option>
+        <option value="cartao">Cartão (maquininha)</option>
+      </select></div>
+      <button class="btn primary" onclick="irParaRevisao()">Continuar</button>
+      <button class="link-btn" onclick="voltarParaEntrega()">Voltar</button>
+    </div>
+
+    <!-- Passo 4: revisão -->
+    <div id="stepRevisao" class="hidden">
+      <h3>Revise seu pedido</h3>
+      <div id="revisaoItens"></div>
+      <div class="resumo-linha total"><span>Total</span><span id="revisaoTotal">R$ 0,00</span></div>
+      <p class="sub" id="revisaoTipoTexto" style="margin-top:10px;"></p>
+      <button class="btn primary" id="btnConfirmarPedido" onclick="confirmarPedido()" style="margin-top:8px;">Confirmar pedido</button>
+      <button class="link-btn" onclick="voltarParaPagamento()">Voltar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SHEET: meus pedidos ==================== -->
+<div class="sheet-bg" id="sheetPedidos">
+  <div class="sheet">
+    <div class="sheet__handle"></div>
+    <h3>Meus pedidos</h3>
+    <div id="meusPedidosLista" style="margin-top:10px;"></div>
+    <button class="btn" onclick="closeSheet('sheetPedidos')" style="margin-top:10px;">Fechar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
+
+<script>
+  // =====================================================================
+  // CONFIGURAÇÃO
+  // =====================================================================
+  let sb = null;
+  async function initSupabase() {
+    const res = await fetch('/api/config');
+    if (!res.ok) throw new Error('Falha ao buscar /api/config');
+    const { url, anonKey } = await res.json();
+    if (!url || !anonKey) throw new Error('Config incompleta');
+    sb = supabase.createClient(url, anonKey);
+  }
+
+  // =====================================================================
+  // ESTADO
+  // =====================================================================
+  let restauranteSlug = null;
+  let restaurante = null;
+  let categorias = [];
+  let produtos = [];
+  let cliente = null; // { id, nome, telefone }
+  let cart = []; // { uid, nome, precoUnit, qtd, produtoId, opcaoTamanhoId, saboresIds:[] }
+
+  let detalheProdutoAtual = null;
+  let detalheTamanhoSelecionadoId = null;
+  let detalheSaboresSelecionados = [];
+  let detalheQtd = 1;
+
+  let checkoutTipo = 'entrega';
+  let checkoutEnderecoId = null;
+
+  const trackedChannels = [];
+
+  // =====================================================================
+  // BOOT
+  // =====================================================================
+  (async function start() {
+    try {
+      await initSupabase();
+    } catch (e) {
+      console.error(e);
+      showInvalido();
+      return;
+    }
+
+    const params = new URLSearchParams(location.search);
+    restauranteSlug = params.get('r');
+
+    if (!restauranteSlug) {
+      restauranteSlug = localStorage.getItem('eaf_ultimo_restaurante') || null;
+    }
+
+    if (!restauranteSlug) { showInvalido(); return; }
+
+    const { data, error } = await sb.from('restaurantes')
+      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horario_funcionamento, taxa_entrega_padrao')
+      .eq('slug', restauranteSlug)
+      .maybeSingle();
+
+    if (error || !data) { showInvalido(); return; }
+
+    restaurante = data;
+    localStorage.setItem('eaf_ultimo_restaurante', restauranteSlug);
+    aplicarMarca();
+
+    await carregarSessaoCliente();
+
+    await Promise.all([loadCategorias(), loadProdutos()]);
+    renderCardapio();
+    atualizarCartFab();
+    await atualizarBadgePedidos();
+
+    document.getElementById('screenLoading').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/cliente/sw.js').catch(() => {});
+    }
+  })();
+
+  function showInvalido() {
+    document.getElementById('screenLoading').classList.add('hidden');
+    document.getElementById('screenInvalido').classList.remove('hidden');
+  }
+
+  function aplicarMarca() {
+    if (restaurante.cor_destaque) {
+      document.documentElement.style.setProperty('--accent', restaurante.cor_destaque);
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', restaurante.cor_destaque);
+    }
+    document.title = restaurante.nome || 'Cardápio';
+    document.getElementById('topNome').textContent = restaurante.nome || 'Restaurante';
+    document.getElementById('topLogoLetra').textContent = (restaurante.nome || 'R').trim().charAt(0).toUpperCase();
+    if (restaurante.logo_url) {
+      const logo = document.getElementById('topLogo');
+      logo.innerHTML = `<img src="${restaurante.logo_url}" alt="">`;
+    }
+  }
+
+  // =====================================================================
+  // SESSÃO DO CLIENTE (por restaurante, sem Supabase Auth)
+  // =====================================================================
+  function chaveSessao() { return 'eaf_cliente_' + restauranteSlug; }
+
+  async function carregarSessaoCliente() {
+    cliente = null;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+
+    // sessão anônima ativa nesse aparelho: verifica se já existe cadastro pra ESTE restaurante
+    const { data, error } = await sb.from('clientes')
+      .select('id, nome, telefone')
+      .eq('restaurante_id', restaurante.id)
+      .eq('auth_user_id', session.user.id)
+      .maybeSingle();
+
+    if (!error && data) {
+      cliente = data;
+      localStorage.setItem(chaveSessao(), JSON.stringify(data));
+    }
+  }
+  function salvarSessaoCliente(c) {
+    cliente = c;
+    localStorage.setItem(chaveSessao(), JSON.stringify(c));
+  }
+
+  // =====================================================================
+  // CATEGORIAS E PRODUTOS
+  // =====================================================================
+  async function loadCategorias() {
+    const { data, error } = await sb.from('categorias')
+      .select('id, nome, ordem')
+      .eq('restaurante_id', restaurante.id)
+      .order('ordem', { ascending: true });
+    if (!error) categorias = data || [];
+  }
+
+  async function loadProdutos() {
+    const { data, error } = await sb.from('produtos')
+      .select(`
+        id, nome, descricao, imagem_url, categoria_id, grupo_tamanho_id,
+        produto_precos ( id, preco, ativo, opcao_tamanho_id, opcoes_tamanho ( id, nome, ordem ) )
+      `)
+      .eq('restaurante_id', restaurante.id)
+      .eq('ativo', true);
+    if (!error) produtos = data || [];
+  }
+
+  function grupoDoProduto(p) {
+    if (!p.grupo_tamanho_id) return null;
+    return { id: p.grupo_tamanho_id };
+  }
+
+  function precosAtivos(p) { return (p.produto_precos || []).filter(pp => pp.ativo); }
+
+  function precoBaseTexto(p) {
+    const precos = precosAtivos(p);
+    if (precos.length === 0) return '—';
+    const menor = precos.reduce((min, pp) => Number(pp.preco) < Number(min.preco) ? pp : min, precos[0]);
+    const temTamanho = precos.some(pp => pp.opcao_tamanho_id);
+    return (temTamanho ? '<span class="de">a partir de</span> ' : '') + formatMoeda(menor.preco);
+  }
+
+  // =====================================================================
+  // RENDER CARDÁPIO
+  // =====================================================================
+  function renderCatTabs() {
+    const wrap = document.getElementById('catTabs');
+    if (categorias.length === 0) { wrap.innerHTML = ''; return; }
+    wrap.innerHTML = categorias.map((c, i) =>
+      `<button class="cat-tab ${i === 0 ? 'active' : ''}" data-cat="${c.id}" onclick="irParaCategoria('${c.id}', this)">${c.nome}</button>`
+    ).join('');
+  }
+
+  function irParaCategoria(catId, el) {
+    document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', t === el));
+    const target = document.getElementById('sec-' + catId);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderCardapio() {
+    renderCatTabs();
+    const wrap = document.getElementById('cardapioWrap');
+
+    if (produtos.length === 0) {
+      wrap.innerHTML = `<div class="empty-cardapio">Nenhum produto disponível no momento.</div>`;
+      return;
+    }
+
+    const semCategoria = produtos.filter(p => !p.categoria_id);
+    const grupos = categorias.map(c => ({ cat: c, itens: produtos.filter(p => p.categoria_id === c.id) }))
+      .filter(g => g.itens.length > 0);
+    if (semCategoria.length) grupos.push({ cat: { id: 'sem-categoria', nome: 'Outros' }, itens: semCategoria });
+
+    wrap.innerHTML = grupos.map(g => `
+      <div class="cat-section" id="sec-${g.cat.id}">
+        <div class="cat-section__title">${g.cat.nome}</div>
+        ${g.itens.map(p => `
+          <div class="prod-card" onclick="abrirDetalheProduto('${p.id}')">
+            <div class="prod-card__info">
+              <p class="prod-card__nome">${p.nome}</p>
+              ${p.descricao ? `<p class="prod-card__desc">${p.descricao}</p>` : ''}
+              <p class="prod-card__preco">${precoBaseTexto(p)}</p>
+            </div>
+            <div class="prod-card__thumb">${p.imagem_url ? `<img src="${p.imagem_url}">` : '🍽️'}</div>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  }
+
+  // =====================================================================
+  // DETALHE DO PRODUTO / SELEÇÃO DE TAMANHO E SABORES
+  // =====================================================================
+  function abrirDetalheProduto(produtoId) {
+    const p = produtos.find(x => x.id === produtoId);
+    if (!p) return;
+    detalheProdutoAtual = p;
+    detalheTamanhoSelecionadoId = null;
+    detalheSaboresSelecionados = [p.id]; // o próprio produto já entra como 1º "sabor" quando aplicável
+    detalheQtd = 1;
+
+    document.getElementById('detNome').textContent = p.nome;
+    document.getElementById('detDesc').textContent = p.descricao || '';
+    document.getElementById('detQtd').textContent = '1';
+    const thumb = document.getElementById('detThumb');
+    thumb.innerHTML = p.imagem_url ? `<img src="${p.imagem_url}">` : '🍽️';
+
+    const precos = precosAtivos(p);
+    const temTamanho = precos.some(pp => pp.opcao_tamanho_id);
+
+    if (!temTamanho) {
+      document.getElementById('detTamanhoBlock').classList.add('hidden');
+      document.getElementById('detSaboresBlock').classList.add('hidden');
+      detalheTamanhoSelecionadoId = null;
+    } else {
+      document.getElementById('detTamanhoBlock').classList.remove('hidden');
+      const opcoes = precos.map(pp => pp.opcoes_tamanho).filter(Boolean).sort((a, b) => a.ordem - b.ordem);
+      document.getElementById('detTamanhoOpcoes').innerHTML = opcoes.map(o => {
+        const preco = precos.find(pp => pp.opcao_tamanho_id === o.id)?.preco || 0;
+        return `<div class="opcao-row" data-tam="${o.id}" onclick="selecionarTamanho('${o.id}')">
+          <span>${o.nome}</span><span class="preco">${formatMoeda(preco)}</span>
+        </div>`;
+      }).join('');
+      if (opcoes.length) selecionarTamanho(opcoes[0].id);
+
+      // sabores: outros produtos do mesmo grupo de tamanho, se max_sabores > 1
+      buscarGrupoEMontarSabores(p);
+    }
+
+    atualizarBotaoAdd();
+    openSheet('sheetProduto');
+  }
+
+  let maxSaboresAtual = 1;
+  async function buscarGrupoEMontarSabores(p) {
+    document.getElementById('detSaboresBlock').classList.add('hidden');
+    if (!p.grupo_tamanho_id) { maxSaboresAtual = 1; return; }
+
+    const { data: grupo } = await sb.from('grupos_tamanho').select('id, max_sabores').eq('id', p.grupo_tamanho_id).single();
+    maxSaboresAtual = grupo?.max_sabores || 1;
+    if (maxSaboresAtual <= 1) return;
+
+    const outrosDoGrupo = produtos.filter(x => x.grupo_tamanho_id === p.grupo_tamanho_id);
+    if (outrosDoGrupo.length <= 1) return;
+
+    document.getElementById('detSaboresBlock').classList.remove('hidden');
+    document.getElementById('detSaboresLabel').textContent = `Escolha até ${maxSaboresAtual} sabor(es)`;
+    document.getElementById('detSaboresAviso').textContent = maxSaboresAtual > 1
+      ? 'O preço final é a média entre os sabores escolhidos.'
+      : '';
+
+    document.getElementById('detSaboresOpcoes').innerHTML = outrosDoGrupo.map(sabor => `
+      <div class="opcao-row ${detalheSaboresSelecionados.includes(sabor.id) ? 'selected' : ''}" data-sabor="${sabor.id}" onclick="toggleSabor('${sabor.id}')">
+        <span>${sabor.nome}</span><span class="preco">${detalheSaboresSelecionados.includes(sabor.id) ? '✓' : ''}</span>
+      </div>
+    `).join('');
+  }
+
+  function toggleSabor(saborId) {
+    const idx = detalheSaboresSelecionados.indexOf(saborId);
+    if (idx >= 0) {
+      if (detalheSaboresSelecionados.length === 1) return; // precisa de ao menos 1
+      detalheSaboresSelecionados.splice(idx, 1);
+    } else {
+      if (detalheSaboresSelecionados.length >= maxSaboresAtual) {
+        // substitui o mais antigo (exceto se for o único) pra manter o limite
+        detalheSaboresSelecionados.shift();
+      }
+      detalheSaboresSelecionados.push(saborId);
+    }
+    document.querySelectorAll('#detSaboresOpcoes .opcao-row').forEach(el => {
+      const sel = detalheSaboresSelecionados.includes(el.dataset.sabor);
+      el.classList.toggle('selected', sel);
+      el.querySelector('.preco').textContent = sel ? '✓' : '';
+    });
+    atualizarBotaoAdd();
+  }
+
+  function selecionarTamanho(tamanhoId) {
+    detalheTamanhoSelecionadoId = tamanhoId;
+    document.querySelectorAll('#detTamanhoOpcoes .opcao-row').forEach(el => {
+      el.classList.toggle('selected', el.dataset.tam === tamanhoId);
+    });
+    atualizarBotaoAdd();
+  }
+
+  function detAlterarQtd(delta) {
+    detalheQtd = Math.max(1, detalheQtd + delta);
+    document.getElementById('detQtd').textContent = detalheQtd;
+    atualizarBotaoAdd();
+  }
+
+  function calcularPrecoUnitDetalhe() {
+    const p = detalheProdutoAtual;
+    const precos = precosAtivos(p);
+    if (!detalheTamanhoSelecionadoId) {
+      return Number(precos[0]?.preco || 0);
+    }
+    if (maxSaboresAtual <= 1 || detalheSaboresSelecionados.length <= 1) {
+      const pp = precos.find(x => x.opcao_tamanho_id === detalheTamanhoSelecionadoId);
+      return Number(pp?.preco || 0);
+    }
+    // média entre os sabores escolhidos, no tamanho selecionado
+    let soma = 0, n = 0;
+    for (const saborId of detalheSaboresSelecionados) {
+      const saborProduto = produtos.find(x => x.id === saborId);
+      const pp = (saborProduto?.produto_precos || []).find(x => x.opcao_tamanho_id === detalheTamanhoSelecionadoId && x.ativo);
+      if (pp) { soma += Number(pp.preco); n++; }
+    }
+    return n ? soma / n : 0;
+  }
+
+  function atualizarBotaoAdd() {
+    const unit = calcularPrecoUnitDetalhe();
+    document.getElementById('detAddBtn').textContent = `Adicionar · ${formatMoeda(unit * detalheQtd)}`;
+  }
+
+  function confirmarAddCarrinho() {
+    const p = detalheProdutoAtual;
+    const unit = calcularPrecoUnitDetalhe();
+    const tamanhoNome = detalheTamanhoSelecionadoId
+      ? (p.produto_precos.find(pp => pp.opcao_tamanho_id === detalheTamanhoSelecionadoId)?.opcoes_tamanho?.nome)
+      : null;
+
+    let nomeExibicao = p.nome;
+    if (maxSaboresAtual > 1 && detalheSaboresSelecionados.length > 1) {
+      nomeExibicao = detalheSaboresSelecionados.map(id => produtos.find(x => x.id === id)?.nome).filter(Boolean).join(' + ');
+    }
+    if (tamanhoNome) nomeExibicao += ` (${tamanhoNome})`;
+
+    cart.push({
+      uid: 'c' + Date.now() + Math.random().toString(36).slice(2, 6),
+      nome: nomeExibicao,
+      precoUnit: unit,
+      qtd: detalheQtd,
+      produtoId: p.id,
+      opcaoTamanhoId: detalheTamanhoSelecionadoId,
+      saboresIds: maxSaboresAtual > 1 ? [...detalheSaboresSelecionados] : []
+    });
+
+    closeSheet('sheetProduto');
+    atualizarCartFab();
+    showToast('Adicionado ao carrinho', nomeExibicao);
+  }
+
+  // =====================================================================
+  // CARRINHO
+  // =====================================================================
+  function totalCarrinho() { return cart.reduce((s, i) => s + i.precoUnit * i.qtd, 0); }
+  function qtdCarrinho() { return cart.reduce((s, i) => s + i.qtd, 0); }
+
+  function atualizarCartFab() {
+    const fab = document.getElementById('cartFab');
+    const total = totalCarrinho();
+    if (cart.length === 0) { fab.classList.remove('show'); return; }
+    fab.classList.add('show');
+    document.getElementById('cartCount').textContent = qtdCarrinho();
+    document.getElementById('cartFabTotal').textContent = formatMoeda(total);
+  }
+
+  function openCarrinho() {
+    renderCarrinhoLista();
+    openSheet('sheetCarrinho');
+  }
+
+  function renderCarrinhoLista() {
+    const wrap = document.getElementById('carrinhoLista');
+    if (cart.length === 0) {
+      wrap.innerHTML = `<div class="cart-empty">Seu carrinho está vazio.</div>`;
+      document.getElementById('carrinhoTotal').textContent = formatMoeda(0);
+      return;
+    }
+    wrap.innerHTML = cart.map(i => `
+      <div class="cart-item">
+        <div class="cart-item__info">
+          <p class="cart-item__nome">${i.nome}</p>
+          <p class="cart-item__preco">${formatMoeda(i.precoUnit)} un.</p>
+          <button class="cart-item__remove" onclick="removerDoCarrinho('${i.uid}')">Remover</button>
+        </div>
+        <div class="cart-item__qtd">
+          <button onclick="alterarQtdCarrinho('${i.uid}', -1)">−</button>
+          <span>${i.qtd}</span>
+          <button onclick="alterarQtdCarrinho('${i.uid}', 1)">+</button>
+        </div>
+      </div>
+    `).join('');
+    document.getElementById('carrinhoTotal').textContent = formatMoeda(totalCarrinho());
+  }
+
+  function alterarQtdCarrinho(uid, delta) {
+    const item = cart.find(i => i.uid === uid);
+    if (!item) return;
+    item.qtd = Math.max(1, item.qtd + delta);
+    renderCarrinhoLista();
+    atualizarCartFab();
+  }
+
+  function removerDoCarrinho(uid) {
+    cart = cart.filter(i => i.uid !== uid);
+    renderCarrinhoLista();
+    atualizarCartFab();
+  }
+
+  // =====================================================================
+  // CHECKOUT — passo 1: identificação (Supabase Auth Anonymous Sign-in por trás)
+  // =====================================================================
+  function abrirCheckout() {
+    if (cart.length === 0) { showToast('Carrinho vazio', 'Adicione itens antes de finalizar.'); return; }
+    closeSheet('sheetCarrinho');
+
+    if (cliente) {
+      irParaStep(2); // já identificado nesse aparelho: pula direto pra entrega
+    } else {
+      document.getElementById('identNome').value = '';
+      document.getElementById('identTelefone').value = '';
+      document.getElementById('identErro').classList.add('hidden');
+      irParaStep(1);
+    }
+    openSheet('sheetCheckout');
+  }
+
+  function irParaStep(n) {
+    ['stepIdent', 'stepEntrega', 'stepPagamento', 'stepRevisao'].forEach((id, i) => {
+      document.getElementById(id).classList.toggle('hidden', i !== n - 1);
+    });
+    for (let i = 1; i <= 4; i++) document.getElementById('dot' + i).classList.toggle('active', i <= n);
+  }
+
+  async function continuarIdentificacao() {
+    const nome = document.getElementById('identNome').value.trim();
+    const telefone = document.getElementById('identTelefone').value.replace(/\D/g, '');
+    const erroEl = document.getElementById('identErro');
+    erroEl.classList.add('hidden');
+
+    if (!nome) { showToast('Faltou o nome', 'Informe seu nome.'); return; }
+    if (telefone.length < 10) { showToast('Telefone inválido', 'Informe um telefone com DDD.'); return; }
+
+    const btn = document.getElementById('identContinuarBtn');
+    btn.disabled = true; btn.textContent = 'Só um instante...';
+
+    try {
+      let { data: { session } } = await sb.auth.getSession();
+      if (!session) {
+        const { data, error } = await sb.auth.signInAnonymously();
+        if (error) throw error;
+        session = data.session;
+      }
+
+      const { data: novoCliente, error: cliErr } = await sb.from('clientes')
+        .insert({ nome, telefone, restaurante_id: restaurante.id, auth_user_id: session.user.id })
+        .select('id, nome, telefone').single();
+      if (cliErr) throw cliErr;
+
+      salvarSessaoCliente(novoCliente);
+      irParaStep(2);
+    } catch (e) {
+      console.error(e);
+      erroEl.textContent = (e.message || '').includes('Anonymous')
+        ? 'Login anônimo não está habilitado no Supabase (Authentication → Providers → Allow anonymous sign-ins).'
+        : 'Não foi possível continuar: ' + e.message;
+      erroEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Continuar';
+    }
+  }
+
+  // =====================================================================
+  // CHECKOUT — passo 2: tipo + endereço
+  // =====================================================================
+  function setTipoPedido(tipo) {
+    checkoutTipo = tipo;
+    document.getElementById('tipoEntregaBtn').classList.toggle('active', tipo === 'entrega');
+    document.getElementById('tipoRetiradaBtn').classList.toggle('active', tipo === 'retirada');
+    document.getElementById('blocoEndereco').classList.toggle('hidden', tipo !== 'entrega');
+  }
+
+  function voltarParaIdent() { irParaStep(1); }
+
+  async function confirmarEntrega() {
+    if (checkoutTipo === 'entrega') {
+      const rua = document.getElementById('endRua').value.trim();
+      const numero = document.getElementById('endNumero').value.trim();
+      const bairro = document.getElementById('endBairro').value.trim();
+      const cidade = document.getElementById('endCidade').value.trim();
+      if (!rua || !numero || !bairro || !cidade) { showToast('Endereço incompleto', 'Preencha rua, número, bairro e cidade.'); return; }
+
+      const { data, error } = await sb.from('enderecos_cliente').insert({
+        cliente_id: cliente.id,
+        logradouro: rua,
+        numero,
+        bairro,
+        cidade,
+        complemento: document.getElementById('endComplemento').value.trim() || null,
+        padrao: true
+      }).select('id').single();
+
+      if (error) { showToast('Erro ao salvar endereço', error.message); return; }
+      checkoutEnderecoId = data.id;
+    } else {
+      checkoutEnderecoId = null;
+    }
+    irParaStep(3);
+  }
+
+  async function buscarCep() {
+    const cep = document.getElementById('endCep').value.replace(/\D/g, '');
+    if (cep.length !== 8) return;
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await res.json();
+      if (data.erro) return;
+      document.getElementById('endRua').value = data.logradouro || '';
+      document.getElementById('endBairro').value = data.bairro || '';
+      document.getElementById('endCidade').value = data.localidade || '';
+      document.getElementById('endNumero').focus();
+    } catch (e) {}
+  }
+
+  function mascaraCep(el) {
+    let v = el.value.replace(/\D/g, '').slice(0, 8);
+    if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
+    el.value = v;
+  }
+  function mascaraTelefone(el) {
+    let v = el.value.replace(/\D/g, '').slice(0, 11);
+    if (v.length > 6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+    else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
+    el.value = v;
+  }
+
+  // =====================================================================
+  // CHECKOUT — passo 3: pagamento
+  // =====================================================================
+  function voltarParaEntrega() { irParaStep(2); }
+  function irParaRevisao() {
+    renderRevisao();
+    irParaStep(4);
+  }
+
+  // =====================================================================
+  // CHECKOUT — passo 4: revisão e confirmação
+  // =====================================================================
+  function voltarParaPagamento() { irParaStep(3); }
+
+  function renderRevisao() {
+    const subtotal = totalCarrinho();
+    const taxa = checkoutTipo === 'entrega' ? Number(restaurante.taxa_entrega_padrao || 0) : 0;
+    document.getElementById('revisaoItens').innerHTML = cart.map(i => `
+      <div class="resumo-linha"><span>${i.qtd}x ${i.nome}</span><span>${formatMoeda(i.precoUnit * i.qtd)}</span></div>
+    `).join('') + (taxa > 0 ? `<div class="resumo-linha"><span>Taxa de entrega</span><span>${formatMoeda(taxa)}</span></div>` : '');
+    document.getElementById('revisaoTotal').textContent = formatMoeda(subtotal + taxa);
+    document.getElementById('revisaoTipoTexto').textContent = checkoutTipo === 'entrega'
+      ? '🛵 Entrega no endereço informado'
+      : '🏠 Retirada no restaurante';
+  }
+
+  async function confirmarPedido() {
+    const btn = document.getElementById('btnConfirmarPedido');
+    btn.disabled = true; btn.textContent = 'Enviando pedido...';
+
+    const subtotal = totalCarrinho();
+    const taxaEntrega = checkoutTipo === 'entrega' ? Number(restaurante.taxa_entrega_padrao || 0) : 0;
+    const total = subtotal + taxaEntrega;
+    const forma = document.getElementById('formaPagamento').value;
+
+    const payload = {
+      restaurante_id: restaurante.id,
+      cliente_id: cliente.id,
+      tipo: checkoutTipo,
+      forma_pagamento: forma,
+      subtotal,
+      taxa_entrega: taxaEntrega,
+      total,
+      status: 'recebido',
+      pago: false
+    };
+    if (checkoutTipo === 'entrega' && checkoutEnderecoId) payload.endereco_entrega_id = checkoutEnderecoId;
+
+    const { data: pedido, error: pedErr } = await sb.from('pedidos').insert(payload).select('id').single();
+    if (pedErr) { showToast('Erro ao enviar pedido', pedErr.message); btn.disabled = false; btn.textContent = 'Confirmar pedido'; return; }
+
+    for (const item of cart) {
+      const { data: itemInserido, error: itemErr } = await sb.from('itens_pedido').insert({
+        pedido_id: pedido.id,
+        produto_id: item.produtoId,
+        opcao_tamanho_id: item.opcaoTamanhoId,
+        quantidade: item.qtd,
+        preco_unitario: item.precoUnit
+      }).select('id').single();
+
+      if (!itemErr && item.saboresIds.length > 1) {
+        await sb.from('itens_pedido_sabores').insert(
+          item.saboresIds.map(produtoSaborId => ({ item_pedido_id: itemInserido.id, produto_id: produtoSaborId, preco_unitario: item.precoUnit }))
+        );
+      }
+    }
+
+    cart = [];
+    atualizarCartFab();
+    closeSheet('sheetCheckout');
+    btn.disabled = false; btn.textContent = 'Confirmar pedido';
+    showToast('Pedido enviado! 🎉', 'Acompanhe pelo botão de pedidos no topo.');
+    await atualizarBadgePedidos();
+    openMeusPedidos();
+  }
+
+  // =====================================================================
+  // MEUS PEDIDOS / ACOMPANHAMENTO EM TEMPO REAL
+  // =====================================================================
+  const STATUS_LABEL = {
+    recebido: 'Recebido', aceito: 'Aceito', em_preparo: 'Em preparo',
+    saiu_para_entrega: 'Saiu p/ entrega', entregue: 'Entregue', retirado: 'Retirado', cancelado: 'Cancelado'
+  };
+  const FLOW_ENTREGA = ['recebido', 'aceito', 'em_preparo', 'saiu_para_entrega', 'entregue'];
+  const FLOW_RETIRADA = ['recebido', 'aceito', 'em_preparo', 'retirado'];
+
+  async function atualizarBadgePedidos() {
+    const badge = document.getElementById('pedidosBadge');
+    if (!cliente) { badge.classList.add('hidden'); return; }
+
+    const { data } = await sb.from('pedidos')
+      .select('id, status')
+      .eq('cliente_id', cliente.id)
+      .not('status', 'in', '(entregue,retirado,cancelado)');
+
+    const n = (data || []).length;
+    if (n > 0) { badge.textContent = n > 9 ? '9+' : n; badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+  }
+
+  async function openMeusPedidos() {
+    const wrap = document.getElementById('meusPedidosLista');
+
+    if (!cliente) {
+      wrap.innerHTML = `<div class="cart-empty">Você ainda não fez nenhum pedido nesse restaurante.</div>`;
+      openSheet('sheetPedidos');
+      return;
+    }
+
+    const { data, error } = await sb.from('pedidos')
+      .select(`id, tipo, status, total, criado_em, itens_pedido ( quantidade, produtos ( nome ) )`)
+      .eq('cliente_id', cliente.id)
+      .order('criado_em', { ascending: false })
+      .limit(20);
+
+    if (error) { wrap.innerHTML = `<div class="cart-empty">Não foi possível carregar seus pedidos agora.</div>`; openSheet('sheetPedidos'); return; }
+
+    renderMeusPedidos(data || []);
+    openSheet('sheetPedidos');
+    subscribeTrackingPedidos();
+  }
+
+  function renderMeusPedidos(lista) {
+    const wrap = document.getElementById('meusPedidosLista');
+    if (lista.length === 0) { wrap.innerHTML = `<div class="cart-empty">Nenhum pedido encontrado.</div>`; return; }
+
+    wrap.innerHTML = lista.map(o => {
+      const flow = o.tipo === 'entrega' ? FLOW_ENTREGA : FLOW_RETIRADA;
+      const idx = flow.indexOf(o.status);
+      const cancelado = o.status === 'cancelado';
+      const itens = (o.itens_pedido || []).map(i => `${i.quantidade}x ${i.produtos?.nome || 'item'}`).join(', ');
+
+      const barras = flow.slice(1).map((_, i) => {
+        if (cancelado) return `<span class="cancel"></span>`;
+        return `<span class="${i < idx ? 'done' : ''}"></span>`;
+      }).join('');
+
+      return `
+        <div class="pedido-card" id="pedido-${o.id}">
+          <div class="pedido-card__top">
+            <span class="pedido-card__codigo">#${o.id.slice(0,8).toUpperCase()}</span>
+            <span class="pedido-card__status">${STATUS_LABEL[o.status] || o.status}</span>
+          </div>
+          <div class="flow-bar">${barras}</div>
+          <div class="pedido-card__itens">${itens || 'sem itens'}</div>
+          <div class="pedido-card__total">${formatMoeda(o.total)}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function subscribeTrackingPedidos() {
+    trackedChannels.forEach(ch => sb.removeChannel(ch));
+    trackedChannels.length = 0;
+
+    const ch = sb.channel('tracking-cliente-' + cliente.id)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'pedidos', filter: `cliente_id=eq.${cliente.id}` },
+        async () => {
+          const { data } = await sb.from('pedidos')
+            .select(`id, tipo, status, total, criado_em, itens_pedido ( quantidade, produtos ( nome ) )`)
+            .eq('cliente_id', cliente.id)
+            .order('criado_em', { ascending: false })
+            .limit(20);
+          if (data) renderMeusPedidos(data);
+          await atualizarBadgePedidos();
+          beveNotificacao();
+        }
+      )
+      .subscribe();
+    trackedChannels.push(ch);
+  }
+
+  function beveNotificacao() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      osc.type = 'sine'; osc.frequency.value = 700;
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + 0.3);
+    } catch (e) {}
+  }
+
+  // =====================================================================
+  // UI HELPERS
+  // =====================================================================
+  function openSheet(id) { document.getElementById(id).classList.add('show'); }
+  function closeSheet(id) { document.getElementById(id).classList.remove('show'); }
+
+  function formatMoeda(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
+
+  function showToast(title, body) {
+    const t = document.getElementById('toast');
+    document.getElementById('toastTitle').textContent = title;
+    document.getElementById('toastBody').textContent = body;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 3200);
+  }
+</script>
+</body>
+</html>
