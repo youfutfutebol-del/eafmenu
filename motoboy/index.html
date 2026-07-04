@@ -5,94 +5,160 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>EAF Menu — Motoboy</title>
 <link rel="manifest" href="/motoboy/manifest.json">
-<meta name="theme-color" content="#E5342A">
+<meta name="theme-color" content="#14181C">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="EAF Motoboy">
 <link rel="apple-touch-icon" href="/icons/icon192.png">
 <link rel="icon" href="/icons/icon192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   :root {
-    --sidebar: #171717;
-    --red: #E5342A;
-    --red-dark: #C22A21;
-    --bg: #F7F7F8;
-    --border: #E4E4E7;
-    --ink: #18181B;
-    --muted: #71717A;
-    --green: #16A34A;
-    --amber: #D97706;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --ink: #14181C;
+    --paper: #F6F3ED;
+    --surface: #FFFFFF;
+    --route: #E5342A;
+    --route-dark: #C22A21;
+    --done: #1FAA59;
+    --pending: #F2A93B;
+    --muted: #6B7280;
+    --muted-soft: #9AA1AA;
+    --line: #E7E2D9;
+    --shadow: 0 2px 10px rgba(20,24,28,.06);
+    --shadow-lg: 0 16px 40px rgba(20,24,28,.16);
+    --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: var(--font-body);
   }
-  * { box-sizing: border-box; }
-  body { margin:0; background: var(--bg); color: var(--ink); }
-  button { font-family: inherit; cursor: pointer; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; background: var(--paper); color: var(--ink); -webkit-font-smoothing:antialiased; }
+  button { font-family: inherit; cursor: pointer; border:none; background:none; }
+  button:active { transform: scale(.97); }
   input { font-family: inherit; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
+  /* ---------- Login / telas cheias ---------- */
   #loginScreen, #primeiroAcessoScreen {
-    min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--sidebar); padding:20px;
+    min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--ink); padding:24px;
   }
   #primeiroAcessoScreen { display:none; }
-  .login-card { background:#fff; border-radius:14px; padding: 34px 30px; width: 340px; max-width:100%; text-align:center; }
-  .login-card .badge { width:56px; height:56px; margin: 0 auto 14px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .login-card { background: var(--surface); border-radius:20px; padding: 36px 28px; width: 340px; max-width:100%; text-align:center; box-shadow: var(--shadow-lg); }
+  .login-card .badge { width:58px; height:58px; border-radius:16px; margin: 0 auto 16px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
   .login-card .badge img { width:100%; height:100%; object-fit:contain; }
-  .login-card h2 { margin: 0 0 4px; font-size:17px; }
-  .login-card p { margin:0 0 20px; font-size:12.5px; color:var(--muted); }
-  .login-card input { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:13.5px; margin-bottom:10px; }
-  .login-card button.primary { width:100%; background: var(--red); color:#fff; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:13.5px; }
-  .login-card button.primary:disabled { opacity:.5; }
+  .login-card h2 { margin: 0 0 4px; font-family: var(--font-display); font-weight:700; font-size:18px; letter-spacing:-.2px; }
+  .login-card p { margin:0 0 22px; font-size:12.5px; color:var(--muted); line-height:1.5; }
+  .login-card input {
+    width:100%; padding:13px 14px; border:1.5px solid var(--line); border-radius:12px; font-size:14px; margin-bottom:10px;
+    background: var(--paper); transition: border-color .15s ease;
+  }
+  .login-card input:focus { outline:none; border-color: var(--route); background: var(--surface); }
+  .login-card button.primary {
+    width:100%; background: var(--route); color:#fff; border:none; padding:14px; border-radius:12px; font-weight:700; font-size:14px;
+    box-shadow: 0 8px 20px rgba(229,52,42,.3);
+  }
+  .login-card button.primary:disabled { opacity:.5; box-shadow:none; }
+  .login-msg { font-size:12px; margin-top:14px; color: var(--muted); min-height:16px; }
+  .login-msg.error { color: var(--route); }
   .install-btn {
-    display:none; align-items:center; gap:6px; background:#fff; color:var(--red); border:1px solid var(--red);
-    border-radius:8px; padding:9px 13px; font-size:12.5px; font-weight:800; margin: 0 0 14px; width:100%; justify-content:center;
+    display:none; align-items:center; gap:6px; background:var(--paper); color:var(--route); border:1.5px solid var(--route);
+    border-radius:10px; padding:10px 13px; font-size:12.5px; font-weight:700; margin: 0 0 16px; width:100%; justify-content:center;
   }
   .install-btn.show { display:inline-flex; }
-  .topbar .install-btn { width:auto; margin:0; padding:7px 10px; font-size:11px; }
-  .login-msg { font-size:12px; margin-top:12px; color: var(--muted); min-height:16px; }
-  .login-msg.error { color: var(--red); }
 
-  #app { display:none; min-height:100vh; padding-bottom: 30px; }
+  /* ---------- App ---------- */
+  #app { display:none; min-height:100vh; padding-bottom: 40px; }
+
   .topbar {
-    background: var(--sidebar); color:#fff; padding: max(16px, env(safe-area-inset-top)) 18px 16px;
-    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background: var(--ink); color:#fff; padding: max(18px, env(safe-area-inset-top)) 20px 18px;
   }
-  .topbar__info { min-width:0; }
-  .topbar__titulo { font-weight:800; font-size:16px; }
-  .topbar__sub { font-size:12px; color:#9C9CA3; }
-  .disp-toggle { display:flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; flex-shrink:0; }
-  .switch { width:36px; height:20px; background:#3a3a3a; border-radius:20px; position:relative; border:none; flex-shrink:0; }
-  .switch.on { background: var(--green); }
-  .switch::after { content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; background:#fff; border-radius:50%; transition:.15s; }
-  .switch.on::after { left:18px; }
-  .logout-btn { background:transparent; border:none; color:#F87171; font-size:12px; font-weight:700; padding:6px 0; }
+  .topbar__row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .topbar__titulo { font-family: var(--font-display); font-weight:700; font-size:19px; letter-spacing:-.3px; }
+  .topbar__sub { font-size:12px; color:#9AA1AA; margin-top:2px; }
+  .topbar__right { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+  .disp-toggle { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:700; color:#D5D8DB; }
+  .switch { width:34px; height:19px; background:#33383E; border-radius:20px; position:relative; flex-shrink:0; }
+  .switch.on { background: var(--done); }
+  .switch::after { content:''; position:absolute; top:2px; left:2px; width:15px; height:15px; background:#fff; border-radius:50%; transition:.15s; }
+  .switch.on::after { left:17px; }
+  .logout-btn { color:#EF7A70; font-size:11.5px; font-weight:700; padding:4px 0; }
 
-  .main { padding: 18px 16px; max-width:560px; margin:0 auto; }
-  .empty-state { padding: 70px 20px; text-align:center; color: var(--muted); }
-  .empty-state .ic { font-size:34px; margin-bottom:14px; }
-  .empty-state h4 { margin:0 0 4px; color: var(--ink); font-size:15px; }
-  .empty-state p { margin:0; font-size:13px; }
+  /* Cartões de resumo do dia */
+  .stats-row { display:flex; gap:10px; padding: 16px 20px 4px; }
+  .stat-card { flex:1; background: var(--surface); border-radius:14px; padding:14px 12px; text-align:center; box-shadow: var(--shadow); }
+  .stat-card .num { font-family: var(--font-display); font-weight:800; font-size:24px; line-height:1; }
+  .stat-card .label { font-size:10.5px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.4px; margin-top:5px; }
 
-  .entrega-card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:12px; }
-  .entrega-card__top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-  .entrega-card__codigo { font-family: 'SF Mono', ui-monospace, Menlo, monospace; font-weight:700; font-size:12.5px; color: var(--muted); }
-  .entrega-card__status { font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:20px; background:#F4F4F5; color:#3F3F46; }
-  .entrega-card__cliente { font-weight:800; font-size:15px; margin: 2px 0 6px; }
-  .entrega-card__endereco { font-size:13px; color: var(--ink); margin-bottom:6px; line-height:1.4; }
-  .entrega-card__itens { font-size:12.5px; color: var(--muted); margin-bottom:10px; line-height:1.5; }
-  .entrega-card__total { font-weight:800; font-size:15px; margin-bottom:12px; }
+  /* Segmented control */
+  .tabs-seg { display:flex; gap:4px; margin: 16px 20px 6px; background:#EAE5DC; border-radius:12px; padding:4px; }
+  .tabs-seg button { flex:1; padding:10px; border-radius:9px; font-size:12.5px; font-weight:700; color:var(--muted); }
+  .tabs-seg button.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+
+  .main { padding: 6px 20px 20px; max-width:560px; margin:0 auto; }
+  .view-pane { display:none; }
+  .view-pane.active { display:block; }
+
+  .empty-state { padding: 60px 16px; text-align:center; color: var(--muted); }
+  .empty-state .ic { font-size:32px; margin-bottom:12px; }
+  .empty-state h4 { margin:0 0 4px; color: var(--ink); font-size:14.5px; font-family: var(--font-display); }
+  .empty-state p { margin:0; font-size:12.5px; line-height:1.5; }
+
+  /* ---------- Timeline da rota ---------- */
+  .rota-timeline { position:relative; padding-left: 34px; margin-top:8px; }
+  .rota-item { position:relative; padding-bottom: 18px; }
+  .rota-item:last-child .rota-linha { display:none; }
+  .rota-linha { position:absolute; left:-22px; top:26px; bottom:-18px; width:2px; background: var(--line); }
+  .rota-node {
+    position:absolute; left:-34px; top:0; width:24px; height:24px; border-radius:50%; background: var(--route); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-family: var(--font-display); font-weight:800; font-size:11px;
+    box-shadow: 0 0 0 4px var(--paper);
+  }
+  .rota-node.pronta { background: var(--pending); }
+
+  .entrega-card { background: var(--surface); border-radius:16px; padding:16px; box-shadow: var(--shadow); }
+  .entrega-card__top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:8px; }
+  .entrega-card__codigo { font-family: 'SF Mono', ui-monospace, Menlo, monospace; font-weight:700; font-size:12px; color: var(--muted); }
+  .entrega-card__status { font-size:10px; font-weight:800; padding:4px 10px; border-radius:20px; background:#F4F4F5; color:#3F3F46; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; }
+  .entrega-card__status.saiu { background: color-mix(in srgb, var(--pending) 18%, #fff); color:#92600E; }
+  .entrega-card__cliente { font-family: var(--font-display); font-weight:700; font-size:15.5px; margin: 2px 0 8px; }
+  .entrega-card__endereco { font-size:13px; color: var(--ink); margin-bottom:8px; line-height:1.45; display:flex; gap:6px; }
+  .entrega-card__itens { font-size:12px; color:var(--muted); margin-bottom:12px; line-height:1.5; padding-bottom:12px; border-bottom:1px dashed var(--line); }
+  .entrega-card__footer { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .entrega-card__total { font-family: var(--font-display); font-weight:800; font-size:16px; }
   .entrega-card__actions { display:flex; gap:8px; }
-  .btn { flex:1; text-align:center; border-radius:9px; padding:11px; font-size:12.5px; font-weight:700; border:1px solid var(--border); background:#fff; color:var(--ink); text-decoration:none; display:flex; align-items:center; justify-content:center; }
-  .btn.primary { background: var(--red); border-color: var(--red); color:#fff; }
-  .btn.primary:disabled { opacity:.5; }
+  .btn { flex:1; text-align:center; border-radius:11px; padding:12px; font-size:12.5px; font-weight:700; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .btn.primary { background: var(--route); border-color: var(--route); color:#fff; }
+  .btn.primary:disabled { opacity:.45; }
+
+  /* ---------- Histórico ---------- */
+  .hist-busca { display:flex; gap:8px; margin-bottom:16px; }
+  .hist-busca input[type="date"] {
+    flex:1; padding:12px 13px; border:1.5px solid var(--line); border-radius:12px; font-size:13.5px; background: var(--surface); color: var(--ink);
+  }
+  .hist-busca button { background: var(--ink); color:#fff; border-radius:12px; padding:0 18px; font-weight:700; font-size:12.5px; }
+
+  .hist-resumo { background: var(--surface); border-radius:14px; padding:14px 16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; box-shadow: var(--shadow); }
+  .hist-resumo .txt { font-size:12.5px; color:var(--muted); font-weight:600; }
+  .hist-resumo .num { font-family: var(--font-display); font-weight:800; font-size:22px; }
+
+  .hist-item { background: var(--surface); border-radius:14px; padding:14px 16px; margin-bottom:10px; box-shadow: var(--shadow); }
+  .hist-item__top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .hist-item__codigo { font-family: 'SF Mono', ui-monospace, Menlo, monospace; font-size:11.5px; color:var(--muted); font-weight:700; }
+  .hist-item__hora { font-size:11.5px; color:var(--muted); }
+  .hist-item__cliente { font-weight:700; font-size:13.5px; margin-bottom:3px; }
+  .hist-item__endereco { font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .hist-item__total { font-family: var(--font-display); font-weight:800; font-size:14px; color: var(--done); }
 
   .toast {
-    position:fixed; top:16px; right:16px; left:16px; z-index:100; background:#fff; border:1px solid var(--border); border-left:3px solid var(--red);
-    padding:12px 16px; border-radius:10px; font-size:12.5px; box-shadow:0 10px 30px rgba(0,0,0,.15);
-    transform: translateY(-140%); transition: transform .3s cubic-bezier(.2,.9,.3,1.1); max-width:400px; margin:0 auto;
+    position:fixed; top:16px; right:16px; left:16px; z-index:100; background: var(--surface); border-left:3px solid var(--route);
+    padding:13px 16px; border-radius:12px; font-size:12.5px; box-shadow: var(--shadow-lg); max-width:400px; margin:0 auto;
+    transform: translateY(-140%); transition: transform .3s cubic-bezier(.2,.9,.3,1.1);
   }
   .toast.show { transform: translateY(0); }
-  .toast b { display:block; font-size:12px; color: var(--red); margin-bottom:2px; }
+  .toast b { display:block; font-size:12px; color: var(--route); margin-bottom:2px; font-family: var(--font-display); }
 </style>
 </head>
 <body>
@@ -109,13 +175,13 @@
       <input type="text" id="identInput" placeholder="Telefone ou e-mail" autocomplete="username">
       <input type="password" id="senhaInput" placeholder="Sua senha" autocomplete="current-password">
       <button class="primary" id="loginBtn" onclick="fazerLogin()">Entrar</button>
-      <a href="#" onclick="abrirEsqueciSenha(); return false;" style="display:block; text-align:center; margin-top:10px; font-size:12px; color:var(--muted);">Esqueci minha senha</a>
+      <a href="#" onclick="abrirEsqueciSenha(); return false;" style="display:block; text-align:center; margin-top:12px; font-size:12px; color:var(--muted);">Esqueci minha senha</a>
     </div>
 
     <div id="stepEsqueciSenha" style="display:none;">
       <input type="text" id="recIdentInput" placeholder="Telefone ou e-mail cadastrado">
       <button class="primary" id="recBtn" onclick="enviarRecuperacaoSenha()">Enviar link de recuperação</button>
-      <a href="#" onclick="fecharEsqueciSenha(); return false;" style="display:block; text-align:center; margin-top:10px; font-size:12px; color:var(--muted);">Voltar para o login</a>
+      <a href="#" onclick="fecharEsqueciSenha(); return false;" style="display:block; text-align:center; margin-top:12px; font-size:12px; color:var(--muted);">Voltar para o login</a>
     </div>
 
     <div id="stepNovaSenha" style="display:none;">
@@ -143,32 +209,58 @@
 
 <div id="app">
   <div class="topbar">
-    <div class="topbar__info">
-      <div class="topbar__titulo" id="topNome">Minhas entregas</div>
-      <div class="topbar__sub" id="topSub">—</div>
-    </div>
-    <div style="display:flex; align-items:center; gap:10px;">
-      <button class="install-btn" id="installBtnApp" onclick="installApp()">⬇ Instalar</button>
-      <div class="disp-toggle">
-        Disponível
-        <button class="switch on" id="dispSwitch" onclick="toggleDisponivel()"></button>
+    <div class="topbar__row">
+      <div>
+        <div class="topbar__titulo" id="topNome">Olá</div>
+        <div class="topbar__sub" id="topSub">—</div>
+      </div>
+      <div class="topbar__right">
+        <button class="logout-btn" onclick="logout()">⎋ Sair</button>
+        <div class="disp-toggle">
+          Disponível
+          <button class="switch on" id="dispSwitch" onclick="toggleDisponivel()"></button>
+        </div>
       </div>
     </div>
   </div>
 
+  <div class="stats-row">
+    <div class="stat-card"><div class="num" id="statHoje">0</div><div class="label">Hoje</div></div>
+    <div class="stat-card"><div class="num" id="statTotal">0</div><div class="label">Total</div></div>
+  </div>
+
+  <div class="tabs-seg">
+    <button class="active" id="tabRotaBtn" onclick="mostrarAba('rota')">Rota de hoje</button>
+    <button id="tabHistBtn" onclick="mostrarAba('historico')">Histórico</button>
+  </div>
+
   <div class="main">
-    <div id="statsEntregas" style="background:#fff; border:1px solid var(--border); border-radius:12px; padding:12px 16px; margin-bottom:14px; font-size:13px; font-weight:700; display:flex; justify-content:space-around; text-align:center;">
-      <span>Hoje: <b id="statHoje">0</b></span>
-      <span>Total: <b id="statTotal">0</b></span>
-    </div>
-    <div id="entregasList">
-      <div class="empty-state">
-        <div class="ic">🛵</div>
-        <h4>Nenhuma entrega no momento</h4>
-        <p>Assim que o restaurante atribuir uma entrega a você, ela aparece aqui.</p>
+    <div class="view-pane active" id="paneRota">
+      <div id="entregasList">
+        <div class="empty-state">
+          <div class="ic">🛵</div>
+          <h4>Nenhuma entrega no momento</h4>
+          <p>Assim que o restaurante atribuir uma entrega a você, ela aparece aqui.</p>
+        </div>
       </div>
     </div>
-    <button class="logout-btn" onclick="logout()" style="display:block; margin: 20px auto 0;">⎋ Sair</button>
+
+    <div class="view-pane" id="paneHistorico">
+      <div class="hist-busca">
+        <input type="date" id="histData">
+        <button onclick="buscarHistorico()">Buscar</button>
+      </div>
+      <div id="histResumo"></div>
+      <div id="histLista">
+        <div class="empty-state">
+          <div class="ic">📖</div>
+          <h4>Escolha um dia</h4>
+          <p>Selecione uma data pra ver as entregas concluídas naquele dia.</p>
+        </div>
+      </div>
+    </div>
+
+    <button class="install-btn" id="installBtnApp" onclick="installApp()">⬇ Instalar aplicativo</button>
   </div>
 </div>
 
@@ -193,6 +285,7 @@
   };
 
   let trackingChannel = null;
+  let abaAtual = 'rota';
 
   // =====================================================================
   // LOGIN
@@ -265,7 +358,7 @@
   async function salvarNovaSenhaRecuperacao() {
     const nova = document.getElementById('novaSenhaRecInput').value;
     const conf = document.getElementById('novaSenhaRecConfirm').value;
-    if (!nova || nova.length < 6) { setLoginMsg('A senha precisa ter pelo menos 6 caracteres.', true); return; }
+    if (!nova || nova.length < 4) { setLoginMsg('A senha precisa ter pelo menos 4 caracteres.', true); return; }
     if (nova !== conf) { setLoginMsg('As senhas não coincidem.', true); return; }
 
     document.getElementById('novaSenhaRecBtn').disabled = true;
@@ -302,13 +395,11 @@
       await sb.auth.signOut();
       return;
     }
-
     if (userRow.role !== 'motoboy') {
       setLoginMsg('Esta conta não é de um motoboy. Use o painel da equipe.', true);
       await sb.auth.signOut();
       return;
     }
-
     if (!userRow.ativo) {
       setLoginMsg('Sua conta está inativa. Fale com o restaurante.', true);
       await sb.auth.signOut();
@@ -339,7 +430,7 @@
     const nova = document.getElementById('paNovaSenha').value;
     const conf = document.getElementById('paNovaSenhaConfirm').value;
     const msgEl = document.getElementById('paMsg');
-    if (!nova || nova.length < 6) { msgEl.textContent = 'A senha precisa ter pelo menos 6 caracteres.'; msgEl.className = 'login-msg error'; return; }
+    if (!nova || nova.length < 4) { msgEl.textContent = 'A senha precisa ter pelo menos 4 caracteres.'; msgEl.className = 'login-msg error'; return; }
     if (nova !== conf) { msgEl.textContent = 'As senhas não coincidem.'; msgEl.className = 'login-msg error'; return; }
 
     document.getElementById('paBtn').disabled = true;
@@ -353,6 +444,21 @@
     await sb.from('usuarios').update({ primeiro_acesso: false }).eq('id', currentUser.id);
     document.getElementById('paBtn').disabled = false;
     await boot();
+  }
+
+  // =====================================================================
+  // ABAS
+  // =====================================================================
+  function mostrarAba(aba) {
+    abaAtual = aba;
+    document.getElementById('tabRotaBtn').classList.toggle('active', aba === 'rota');
+    document.getElementById('tabHistBtn').classList.toggle('active', aba === 'historico');
+    document.getElementById('paneRota').classList.toggle('active', aba === 'rota');
+    document.getElementById('paneHistorico').classList.toggle('active', aba === 'historico');
+    if (aba === 'historico' && !document.getElementById('histData').value) {
+      document.getElementById('histData').value = dataDiaComercialAtual();
+      buscarHistorico();
+    }
   }
 
   // =====================================================================
@@ -372,7 +478,7 @@
   }
 
   // =====================================================================
-  // ENTREGAS
+  // ROTA DE HOJE (entregas ativas)
   // =====================================================================
   async function carregarEntregas() {
     const { data, error } = await sb.from('pedidos')
@@ -407,29 +513,36 @@
       return;
     }
 
-    wrap.innerHTML = entregas.map(o => {
+    wrap.innerHTML = `<div class="rota-timeline">` + entregas.map((o, i) => {
       const end = o.enderecos_cliente;
       const enderecoStr = enderecoTexto(end);
       const mapaUrl = enderecoStr ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoStr)}` : null;
       const itens = (o.itens_pedido || []).map(i => `${i.quantidade}x ${i.produtos?.nome || 'item'}`).join(', ');
       const podeEntregar = o.status === 'saiu_para_entrega' || o.tipo === 'retirada';
+      const statusClasse = o.status === 'saiu_para_entrega' ? 'saiu' : '';
 
       return `
-        <div class="entrega-card">
-          <div class="entrega-card__top">
-            <span class="entrega-card__codigo">${codigoEntrega(o)}</span>
-            <span class="entrega-card__status">${STATUS_LABEL[o.status] || o.status}</span>
-          </div>
-          <div class="entrega-card__cliente">${o.clientes?.nome || 'Cliente'}</div>
-          ${enderecoStr ? `<div class="entrega-card__endereco">📍 ${enderecoStr}</div>` : ''}
-          <div class="entrega-card__itens">${itens || 'sem itens'}</div>
-          <div class="entrega-card__total">R$ ${Number(o.total).toFixed(2).replace('.', ',')}</div>
-          <div class="entrega-card__actions">
-            ${mapaUrl ? `<a class="btn" href="${mapaUrl}" target="_blank" rel="noopener">🗺️ Ver no mapa</a>` : ''}
-            <button class="btn primary" ${podeEntregar ? '' : 'disabled'} onclick="marcarEntregue('${o.id}', '${o.tipo}')">✓ Marcar entregue</button>
+        <div class="rota-item">
+          <div class="rota-node ${podeEntregar ? '' : 'pronta'}">${i + 1}</div>
+          <div class="rota-linha"></div>
+          <div class="entrega-card">
+            <div class="entrega-card__top">
+              <span class="entrega-card__codigo">${codigoEntrega(o)}</span>
+              <span class="entrega-card__status ${statusClasse}">${STATUS_LABEL[o.status] || o.status}</span>
+            </div>
+            <div class="entrega-card__cliente">${o.clientes?.nome || 'Cliente'}</div>
+            ${enderecoStr ? `<div class="entrega-card__endereco">📍 <span>${enderecoStr}</span></div>` : ''}
+            <div class="entrega-card__itens">${itens || 'sem itens'}</div>
+            <div class="entrega-card__footer">
+              <span class="entrega-card__total">R$ ${Number(o.total).toFixed(2).replace('.', ',')}</span>
+            </div>
+            <div class="entrega-card__actions">
+              ${mapaUrl ? `<a class="btn" href="${mapaUrl}" target="_blank" rel="noopener">🗺️ Mapa</a>` : ''}
+              <button class="btn primary" ${podeEntregar ? '' : 'disabled'} onclick="marcarEntregue('${o.id}', '${o.tipo}')">✓ Entregar</button>
+            </div>
           </div>
         </div>`;
-    }).join('');
+    }).join('') + `</div>`;
   }
 
   async function marcarEntregue(pedidoId, tipo) {
@@ -439,6 +552,20 @@
     showToast('Entrega concluída', 'Bom trabalho! 🎉');
     await carregarEntregas();
     await carregarStatsEntregas();
+  }
+
+  function subscribeTrackingEntregas() {
+    if (trackingChannel) sb.removeChannel(trackingChannel);
+    trackingChannel = sb.channel('motoboy-entregas-' + currentUser.id)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'pedidos', filter: `motoboy_id=eq.${currentUser.id}` },
+        async () => {
+          beep();
+          await carregarEntregas();
+          await carregarStatsEntregas();
+        }
+      )
+      .subscribe();
   }
 
   // Mesmo corte de 7h usado no resto do sistema, calculado em Brasília
@@ -471,18 +598,61 @@
     document.getElementById('statTotal').textContent = total || 0;
   }
 
-  function subscribeTrackingEntregas() {
-    if (trackingChannel) sb.removeChannel(trackingChannel);
-    trackingChannel = sb.channel('motoboy-entregas-' + currentUser.id)
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'pedidos', filter: `motoboy_id=eq.${currentUser.id}` },
-        async () => {
-          beep();
-          await carregarEntregas();
-          await carregarStatsEntregas();
-        }
-      )
-      .subscribe();
+  // =====================================================================
+  // HISTÓRICO (busca por data)
+  // =====================================================================
+  async function buscarHistorico() {
+    const data = document.getElementById('histData').value;
+    const resumoEl = document.getElementById('histResumo');
+    const listaEl = document.getElementById('histLista');
+    if (!data) { showToast('Escolha uma data', 'Selecione o dia que quer consultar.'); return; }
+
+    listaEl.innerHTML = `<div class="empty-state"><div class="ic">⏳</div><h4>Buscando...</h4></div>`;
+    resumoEl.innerHTML = '';
+
+    const { data: pedidos, error } = await sb.from('pedidos')
+      .select(`
+        id, numero_diario, tipo, status, total, criado_em,
+        clientes ( nome ),
+        enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento )
+      `)
+      .eq('motoboy_id', currentUser.id)
+      .eq('status', 'entregue')
+      .eq('data_pedido', data)
+      .order('criado_em', { ascending: true });
+
+    if (error) { listaEl.innerHTML = `<div class="empty-state"><div class="ic">⚠️</div><h4>Erro ao buscar</h4><p>${error.message}</p></div>`; return; }
+
+    const lista = pedidos || [];
+    const totalDia = lista.reduce((s, p) => s + Number(p.total), 0);
+
+    if (lista.length === 0) {
+      resumoEl.innerHTML = '';
+      listaEl.innerHTML = `<div class="empty-state"><div class="ic">📭</div><h4>Nenhuma entrega nesse dia</h4><p>Não encontramos entregas concluídas na data selecionada.</p></div>`;
+      return;
+    }
+
+    resumoEl.innerHTML = `
+      <div class="hist-resumo">
+        <span class="txt">${lista.length} entrega${lista.length > 1 ? 's' : ''} nesse dia</span>
+        <span class="num">R$ ${totalDia.toFixed(2).replace('.', ',')}</span>
+      </div>`;
+
+    listaEl.innerHTML = lista.map(o => {
+      const end = o.enderecos_cliente;
+      const enderecoStr = enderecoTexto(end);
+      const hora = new Date(o.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      return `
+        <div class="hist-item">
+          <div class="hist-item__top">
+            <span class="hist-item__codigo">${codigoEntrega(o)}</span>
+            <span class="hist-item__hora">${hora}</span>
+          </div>
+          <div class="hist-item__cliente">${o.clientes?.nome || 'Cliente'}</div>
+          ${enderecoStr ? `<div class="hist-item__endereco">📍 ${enderecoStr}</div>` : ''}
+          <div class="hist-item__total">R$ ${Number(o.total).toFixed(2).replace('.', ',')}</div>
+        </div>`;
+    }).join('');
   }
 
   function beep() {
