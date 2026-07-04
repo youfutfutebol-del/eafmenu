@@ -278,6 +278,15 @@
   </div>
 </div>
 
+<div id="motoboyBloqueadoScreen" style="display:none; min-height:100vh; align-items:center; justify-content:center; background: var(--sidebar);">
+  <div class="login-card">
+    <div class="badge">🛵</div>
+    <h2>Use o app de entregas</h2>
+    <p>Este painel é exclusivo da equipe do restaurante. Motoboys acompanham as entregas pelo PWA do Motoboy.</p>
+    <button class="primary" onclick="logout()">Entendi, sair</button>
+  </div>
+</div>
+
 <div id="app">
   <div class="mobile-topbar">
     <button class="hamburger-btn" onclick="openDrawer()" aria-label="Abrir menu">☰</button>
@@ -907,6 +916,14 @@ async function salvarNovaSenhaRecuperacao() {
       return;
     }
     document.getElementById('primeiroAcessoScreen').style.display = 'none';
+
+    // Motoboy não tem acesso ao painel administrativo — só ao PWA de entregas.
+    if (userRow.role === 'motoboy') {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('motoboyBloqueadoScreen').style.display = 'flex';
+      return;
+    }
+    document.getElementById('motoboyBloqueadoScreen').style.display = 'none';
 
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
