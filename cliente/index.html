@@ -1008,8 +1008,13 @@
     try {
       let { data: { session } } = await sb.auth.getSession();
       if (!session) {
-        const { data, error } = await sb.auth.signInAnonymously();
-        if (error) throw error;
+        let { data, error } = await sb.auth.signInAnonymously();
+        if (error) {
+          // Tenta mais uma vez antes de desistir (falha passageira de rede/servidor)
+          await new Promise(r => setTimeout(r, 800));
+          ({ data, error } = await sb.auth.signInAnonymously());
+          if (error) throw error;
+        }
         session = data.session;
       }
 
@@ -1024,9 +1029,7 @@
       irParaStep(2);
     } catch (e) {
       console.error(e);
-      erroEl.textContent = (e.message || '').includes('Anonymous')
-        ? 'Login anônimo não está habilitado no Supabase (Authentication → Providers → Allow anonymous sign-ins).'
-        : 'Não foi possível continuar: ' + e.message;
+      erroEl.textContent = 'Não foi possível continuar agora. Verifique sua internet e tente de novo.';
       erroEl.classList.remove('hidden');
     } finally {
       btn.disabled = false; btn.textContent = 'Continuar';
