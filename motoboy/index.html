@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>EAF Menu — Motoboy</title>
+<link rel="manifest" href="/motoboy/manifest.json">
+<meta name="theme-color" content="#E5342A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EAF Motoboy">
+<link rel="apple-touch-icon" href="/icons/icon192.png">
+<link rel="icon" href="/icons/icon192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root {
+    --sidebar: #171717;
+    --red: #E5342A;
+    --red-dark: #C22A21;
+    --bg: #F7F7F8;
+    --border: #E4E4E7;
+    --ink: #18181B;
+    --muted: #71717A;
+    --green: #16A34A;
+    --amber: #D97706;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background: var(--bg); color: var(--ink); }
+  button { font-family: inherit; cursor: pointer; }
+  input { font-family: inherit; }
+
+  #loginScreen, #primeiroAcessoScreen {
+    min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--sidebar); padding:20px;
+  }
+  #primeiroAcessoScreen { display:none; }
+  .login-card { background:#fff; border-radius:14px; padding: 34px 30px; width: 340px; max-width:100%; text-align:center; }
+  .login-card .badge { width:42px; height:42px; background:var(--red); border-radius:10px; margin: 0 auto 14px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:19px; }
+  .login-card h2 { margin: 0 0 4px; font-size:17px; }
+  .login-card p { margin:0 0 20px; font-size:12.5px; color:var(--muted); }
+  .login-card input { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:13.5px; margin-bottom:10px; }
+  .login-card button.primary { width:100%; background: var(--red); color:#fff; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:13.5px; }
+  .login-card button.primary:disabled { opacity:.5; }
+  .login-msg { font-size:12px; margin-top:12px; color: var(--muted); min-height:16px; }
+  .login-msg.error { color: var(--red); }
+
+  #app { display:none; min-height:100vh; padding-bottom: 30px; }
+  .topbar {
+    background: var(--sidebar); color:#fff; padding: max(16px, env(safe-area-inset-top)) 18px 16px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+  }
+  .topbar__info { min-width:0; }
+  .topbar__titulo { font-weight:800; font-size:16px; }
+  .topbar__sub { font-size:12px; color:#9C9CA3; }
+  .disp-toggle { display:flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; flex-shrink:0; }
+  .switch { width:36px; height:20px; background:#3a3a3a; border-radius:20px; position:relative; border:none; flex-shrink:0; }
+  .switch.on { background: var(--green); }
+  .switch::after { content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; background:#fff; border-radius:50%; transition:.15s; }
+  .switch.on::after { left:18px; }
+  .logout-btn { background:transparent; border:none; color:#F87171; font-size:12px; font-weight:700; padding:6px 0; }
+
+  .main { padding: 18px 16px; max-width:560px; margin:0 auto; }
+  .empty-state { padding: 70px 20px; text-align:center; color: var(--muted); }
+  .empty-state .ic { font-size:34px; margin-bottom:14px; }
+  .empty-state h4 { margin:0 0 4px; color: var(--ink); font-size:15px; }
+  .empty-state p { margin:0; font-size:13px; }
+
+  .entrega-card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:12px; }
+  .entrega-card__top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .entrega-card__codigo { font-family: 'SF Mono', ui-monospace, Menlo, monospace; font-weight:700; font-size:12.5px; color: var(--muted); }
+  .entrega-card__status { font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:20px; background:#F4F4F5; color:#3F3F46; }
+  .entrega-card__cliente { font-weight:800; font-size:15px; margin: 2px 0 6px; }
+  .entrega-card__endereco { font-size:13px; color: var(--ink); margin-bottom:6px; line-height:1.4; }
+  .entrega-card__itens { font-size:12.5px; color: var(--muted); margin-bottom:10px; line-height:1.5; }
+  .entrega-card__total { font-weight:800; font-size:15px; margin-bottom:12px; }
+  .entrega-card__actions { display:flex; gap:8px; }
+  .btn { flex:1; text-align:center; border-radius:9px; padding:11px; font-size:12.5px; font-weight:700; border:1px solid var(--border); background:#fff; color:var(--ink); text-decoration:none; display:flex; align-items:center; justify-content:center; }
+  .btn.primary { background: var(--red); border-color: var(--red); color:#fff; }
+  .btn.primary:disabled { opacity:.5; }
+
+  .toast {
+    position:fixed; top:16px; right:16px; left:16px; z-index:100; background:#fff; border:1px solid var(--border); border-left:3px solid var(--red);
+    padding:12px 16px; border-radius:10px; font-size:12.5px; box-shadow:0 10px 30px rgba(0,0,0,.15);
+    transform: translateY(-140%); transition: transform .3s cubic-bezier(.2,.9,.3,1.1); max-width:400px; margin:0 auto;
+  }
+  .toast.show { transform: translateY(0); }
+  .toast b { display:block; font-size:12px; color: var(--red); margin-bottom:2px; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="badge">🛵</div>
+    <h2>EAF Menu — Motoboy</h2>
+    <p>Entre com o telefone ou e-mail cadastrado</p>
+
+    <div id="stepLogin">
+      <input type="text" id="identInput" placeholder="Telefone ou e-mail" autocomplete="username">
+      <input type="password" id="senhaInput" placeholder="Sua senha" autocomplete="current-password">
+      <button class="primary" id="loginBtn" onclick="fazerLogin()">Entrar</button>
+      <a href="#" onclick="abrirEsqueciSenha(); return false;" style="display:block; text-align:center; margin-top:10px; font-size:12px; color:var(--muted);">Esqueci minha senha</a>
+    </div>
+
+    <div id="stepEsqueciSenha" style="display:none;">
+      <input type="text" id="recIdentInput" placeholder="Telefone ou e-mail cadastrado">
+      <button class="primary" id="recBtn" onclick="enviarRecuperacaoSenha()">Enviar link de recuperação</button>
+      <a href="#" onclick="fecharEsqueciSenha(); return false;" style="display:block; text-align:center; margin-top:10px; font-size:12px; color:var(--muted);">Voltar para o login</a>
+    </div>
+
+    <div id="stepNovaSenha" style="display:none;">
+      <p style="margin:0 0 14px; font-size:12.5px; color:var(--muted);">Crie sua nova senha de acesso.</p>
+      <input type="password" id="novaSenhaRecInput" placeholder="Nova senha">
+      <input type="password" id="novaSenhaRecConfirm" placeholder="Confirmar nova senha">
+      <button class="primary" id="novaSenhaRecBtn" onclick="salvarNovaSenhaRecuperacao()">Salvar nova senha</button>
+    </div>
+
+    <div class="login-msg" id="loginMsg"></div>
+  </div>
+</div>
+
+<div id="primeiroAcessoScreen">
+  <div class="login-card">
+    <div class="badge">🛵</div>
+    <h2>Defina sua senha</h2>
+    <p>Por segurança, crie uma nova senha de acesso antes de continuar</p>
+    <input type="password" id="paNovaSenha" placeholder="Nova senha">
+    <input type="password" id="paNovaSenhaConfirm" placeholder="Confirmar nova senha">
+    <button class="primary" id="paBtn" onclick="salvarSenhaPrimeiroAcesso()">Salvar e continuar</button>
+    <div class="login-msg" id="paMsg"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="topbar__info">
+      <div class="topbar__titulo" id="topNome">Minhas entregas</div>
+      <div class="topbar__sub" id="topSub">—</div>
+    </div>
+    <div class="disp-toggle">
+      Disponível
+      <button class="switch on" id="dispSwitch" onclick="toggleDisponivel()"></button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div id="entregasList">
+      <div class="empty-state">
+        <div class="ic">🛵</div>
+        <h4>Nenhuma entrega no momento</h4>
+        <p>Assim que o restaurante atribuir uma entrega a você, ela aparece aqui.</p>
+      </div>
+    </div>
+    <button class="logout-btn" onclick="logout()" style="display:block; margin: 20px auto 0;">⎋ Sair</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
+
+<script>
+  let sb = null;
+  async function initSupabase() {
+    const res = await fetch('/api/config');
+    if (!res.ok) throw new Error('Falha ao buscar /api/config');
+    const { url, anonKey } = await res.json();
+    if (!url || !anonKey) throw new Error('Config incompleta');
+    sb = supabase.createClient(url, anonKey);
+  }
+
+  let currentUser = null;
+  let entregas = [];
+  let disponivel = true;
+  const STATUS_LABEL = {
+    recebido: 'Recebido', aceito: 'Aceito', em_preparo: 'Em preparo',
+    saiu_para_entrega: 'Saiu p/ entrega', entregue: 'Entregue', retirado: 'Retirado', cancelado: 'Cancelado'
+  };
+
+  let trackingChannel = null;
+
+  // =====================================================================
+  // LOGIN
+  // =====================================================================
+  async function fazerLogin() {
+    if (!sb) { setLoginMsg('Ainda carregando configuração, aguarde...', false); return; }
+    const identificador = document.getElementById('identInput').value.trim();
+    const senha = document.getElementById('senhaInput').value;
+    if (!identificador || !senha) { setLoginMsg('Preencha telefone/e-mail e senha.', true); return; }
+
+    setLoginMsg('Entrando...', false);
+    document.getElementById('loginBtn').disabled = true;
+
+    const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
+    if (resolveErr || !emailResolvido) {
+      document.getElementById('loginBtn').disabled = false;
+      setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
+      return;
+    }
+
+    const { error } = await sb.auth.signInWithPassword({ email: emailResolvido, password: senha });
+    document.getElementById('loginBtn').disabled = false;
+    if (error) { setLoginMsg('Telefone/e-mail ou senha incorretos.', true); return; }
+
+    await boot();
+  }
+
+  function setLoginMsg(msg, isError) {
+    const el = document.getElementById('loginMsg');
+    el.textContent = msg;
+    el.className = 'login-msg' + (isError ? ' error' : '');
+  }
+
+  function abrirEsqueciSenha() {
+    document.getElementById('stepLogin').style.display = 'none';
+    document.getElementById('stepEsqueciSenha').style.display = 'block';
+    document.getElementById('loginMsg').textContent = '';
+  }
+  function fecharEsqueciSenha() {
+    document.getElementById('stepEsqueciSenha').style.display = 'none';
+    document.getElementById('stepLogin').style.display = 'block';
+    document.getElementById('loginMsg').textContent = '';
+  }
+
+  async function enviarRecuperacaoSenha() {
+    const identificador = document.getElementById('recIdentInput').value.trim();
+    if (!identificador) { setLoginMsg('Informe seu telefone ou e-mail cadastrado.', true); return; }
+
+    document.getElementById('recBtn').disabled = true;
+    const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
+    if (resolveErr || !emailResolvido) {
+      document.getElementById('recBtn').disabled = false;
+      setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
+      return;
+    }
+
+    const { error } = await sb.auth.resetPasswordForEmail(emailResolvido, { redirectTo: location.origin + location.pathname });
+    document.getElementById('recBtn').disabled = false;
+    if (error) { setLoginMsg('Erro ao enviar o link: ' + error.message, true); return; }
+    setLoginMsg('Se o telefone/e-mail estiver cadastrado, um link de redefinição foi enviado por e-mail.', false);
+  }
+
+  function mostrarTelaNovaSenhaRecuperacao() {
+    document.getElementById('stepLogin').style.display = 'none';
+    document.getElementById('stepEsqueciSenha').style.display = 'none';
+    document.getElementById('stepNovaSenha').style.display = 'block';
+    document.getElementById('loginMsg').textContent = '';
+  }
+
+  async function salvarNovaSenhaRecuperacao() {
+    const nova = document.getElementById('novaSenhaRecInput').value;
+    const conf = document.getElementById('novaSenhaRecConfirm').value;
+    if (!nova || nova.length < 6) { setLoginMsg('A senha precisa ter pelo menos 6 caracteres.', true); return; }
+    if (nova !== conf) { setLoginMsg('As senhas não coincidem.', true); return; }
+
+    document.getElementById('novaSenhaRecBtn').disabled = true;
+    const { error } = await sb.auth.updateUser({ password: nova });
+    document.getElementById('novaSenhaRecBtn').disabled = false;
+    if (error) { setLoginMsg('Erro ao salvar a senha: ' + error.message, true); return; }
+
+    history.replaceState(null, '', location.pathname);
+    setLoginMsg('Senha redefinida! Entrando...', false);
+    await boot();
+  }
+
+  async function logout() {
+    if (trackingChannel) sb.removeChannel(trackingChannel);
+    await sb.auth.signOut();
+    location.reload();
+  }
+
+  // =====================================================================
+  // BOOT
+  // =====================================================================
+  async function boot() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+
+    const { data: userRow, error: userErr } = await sb
+      .from('usuarios')
+      .select('id, nome, role, restaurante_id, primeiro_acesso, ativo, restaurantes(nome)')
+      .eq('id', session.user.id)
+      .single();
+
+    if (userErr || !userRow) {
+      setLoginMsg('Esta conta não está cadastrada.', true);
+      await sb.auth.signOut();
+      return;
+    }
+
+    if (userRow.role !== 'motoboy') {
+      setLoginMsg('Esta conta não é de um motoboy. Use o painel da equipe.', true);
+      await sb.auth.signOut();
+      return;
+    }
+
+    if (!userRow.ativo) {
+      setLoginMsg('Sua conta está inativa. Fale com o restaurante.', true);
+      await sb.auth.signOut();
+      return;
+    }
+
+    currentUser = userRow;
+
+    if (userRow.primeiro_acesso) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('primeiroAcessoScreen').style.display = 'flex';
+      return;
+    }
+    document.getElementById('primeiroAcessoScreen').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+
+    document.getElementById('topNome').textContent = 'Olá, ' + userRow.nome.split(' ')[0];
+    document.getElementById('topSub').textContent = userRow.restaurantes?.nome || '';
+
+    await carregarDisponibilidade();
+    await carregarEntregas();
+    subscribeTrackingEntregas();
+  }
+
+  async function salvarSenhaPrimeiroAcesso() {
+    const nova = document.getElementById('paNovaSenha').value;
+    const conf = document.getElementById('paNovaSenhaConfirm').value;
+    const msgEl = document.getElementById('paMsg');
+    if (!nova || nova.length < 6) { msgEl.textContent = 'A senha precisa ter pelo menos 6 caracteres.'; msgEl.className = 'login-msg error'; return; }
+    if (nova !== conf) { msgEl.textContent = 'As senhas não coincidem.'; msgEl.className = 'login-msg error'; return; }
+
+    document.getElementById('paBtn').disabled = true;
+    const { error: authErr } = await sb.auth.updateUser({ password: nova });
+    if (authErr) {
+      document.getElementById('paBtn').disabled = false;
+      msgEl.textContent = 'Erro ao salvar: ' + authErr.message;
+      msgEl.className = 'login-msg error';
+      return;
+    }
+    await sb.from('usuarios').update({ primeiro_acesso: false }).eq('id', currentUser.id);
+    document.getElementById('paBtn').disabled = false;
+    await boot();
+  }
+
+  // =====================================================================
+  // DISPONIBILIDADE
+  // =====================================================================
+  async function carregarDisponibilidade() {
+    const { data } = await sb.from('motoboys').select('disponivel').eq('id', currentUser.id).maybeSingle();
+    disponivel = data?.disponivel ?? true;
+    document.getElementById('dispSwitch').classList.toggle('on', disponivel);
+  }
+
+  async function toggleDisponivel() {
+    disponivel = !disponivel;
+    document.getElementById('dispSwitch').classList.toggle('on', disponivel);
+    const { error } = await sb.from('motoboys').update({ disponivel }).eq('id', currentUser.id);
+    if (error) { showToast('Erro', 'Não foi possível atualizar sua disponibilidade.'); }
+  }
+
+  // =====================================================================
+  // ENTREGAS
+  // =====================================================================
+  async function carregarEntregas() {
+    const { data, error } = await sb.from('pedidos')
+      .select(`
+        id, numero_diario, tipo, status, total, criado_em,
+        clientes ( nome ),
+        enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento ),
+        itens_pedido ( quantidade, produtos ( nome ) )
+      `)
+      .eq('motoboy_id', currentUser.id)
+      .not('status', 'in', '(entregue,retirado,cancelado)')
+      .order('criado_em', { ascending: true });
+
+    if (error) { console.error(error); return; }
+    entregas = data || [];
+    renderEntregas();
+  }
+
+  function codigoEntrega(o) {
+    return o.numero_diario != null ? ('#' + o.numero_diario) : ('#' + o.id.slice(0, 8).toUpperCase());
+  }
+
+  function enderecoTexto(end) {
+    if (!end) return '';
+    return `${end.logradouro}${end.numero ? ', ' + end.numero : ''}${end.bairro ? ' - ' + end.bairro : ''}${end.cidade ? ', ' + end.cidade : ''}`;
+  }
+
+  function renderEntregas() {
+    const wrap = document.getElementById('entregasList');
+    if (entregas.length === 0) {
+      wrap.innerHTML = `<div class="empty-state"><div class="ic">🛵</div><h4>Nenhuma entrega no momento</h4><p>Assim que o restaurante atribuir uma entrega a você, ela aparece aqui.</p></div>`;
+      return;
+    }
+
+    wrap.innerHTML = entregas.map(o => {
+      const end = o.enderecos_cliente;
+      const enderecoStr = enderecoTexto(end);
+      const mapaUrl = enderecoStr ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoStr)}` : null;
+      const itens = (o.itens_pedido || []).map(i => `${i.quantidade}x ${i.produtos?.nome || 'item'}`).join(', ');
+      const podeEntregar = o.status === 'saiu_para_entrega' || o.tipo === 'retirada';
+
+      return `
+        <div class="entrega-card">
+          <div class="entrega-card__top">
+            <span class="entrega-card__codigo">${codigoEntrega(o)}</span>
+            <span class="entrega-card__status">${STATUS_LABEL[o.status] || o.status}</span>
+          </div>
+          <div class="entrega-card__cliente">${o.clientes?.nome || 'Cliente'}</div>
+          ${enderecoStr ? `<div class="entrega-card__endereco">📍 ${enderecoStr}</div>` : ''}
+          <div class="entrega-card__itens">${itens || 'sem itens'}</div>
+          <div class="entrega-card__total">R$ ${Number(o.total).toFixed(2).replace('.', ',')}</div>
+          <div class="entrega-card__actions">
+            ${mapaUrl ? `<a class="btn" href="${mapaUrl}" target="_blank" rel="noopener">🗺️ Ver no mapa</a>` : ''}
+            <button class="btn primary" ${podeEntregar ? '' : 'disabled'} onclick="marcarEntregue('${o.id}', '${o.tipo}')">✓ Marcar entregue</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  async function marcarEntregue(pedidoId, tipo) {
+    const novoStatus = tipo === 'retirada' ? 'retirado' : 'entregue';
+    const { error } = await sb.from('pedidos').update({ status: novoStatus }).eq('id', pedidoId);
+    if (error) { showToast('Erro', error.message); return; }
+    showToast('Entrega concluída', 'Bom trabalho! 🎉');
+    await carregarEntregas();
+  }
+
+  function subscribeTrackingEntregas() {
+    if (trackingChannel) sb.removeChannel(trackingChannel);
+    trackingChannel = sb.channel('motoboy-entregas-' + currentUser.id)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'pedidos', filter: `motoboy_id=eq.${currentUser.id}` },
+        async () => {
+          beep();
+          await carregarEntregas();
+        }
+      )
+      .subscribe();
+  }
+
+  function beep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      osc.type = 'sine'; osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + 0.25);
+    } catch (e) {}
+  }
+
+  function showToast(title, body) {
+    const t = document.getElementById('toast');
+    document.getElementById('toastTitle').textContent = title;
+    document.getElementById('toastBody').textContent = body;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 3600);
+  }
+
+  // =====================================================================
+  // BOOT INICIAL
+  // =====================================================================
+  function urlIndicaRecuperacaoSenha() {
+    const hash = location.hash || '';
+    const search = location.search || '';
+    return hash.includes('type=recovery') || search.includes('type=recovery');
+  }
+
+  (async function start() {
+    try {
+      await initSupabase();
+    } catch (e) {
+      console.error(e);
+      return;
+    }
+
+    sb.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') mostrarTelaNovaSenhaRecuperacao();
+    });
+
+    if (urlIndicaRecuperacaoSenha()) {
+      mostrarTelaNovaSenhaRecuperacao();
+      return;
+    }
+
+    await boot();
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/motoboy/sw.js').catch(() => {});
+    }
+  })();
+</script>
+</body>
+</html>
