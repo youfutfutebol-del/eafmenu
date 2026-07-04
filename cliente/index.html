@@ -110,6 +110,13 @@
   .btn-instalar.show { display:inline-flex; }
   .btn-instalar:hover { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
 
+  /* ---------------- Banner de fechado ---------------- */
+  .banner-fechado {
+    display:none; align-items:center; gap:8px; background: color-mix(in srgb, var(--amber) 12%, #fff); color:#7A4B03;
+    border-bottom:1px solid color-mix(in srgb, var(--amber) 30%, var(--border)); padding:10px 16px; font-size:12.5px; font-weight:600;
+  }
+  .banner-fechado.show { display:flex; }
+
   /* ---------------- Categorias (tabs horizontais) ---------------- */
   .cat-tabs { display:flex; gap:8px; overflow-x:auto; padding: 14px 16px 6px; scrollbar-width:none; }
   .cat-tabs::-webkit-scrollbar { display:none; }
@@ -273,6 +280,9 @@
     </div>
   </div>
 
+  <!-- ==================== BANNER FECHADO ==================== -->
+  <div class="banner-fechado" id="bannerFechado">🕒 <span id="bannerFechadoTexto">Estamos fechados agora.</span></div>
+
   <!-- ==================== CATEGORIAS ==================== -->
   <div class="cat-tabs" id="catTabs"></div>
 
@@ -328,7 +338,7 @@
     <div class="cart-total-row"><span>Total</span><span id="carrinhoTotal">R$ 0,00</span></div>
     <div class="btn-row">
       <button class="btn" onclick="closeSheet('sheetCarrinho')">Continuar comprando</button>
-      <button class="btn primary" onclick="abrirCheckout()">Finalizar pedido</button>
+      <button class="btn primary" id="btnFinalizarPedido" onclick="abrirCheckout()">Finalizar pedido</button>
     </div>
   </div>
 </div>
@@ -445,6 +455,9 @@
   let checkoutTipo = 'entrega';
   let checkoutEnderecoId = null;
 
+  let restauranteAbertoAgora = true;
+  let statusAbertoInterval = null;
+
   const trackedChannels = [];
 
   // =====================================================================
@@ -469,7 +482,7 @@
     if (!restauranteSlug) { showInvalido(); return; }
 
     const { data, error } = await sb.from('restaurantes')
-      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horario_funcionamento, taxa_entrega_padrao')
+      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horarios_semana, taxa_entrega_padrao')
       .eq('slug', restauranteSlug)
       .maybeSingle();
 
@@ -486,6 +499,10 @@
     renderCardapio();
     atualizarCartFab();
     await atualizarBadgePedidos();
+
+    atualizarStatusAberto();
+    if (statusAbertoInterval) clearInterval(statusAbertoInterval);
+    statusAbertoInterval = setInterval(atualizarStatusAberto, 60 * 1000);
 
     document.getElementById('screenLoading').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
@@ -524,6 +541,91 @@
     } else {
       el.textContent = 'Bem-vindo(a) 👋';
     }
+  }
+
+  // =====================================================================
+  // HORÁRIO DE FUNCIONAMENTO (aberto/fechado agora)
+  // =====================================================================
+  // Le a hora atual em Brasília a partir de um Date, sem depender do fuso do navegador do cliente.
+  function agoraEmBrasilia() {
+    const partes = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Sao_Paulo',
+      weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false
+    }).formatToParts(new Date());
+
+    const mapaDia = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    const diaSemana = mapaDia[partes.find(p => p.type === 'weekday').value];
+    let hora = parseInt(partes.find(p => p.type === 'hour').value, 10);
+    const minuto = parseInt(partes.find(p => p.type === 'minute').value, 10);
+    if (hora === 24) hora = 0; // alguns navegadores retornam "24" pra meia-noite com hour12:false
+    return { diaSemana, minutosDoDia: hora * 60 + minuto };
+  }
+
+  function janelaAbrange(configDia, minutosAlvo, mesmoDia) {
+    if (!configDia || !configDia.aberto || !configDia.abre || !configDia.fecha) return false;
+    const [abreH, abreM] = configDia.abre.split(':').map(Number);
+    const [fechaH, fechaM] = configDia.fecha.split(':').map(Number);
+    const abreMin = abreH * 60 + abreM;
+    const fechaMin = fechaH * 60 + fechaM;
+    const cruzaMeiaNoite = fechaMin <= abreMin;
+
+    if (mesmoDia) {
+      return cruzaMeiaNoite ? (minutosAlvo >= abreMin) : (minutosAlvo >= abreMin && minutosAlvo < fechaMin);
+    }
+    // checando o dia anterior (só importa se ele cruza a meia-noite e ainda não chegou no horário de fechar)
+    return cruzaMeiaNoite && minutosAlvo < fechaMin;
+  }
+
+  function calcularEstaAberto() {
+    const horarios = restaurante?.horarios_semana;
+    if (!Array.isArray(horarios) || horarios.length === 0) return true; // sem config = não bloqueia
+
+    const { diaSemana, minutosDoDia } = agoraEmBrasilia();
+    const diaAnterior = (diaSemana + 6) % 7;
+
+    const configHoje = horarios.find(h => h.dia === diaSemana);
+    const configOntem = horarios.find(h => h.dia === diaAnterior);
+
+    return janelaAbrange(configHoje, minutosDoDia, true) || janelaAbrange(configOntem, minutosDoDia, false);
+  }
+
+  function proximoHorarioAbertura() {
+    const horarios = restaurante?.horarios_semana;
+    if (!Array.isArray(horarios)) return null;
+    const { diaSemana } = agoraEmBrasilia();
+    for (let i = 0; i < 7; i++) {
+      const dia = (diaSemana + i) % 7;
+      const cfg = horarios.find(h => h.dia === dia && h.aberto);
+      if (cfg) return { hoje: i === 0, abre: cfg.abre };
+    }
+    return null;
+  }
+
+  function atualizarStatusAberto() {
+    restauranteAbertoAgora = calcularEstaAberto();
+
+    const statusEl = document.getElementById('topStatus');
+    const txtEl = document.getElementById('topStatusTxt');
+    const bannerEl = document.getElementById('bannerFechado');
+    const bannerTxtEl = document.getElementById('bannerFechadoTexto');
+
+    statusEl.classList.toggle('closed', !restauranteAbertoAgora);
+    txtEl.textContent = restauranteAbertoAgora ? 'Aberto agora' : 'Fechado no momento';
+
+    if (restauranteAbertoAgora) {
+      bannerEl.classList.remove('show');
+    } else {
+      const prox = proximoHorarioAbertura();
+      bannerTxtEl.textContent = prox
+        ? `Estamos fechados agora. ${prox.hoje ? 'Abrimos hoje às ' : 'Abrimos às '}${prox.abre}.`
+        : 'Estamos fechados no momento.';
+      bannerEl.classList.add('show');
+    }
+
+    const btnFinalizar = document.getElementById('btnFinalizarPedido');
+    if (btnFinalizar) btnFinalizar.disabled = !restauranteAbertoAgora;
+
+    return restauranteAbertoAgora;
   }
 
   // =====================================================================
@@ -857,6 +959,12 @@
   // =====================================================================
   function abrirCheckout() {
     if (cart.length === 0) { showToast('Carrinho vazio', 'Adicione itens antes de finalizar.'); return; }
+
+    if (!atualizarStatusAberto()) {
+      showToast('Estamos fechados', 'Não é possível finalizar pedidos fora do horário de funcionamento.');
+      return;
+    }
+
     closeSheet('sheetCarrinho');
 
     if (cliente) {
@@ -1006,6 +1114,12 @@
   }
 
   async function confirmarPedido() {
+    if (!atualizarStatusAberto()) {
+      showToast('Estamos fechados', 'Não é possível finalizar pedidos fora do horário de funcionamento.');
+      closeSheet('sheetCheckout');
+      return;
+    }
+
     const btn = document.getElementById('btnConfirmarPedido');
     btn.disabled = true; btn.textContent = 'Enviando pedido...';
 
