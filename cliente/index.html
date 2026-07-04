@@ -1139,7 +1139,8 @@
     const trocoPara = parseFloat(document.getElementById('trocoParaInput').value);
     let textoTipo = checkoutTipo === 'entrega' ? '🛵 Entrega no endereço informado' : '🏠 Retirada no restaurante';
     if (forma === 'dinheiro' && trocoPara > 0) {
-      textoTipo += ` · 💵 Troco para ${formatMoeda(trocoPara)}`;
+      const totalAtual = totalCarrinho() + (checkoutTipo === 'entrega' ? Number(restaurante.taxa_entrega_padrao || 0) : 0);
+      textoTipo += ` · 💵 Troco: ${formatMoeda(trocoPara - totalAtual)} (pagando com ${formatMoeda(trocoPara)})`;
     }
     document.getElementById('revisaoTipoTexto').textContent = textoTipo;
   }
