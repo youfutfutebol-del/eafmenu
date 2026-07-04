@@ -740,7 +740,7 @@
   const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
   let horariosSemanaState = null;
 
-  const HORA_RESET_PEDIDOS = 5;
+  const HORA_RESET_PEDIDOS = 7;
   let diaComercialAtualKey = null;
   let resetPedidosInterval = null;
 
@@ -1249,23 +1249,18 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
       itensParaInserir.push({ produto_id: produto.id, opcao_tamanho_id: preco.opcoes_tamanho ? l.precoId : null, quantidade: l.qtd, preco_unitario: preco.preco });
     }
 
-    // Numeração diária do pedido: incremento atômico via função no banco (proximo_numero_diario).
-    const dataPedido = diaComercialData();
-    const { data: numeroDiario, error: numeroErr } = await sb.rpc('proximo_numero_diario', {
-      p_restaurante_id: restauranteId,
-      p_data: dataPedido
-    });
-    if (numeroErr) { showToast('Erro ao gerar número do pedido', numeroErr.message); return; }
-
+    // Numeração diária: agora é automática (trigger no banco), não precisa mais
+    // chamar a função manualmente aqui — funciona igual para pedidos vindos
+    // do painel ou do PWA do cliente.
     const { data: pedido, error: pedErr } = await sb.from('pedidos')
       .insert({
         restaurante_id: restauranteId, cliente_id: clienteId, tipo, forma_pagamento: forma,
         subtotal: total, total, status: 'recebido',
-        numero_diario: numeroDiario, data_pedido: dataPedido,
         endereco_entrega_id: enderecoId
       })
       .select().single();
     if (pedErr) { showToast('Erro ao criar pedido', pedErr.message); return; }
+    const numeroDiario = pedido.numero_diario;
 
     const itensFinal = itensParaInserir.map(i => ({ ...i, pedido_id: pedido.id }));
     const { error: itensErr } = await sb.from('itens_pedido').insert(itensFinal);
