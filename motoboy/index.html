@@ -181,7 +181,7 @@
     if (!res.ok) throw new Error('Falha ao buscar /api/config');
     const { url, anonKey } = await res.json();
     if (!url || !anonKey) throw new Error('Config incompleta');
-    sb = supabase.createClient(url, anonKey);
+    sb = supabase.createClient(url, anonKey, { auth: { storageKey: 'eaf-motoboy-auth' } });
   }
 
   let currentUser = null;
@@ -555,7 +555,13 @@
     }
 
     sb.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') mostrarTelaNovaSenhaRecuperacao();
+      if (event === 'PASSWORD_RECOVERY') { mostrarTelaNovaSenhaRecuperacao(); return; }
+      if (event === 'SIGNED_OUT' && document.getElementById('app').style.display === 'block') {
+        setTimeout(async () => {
+          const { data: { session } } = await sb.auth.getSession();
+          if (!session) location.reload();
+        }, 2500);
+      }
     });
 
     if (urlIndicaRecuperacaoSenha()) {
