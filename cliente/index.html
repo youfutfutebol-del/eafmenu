@@ -391,11 +391,15 @@
     <div id="stepPagamento" class="hidden">
       <h3>Forma de pagamento</h3>
       <p class="sub">Só pra o restaurante se organizar — o pagamento é combinado na entrega/retirada.</p>
-      <div class="field"><select id="formaPagamento">
+      <div class="field"><select id="formaPagamento" onchange="onFormaPagamentoChange()">
         <option value="dinheiro">Dinheiro</option>
         <option value="pix">Pix</option>
         <option value="cartao">Cartão (maquininha)</option>
       </select></div>
+      <div class="field" id="campoTroco">
+        <label>Precisa de troco para quanto?</label>
+        <input type="number" id="trocoParaInput" placeholder="Ex: 100 (deixe em branco se não precisar)" inputmode="decimal" min="0" step="0.01">
+      </div>
       <button class="btn primary" onclick="irParaRevisao()">Continuar</button>
       <button class="link-btn" onclick="voltarParaEntrega()">Voltar</button>
     </div>
@@ -967,6 +971,10 @@
 
     closeSheet('sheetCarrinho');
 
+    document.getElementById('formaPagamento').value = 'dinheiro';
+    document.getElementById('trocoParaInput').value = '';
+    onFormaPagamentoChange();
+
     if (cliente) {
       irParaStep(2); // já identificado nesse aparelho: pula direto pra entrega
     } else {
@@ -1093,7 +1101,23 @@
   // CHECKOUT — passo 3: pagamento
   // =====================================================================
   function voltarParaEntrega() { irParaStep(2); }
+
+  function onFormaPagamentoChange() {
+    const isDinheiro = document.getElementById('formaPagamento').value === 'dinheiro';
+    document.getElementById('campoTroco').classList.toggle('hidden', !isDinheiro);
+    if (!isDinheiro) document.getElementById('trocoParaInput').value = '';
+  }
+
   function irParaRevisao() {
+    const forma = document.getElementById('formaPagamento').value;
+    if (forma === 'dinheiro') {
+      const trocoPara = parseFloat(document.getElementById('trocoParaInput').value);
+      const totalAtual = totalCarrinho() + (checkoutTipo === 'entrega' ? Number(restaurante.taxa_entrega_padrao || 0) : 0);
+      if (document.getElementById('trocoParaInput').value && trocoPara < totalAtual) {
+        showToast('Valor muito baixo', 'O valor pra troco precisa ser maior ou igual ao total do pedido.');
+        return;
+      }
+    }
     renderRevisao();
     irParaStep(4);
   }
@@ -1110,9 +1134,14 @@
       <div class="resumo-linha"><span>${i.qtd}x ${i.nome}</span><span>${formatMoeda(i.precoUnit * i.qtd)}</span></div>
     `).join('') + (taxa > 0 ? `<div class="resumo-linha"><span>Taxa de entrega</span><span>${formatMoeda(taxa)}</span></div>` : '');
     document.getElementById('revisaoTotal').textContent = formatMoeda(subtotal + taxa);
-    document.getElementById('revisaoTipoTexto').textContent = checkoutTipo === 'entrega'
-      ? '🛵 Entrega no endereço informado'
-      : '🏠 Retirada no restaurante';
+
+    const forma = document.getElementById('formaPagamento').value;
+    const trocoPara = parseFloat(document.getElementById('trocoParaInput').value);
+    let textoTipo = checkoutTipo === 'entrega' ? '🛵 Entrega no endereço informado' : '🏠 Retirada no restaurante';
+    if (forma === 'dinheiro' && trocoPara > 0) {
+      textoTipo += ` · 💵 Troco para ${formatMoeda(trocoPara)}`;
+    }
+    document.getElementById('revisaoTipoTexto').textContent = textoTipo;
   }
 
   async function confirmarPedido() {
@@ -1129,6 +1158,7 @@
     const taxaEntrega = checkoutTipo === 'entrega' ? Number(restaurante.taxa_entrega_padrao || 0) : 0;
     const total = subtotal + taxaEntrega;
     const forma = document.getElementById('formaPagamento').value;
+    const trocoPara = forma === 'dinheiro' ? parseFloat(document.getElementById('trocoParaInput').value) : NaN;
 
     const payload = {
       restaurante_id: restaurante.id,
@@ -1139,7 +1169,8 @@
       taxa_entrega: taxaEntrega,
       total,
       status: 'recebido',
-      pago: false
+      pago: false,
+      troco_para: !isNaN(trocoPara) && trocoPara > 0 ? trocoPara : null
     };
     if (checkoutTipo === 'entrega' && checkoutEnderecoId) payload.endereco_entrega_id = checkoutEnderecoId;
 
@@ -1302,27 +1333,45 @@
   // =====================================================================
   let deferredInstallPrompt = null;
 
+  function jaEstaInstalado() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+  function ehIOS() {
+    return /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase()) && !window.MSStream;
+  }
+
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
-    document.getElementById('btnInstalar')?.classList.add('show');
   });
 
   async function installApp() {
-    if (!deferredInstallPrompt) {
-      showToast('Instalação', 'Use o menu do navegador (⋮ ou Compartilhar) e escolha "Adicionar à tela inicial".');
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      document.getElementById('btnInstalar')?.classList.remove('show');
+      if (outcome === 'accepted') showToast('App instalado', 'O cardápio já está na sua tela inicial.');
       return;
     }
-    deferredInstallPrompt.prompt();
-    const { outcome } = await deferredInstallPrompt.userChoice;
-    deferredInstallPrompt = null;
-    document.getElementById('btnInstalar')?.classList.remove('show');
-    if (outcome === 'accepted') showToast('App instalado', 'O cardápio já está na sua tela inicial.');
+
+    if (ehIOS()) {
+      alert('Pra instalar no iPhone:\n\n1. Toque no ícone de Compartilhar (o quadrado com uma seta ↑) na barra do Safari\n2. Escolha "Adicionar à Tela de Início"\n3. Toque em "Adicionar"');
+    } else {
+      alert('Toque no menu do navegador (⋮ ou similar) e escolha "Adicionar à tela inicial" ou "Instalar app".');
+    }
   }
 
   window.addEventListener('appinstalled', () => {
     document.getElementById('btnInstalar')?.classList.remove('show');
   });
+
+  // O botão fica visível sempre que o app ainda não estiver instalado — no Android/Chrome
+  // ele some sozinho depois de aceitar a instalação; no iPhone (que nunca dispara o evento
+  // de instalação automática) ele precisa ficar visível pra mostrar o passo a passo manual.
+  if (!jaEstaInstalado()) {
+    document.getElementById('btnInstalar')?.classList.add('show');
+  }
 </script>
 </body>
 </html>
