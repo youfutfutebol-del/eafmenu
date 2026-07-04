@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EAF Menu — Plataforma</title>
+<link rel="icon" href="/icons/icon192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root {
+    --ink: #0D0F12;
+    --panel: #17191D;
+    --line: #262930;
+    --bg: #F5F4F1;
+    --surface: #FFFFFF;
+    --accent: #E5342A;
+    --accent-dark: #C22A21;
+    --muted: #6B7280;
+    --green: #1FAA59;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background: var(--bg); color: var(--ink); }
+  button { font-family: inherit; cursor: pointer; }
+  input { font-family: inherit; }
+
+  #loginScreen { min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--ink); }
+  .login-card { background: var(--surface); border-radius:16px; padding: 36px 32px; width: 360px; text-align:center; }
+  .login-card .tag { display:inline-block; background: var(--accent); color:#fff; font-size:10.5px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; padding:4px 10px; border-radius:20px; margin-bottom:14px; }
+  .login-card h2 { margin: 0 0 6px; font-size:19px; }
+  .login-card p { margin:0 0 22px; font-size:13px; color:var(--muted); }
+  .login-card input { width:100%; padding:11px 13px; border:1px solid #ddd; border-radius:9px; font-size:14px; margin-bottom:10px; }
+  .login-card button.primary { width:100%; background: var(--accent); color:#fff; border:none; padding:12px; border-radius:9px; font-weight:700; font-size:14px; }
+  .login-msg { font-size:12px; margin-top:12px; color: var(--muted); min-height:16px; }
+  .login-msg.error { color: var(--accent); }
+
+  #app { display:none; }
+  .topbar { background: var(--panel); color:#fff; padding: 18px 32px; display:flex; align-items:center; justify-content:space-between; }
+  .topbar__brand { display:flex; align-items:center; gap:10px; }
+  .topbar__brand .tag { background: var(--accent); font-size:10px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; padding:3px 8px; border-radius:20px; }
+  .topbar__titulo { font-weight:800; font-size:15.5px; }
+  .logout-btn { background:transparent; border:none; color:#EF7A70; font-size:12.5px; font-weight:700; }
+
+  .main { max-width:920px; margin:0 auto; padding: 32px 24px; }
+  .main__header { display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:12px; }
+  .main__header h1 { font-size:21px; margin:0; }
+  .main__header p { margin:2px 0 0; font-size:13px; color:var(--muted); }
+  .btn { border-radius:9px; padding:11px 18px; font-size:13px; font-weight:700; border:1px solid var(--line); background:#fff; color:var(--ink); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color:#fff; }
+
+  .rest-list { display:grid; gap:12px; }
+  .rest-card { background:#fff; border:1px solid #E4E4E7; border-radius:12px; padding:18px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .rest-card__nome { font-weight:800; font-size:14.5px; }
+  .rest-card__slug { font-size:12px; color:var(--muted); font-family: ui-monospace, monospace; }
+  .rest-card__meta { display:flex; gap:18px; align-items:center; }
+  .rest-card__stat { text-align:center; }
+  .rest-card__stat .num { font-weight:800; font-size:16px; }
+  .rest-card__stat .label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px; }
+  .empty-state { padding:60px 20px; text-align:center; color:var(--muted); }
+
+  .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:80; align-items:center; justify-content:center; }
+  .modal-bg.show { display:flex; }
+  .modal { background:#fff; border-radius:14px; padding:26px 28px; width:420px; max-width:92vw; max-height:88vh; overflow:auto; }
+  .modal h3 { margin:0 0 4px; font-size:17px; }
+  .modal .sub { font-size:12.5px; color:var(--muted); margin:0 0 18px; }
+  .field { margin-bottom:12px; }
+  .field label { display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:5px; }
+  .field input { width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px; font-size:13.5px; }
+  .modal-actions { display:flex; gap:8px; margin-top:18px; }
+  .modal-actions .btn { flex:1; text-align:center; }
+  .divider-label { font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin: 18px 0 10px; }
+
+  .toast {
+    position:fixed; top:16px; right:16px; z-index:100; background:#fff; border-left:3px solid var(--accent);
+    padding:13px 16px; border-radius:10px; font-size:12.5px; box-shadow:0 10px 30px rgba(0,0,0,.15); max-width:320px;
+    transform: translateX(130%); transition: transform .3s ease;
+  }
+  .toast.show { transform: translateX(0); }
+  .toast b { display:block; font-size:12px; color: var(--accent); margin-bottom:2px; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-card">
+    <span class="tag">Plataforma EAF Menu</span>
+    <h2>Acesso restrito</h2>
+    <p>Login de administrador da plataforma</p>
+    <input type="email" id="emailInput" placeholder="seu@email.com" autocomplete="username">
+    <input type="password" id="senhaInput" placeholder="Senha" autocomplete="current-password">
+    <button class="primary" id="loginBtn" onclick="fazerLogin()">Entrar</button>
+    <div class="login-msg" id="loginMsg"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="topbar__brand">
+      <span class="tag">Plataforma</span>
+      <span class="topbar__titulo">EAF Menu — Administração</span>
+    </div>
+    <button class="logout-btn" onclick="logout()">⎋ Sair</button>
+  </div>
+
+  <div class="main">
+    <div class="main__header">
+      <div>
+        <h1>Restaurantes cadastrados</h1>
+        <p>Cada restaurante roda de forma isolada, com seu próprio dono e equipe.</p>
+      </div>
+      <button class="btn primary" onclick="abrirNovoRestaurante()">+ Novo restaurante</button>
+    </div>
+
+    <div class="rest-list" id="restList">
+      <div class="empty-state">Carregando...</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="novoRestModalBg">
+  <div class="modal">
+    <h3>Novo restaurante</h3>
+    <p class="sub">Cria o restaurante e a conta do primeiro dono, tudo de uma vez.</p>
+
+    <div class="field"><label>Nome do restaurante</label><input id="nrNomeRestaurante" placeholder="Ex: Pizzaria do João"></div>
+
+    <div class="divider-label">Primeiro usuário (dono)</div>
+    <div class="field"><label>Nome</label><input id="nrDonoNome" placeholder="Nome completo"></div>
+    <div class="field"><label>Telefone</label><input id="nrDonoTelefone" placeholder="(41) 9...."></div>
+    <div class="field"><label>E-mail (opcional)</label><input id="nrDonoEmail" type="email" placeholder="email@exemplo.com"></div>
+    <div class="field"><label>Senha</label><input id="nrDonoSenha" placeholder="Defina a senha (mín. 4 caracteres)"></div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharNovoRestaurante()">Cancelar</button>
+      <button class="btn primary" onclick="submitNovoRestaurante()">Criar restaurante</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
+
+<script>
+  let sb = null;
+  async function initSupabase() {
+    const res = await fetch('/api/config');
+    if (!res.ok) throw new Error('Falha ao buscar /api/config');
+    const { url, anonKey } = await res.json();
+    if (!url || !anonKey) throw new Error('Config incompleta');
+    sb = supabase.createClient(url, anonKey, { auth: { storageKey: 'eaf-superadmin-auth' } });
+  }
+
+  async function fazerLogin() {
+    const email = document.getElementById('emailInput').value.trim();
+    const senha = document.getElementById('senhaInput').value;
+    if (!email || !senha) { setLoginMsg('Preencha e-mail e senha.', true); return; }
+
+    document.getElementById('loginBtn').disabled = true;
+    const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+    document.getElementById('loginBtn').disabled = false;
+    if (error) { setLoginMsg('E-mail ou senha incorretos.', true); return; }
+
+    await boot();
+  }
+
+  function setLoginMsg(msg, isError) {
+    const el = document.getElementById('loginMsg');
+    el.textContent = msg;
+    el.className = 'login-msg' + (isError ? ' error' : '');
+  }
+
+  async function logout() {
+    await sb.auth.signOut();
+    location.reload();
+  }
+
+  async function boot() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+
+    const { data: ehAdmin, error } = await sb.rpc('eh_super_admin');
+    if (error || !ehAdmin) {
+      setLoginMsg('Esta conta não tem acesso à administração da plataforma.', true);
+      await sb.auth.signOut();
+      return;
+    }
+
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    await carregarRestaurantes();
+  }
+
+  async function carregarRestaurantes() {
+    const wrap = document.getElementById('restList');
+    const { data, error } = await sb.rpc('listar_restaurantes_plataforma');
+    if (error) { wrap.innerHTML = `<div class="empty-state">Erro ao carregar: ${error.message}</div>`; return; }
+
+    if (!data || data.length === 0) {
+      wrap.innerHTML = `<div class="empty-state">Nenhum restaurante cadastrado ainda.</div>`;
+      return;
+    }
+
+    wrap.innerHTML = data.map(r => `
+      <div class="rest-card">
+        <div>
+          <div class="rest-card__nome">${r.nome}</div>
+          <div class="rest-card__slug">${r.slug ? '/cliente/?r=' + r.slug : 'sem link ainda'}</div>
+        </div>
+        <div class="rest-card__meta">
+          <div class="rest-card__stat"><div class="num">${r.total_usuarios}</div><div class="label">Usuários</div></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function abrirNovoRestaurante() {
+    document.getElementById('nrNomeRestaurante').value = '';
+    document.getElementById('nrDonoNome').value = '';
+    document.getElementById('nrDonoTelefone').value = '';
+    document.getElementById('nrDonoEmail').value = '';
+    document.getElementById('nrDonoSenha').value = '';
+    document.getElementById('novoRestModalBg').classList.add('show');
+  }
+  function fecharNovoRestaurante() { document.getElementById('novoRestModalBg').classList.remove('show'); }
+
+  async function submitNovoRestaurante() {
+    const nomeRestaurante = document.getElementById('nrNomeRestaurante').value.trim();
+    const donoNome = document.getElementById('nrDonoNome').value.trim();
+    const donoTelefone = document.getElementById('nrDonoTelefone').value.trim();
+    const donoEmail = document.getElementById('nrDonoEmail').value.trim();
+    const donoSenha = document.getElementById('nrDonoSenha').value;
+
+    if (!nomeRestaurante) { showToast('Faltou o nome', 'Informe o nome do restaurante.'); return; }
+    if (!donoNome) { showToast('Faltou o nome do dono', 'Informe o nome do primeiro usuário.'); return; }
+    if (!donoTelefone) { showToast('Faltou o telefone', 'Informe o telefone de login do dono.'); return; }
+    if (!donoSenha || donoSenha.length < 4) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 4 caracteres.'); return; }
+
+    const { error } = await sb.rpc('criar_restaurante_com_dono', {
+      p_nome_restaurante: nomeRestaurante,
+      p_dono_nome: donoNome,
+      p_dono_telefone: donoTelefone,
+      p_dono_email: donoEmail || null,
+      p_dono_senha: donoSenha
+    });
+
+    if (error) { showToast('Erro ao criar restaurante', error.message); return; }
+
+    fecharNovoRestaurante();
+    showToast('Restaurante criado', `${nomeRestaurante} já pode ser acessado. Login do dono: ${donoTelefone}`);
+    await carregarRestaurantes();
+  }
+
+  function showToast(title, body) {
+    const t = document.getElementById('toast');
+    document.getElementById('toastTitle').textContent = title;
+    document.getElementById('toastBody').textContent = body;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 4200);
+  }
+
+  (async function start() {
+    try {
+      await initSupabase();
+    } catch (e) {
+      console.error(e);
+      return;
+    }
+    await boot();
+  })();
+</script>
+</body>
+</html>
