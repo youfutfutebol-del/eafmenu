@@ -821,25 +821,23 @@ function fecharEsqueciSenha() {
   document.getElementById('loginMsg').textContent = '';
 }
 
-// Recuperação de senha 100% via Supabase (e-mail transacional do próprio Supabase Auth, sem serviço externo).
+// Recuperação de senha: gera o link de reset no Supabase e envia o e-mail via Brevo
+// (Edge Function "enviar-recuperacao-senha"), evitando depender do SMTP nativo do Supabase.
 async function enviarRecuperacaoSenha() {
   const identificador = document.getElementById('recIdentInput').value.trim();
   if (!identificador) { setLoginMsg('Informe seu telefone ou e-mail cadastrado.', true); return; }
 
   document.getElementById('recBtn').disabled = true;
-  const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
-
-  if (resolveErr || !emailResolvido) {
-    document.getElementById('recBtn').disabled = false;
-    setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
-    return;
-  }
-
-  const { error } = await sb.auth.resetPasswordForEmail(emailResolvido, { redirectTo: location.origin + location.pathname });
+  const { data, error } = await sb.functions.invoke('enviar-recuperacao-senha', {
+    body: { identificador, redirectTo: location.origin + location.pathname }
+  });
   document.getElementById('recBtn').disabled = false;
 
-  if (error) { setLoginMsg('Erro ao enviar o link: ' + error.message, true); return; }
-  setLoginMsg('Se o e-mail cadastrado tiver acesso à caixa de entrada, um link de redefinição foi enviado.', false);
+  if (error || data?.error) {
+    setLoginMsg('Erro ao enviar o link: ' + (data?.error || error.message), true);
+    return;
+  }
+  setLoginMsg('Se o telefone/e-mail estiver cadastrado, um link de redefinição foi enviado por e-mail.', false);
 }
 
 // Chega aqui pelo link do e-mail de recuperação (Supabase dispara o evento PASSWORD_RECOVERY)
