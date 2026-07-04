@@ -331,6 +331,16 @@
       console.error(e);
       return;
     }
+
+    sb.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT' && document.getElementById('app').style.display === 'block') {
+        setTimeout(async () => {
+          const { data: { session } } = await sb.auth.getSession();
+          if (!session) location.reload();
+        }, 2500);
+      }
+    });
+
     await boot();
   })();
 </script>
