@@ -521,7 +521,20 @@
         <div style="background:#fff; border:1px solid var(--border); border-radius:12px; padding:22px 24px; max-width:560px;">
           <div class="field"><label>Nome do restaurante</label><input id="mkNome" placeholder="Ex: EAF Menu"></div>
           <div class="field"><label>Link do cardápio (slug)</label><input id="mkSlug" placeholder="ex: pizzaria-do-joao" oninput="atualizarLinkCardapioPreview()"></div>
-          <div class="field"><label>URL do logo</label><input id="mkLogoUrl" placeholder="https://..."></div>
+          <div class="field">
+            <label>Logo do restaurante</label>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div id="mkLogoThumb" style="width:64px; height:64px; border-radius:12px; background:#F4F4F5; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+                <img id="mkLogoPreview" style="display:none; width:100%; height:100%; object-fit:cover;">
+                <span id="mkLogoPlaceholder" style="font-size:24px;">🖼️</span>
+              </div>
+              <div style="flex:1; min-width:0;">
+                <input type="file" id="mkLogoArquivo" accept="image/*" onchange="onLogoMarcaSelecionado(this)">
+                <div id="mkLogoStatus" style="font-size:11px; color:var(--muted); margin-top:4px;"></div>
+              </div>
+            </div>
+            <input type="hidden" id="mkLogoUrl">
+          </div>
           <div class="field"><label>Cor de destaque</label><input id="mkCor" type="color" style="height:40px; padding:4px;"></div>
           <div class="field"><label>WhatsApp de contato</label><input id="mkWhatsapp" placeholder="(41) 9...."></div>
           <div class="field"><label>Endereço</label><input id="mkEndereco" placeholder="Rua, número, bairro, cidade"></div>
@@ -570,7 +583,11 @@
       <button class="add-item-btn" onclick="addItemLine()">+ adicionar item</button>
     </div>
     <div class="field"><label>Forma de pagamento</label>
-      <select id="mForma"><option value="dinheiro">Dinheiro</option><option value="pix">Pix</option><option value="cartao">Cartão (maquininha)</option></select>
+      <select id="mForma" onchange="onFormaPagamentoManualChange()"><option value="dinheiro">Dinheiro</option><option value="pix">Pix</option><option value="cartao">Cartão (maquininha)</option></select>
+    </div>
+    <div class="field" id="mCampoTroco">
+      <label>Precisa de troco para quanto?</label>
+      <input type="number" id="mTrocoPara" placeholder="Deixe em branco se não precisar" min="0" step="0.01">
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeManualOrder()">Cancelar</button>
@@ -1229,7 +1246,7 @@ async function salvarNovaSenhaRecuperacao() {
     const { data, error } = await sb
       .from('pedidos')
       .select(`
-        id, numero_diario, tipo, status, pago, forma_pagamento, total, criado_em, motoboy_id,
+        id, numero_diario, tipo, status, pago, forma_pagamento, total, criado_em, motoboy_id, troco_para,
         clientes ( nome ),
         enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento ),
         itens_pedido ( quantidade, produtos ( nome ), itens_pedido_sabores ( produtos ( nome ) ) )
@@ -1311,6 +1328,9 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     const cliente = o.clientes?.nome || 'Cliente balcão';
     const dataHora = new Date(o.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     const FORMA_LABEL = { dinheiro: 'Dinheiro', pix: 'Pix', cartao: 'Cartão (maquininha)' };
+    const trocoHtml = (o.forma_pagamento === 'dinheiro' && o.troco_para)
+      ? `<div class="secao" style="font-weight:800;">TROCO PARA R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')}</div>`
+      : '';
 
     const html = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><title>Comanda ${codigoPedido(o)}</title>
@@ -1344,6 +1364,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     <hr>
     <div class="total-row"><span>TOTAL</span><span>R$ ${Number(o.total).toFixed(2).replace('.', ',')}</span></div>
     <div class="secao" style="margin-top:6px;">Pagamento: ${FORMA_LABEL[o.forma_pagamento] || o.forma_pagamento}</div>
+    ${trocoHtml}
     <hr>
     <div class="centro" style="font-size:11px;">${dataHora}</div>
   </div>
@@ -1379,6 +1400,9 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
       const enderecoLinha = (o.tipo === 'entrega' && end?.logradouro)
         ? `<div class="order-itens" style="margin-top:2px;">📍 ${end.logradouro}${end.numero ? ', ' + end.numero : ''}${end.bairro ? ' - ' + end.bairro : ''}</div>`
         : '';
+      const trocoLinha = (o.forma_pagamento === 'dinheiro' && o.troco_para)
+        ? `<div class="order-itens" style="margin-top:2px; color:var(--amber); font-weight:700;">💵 Troco para R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')}</div>`
+        : '';
 
       const motoboySelect = (o.tipo === 'entrega' && !STATUS_FINAIS.includes(o.status))
         ? `<select onchange="atribuirMotoboy('${o.id}', this.value)" style="margin-top:6px; font-size:11.5px; padding:5px 8px; border:1px solid var(--border); border-radius:7px; max-width:170px;">
@@ -1405,6 +1429,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
             <div class="order-cliente">${cliente}</div>
             <div class="order-itens">${itens || 'sem itens'}</div>
             ${enderecoLinha}
+            ${trocoLinha}
           </div>
           <div class="order-badges">${tipoBadge}${statusBadge}${pagoBadge}</div>
           <div class="order-total">R$ ${Number(o.total).toFixed(2).replace('.', ',')}</div>
@@ -1449,12 +1474,21 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     document.getElementById('mEndNumero').value = '';
     document.getElementById('mEndBairro').value = '';
     document.getElementById('mEndComplemento').value = '';
+    document.getElementById('mForma').value = 'dinheiro';
+    document.getElementById('mTrocoPara').value = '';
+    onFormaPagamentoManualChange();
     limparLookupCliente();
     onTipoManualChange();
     addItemLine();
     document.getElementById('manualModalBg').classList.add('show');
   }
   function closeManualOrder() { document.getElementById('manualModalBg').classList.remove('show'); }
+
+  function onFormaPagamentoManualChange() {
+    const isDinheiro = document.getElementById('mForma').value === 'dinheiro';
+    document.getElementById('mCampoTroco').style.display = isDinheiro ? 'block' : 'none';
+    if (!isDinheiro) document.getElementById('mTrocoPara').value = '';
+  }
 
   function onTipoManualChange() {
     const isEntrega = document.getElementById('mTipo').value === 'entrega';
@@ -1545,6 +1579,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     const telefone = document.getElementById('mCliTel').value.trim();
     const tipo = document.getElementById('mTipo').value;
     const forma = document.getElementById('mForma').value;
+    const trocoParaRaw = document.getElementById('mTrocoPara').value;
 
     // Reutiliza o cliente encontrado pelo telefone; só cria um novo se não houve match.
     let clienteId;
@@ -1642,11 +1677,20 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     // Numeração diária: agora é automática (trigger no banco), não precisa mais
     // chamar a função manualmente aqui — funciona igual para pedidos vindos
     // do painel ou do App do Cliente.
+    let trocoPara = null;
+    if (forma === 'dinheiro' && trocoParaRaw) {
+      trocoPara = parseFloat(trocoParaRaw);
+      if (isNaN(trocoPara) || trocoPara < total) {
+        showToast('Valor de troco inválido', 'O valor pra troco precisa ser maior ou igual ao total do pedido.');
+        return;
+      }
+    }
+
     const { data: pedido, error: pedErr } = await sb.from('pedidos')
       .insert({
         restaurante_id: restauranteId, cliente_id: clienteId, tipo, forma_pagamento: forma,
         subtotal: total, total, status: 'recebido',
-        endereco_entrega_id: enderecoId
+        endereco_entrega_id: enderecoId, troco_para: trocoPara
       })
       .select().single();
     if (pedErr) { showToast('Erro ao criar pedido', pedErr.message); return; }
@@ -2570,6 +2614,16 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     document.getElementById('mkNome').value = data.nome || '';
     document.getElementById('mkSlug').value = data.slug || '';
     document.getElementById('mkLogoUrl').value = data.logo_url || '';
+    document.getElementById('mkLogoStatus').textContent = '';
+    document.getElementById('mkLogoArquivo').value = '';
+    if (data.logo_url) {
+      document.getElementById('mkLogoPreview').src = data.logo_url;
+      document.getElementById('mkLogoPreview').style.display = 'block';
+      document.getElementById('mkLogoPlaceholder').style.display = 'none';
+    } else {
+      document.getElementById('mkLogoPreview').style.display = 'none';
+      document.getElementById('mkLogoPlaceholder').style.display = 'block';
+    }
     document.getElementById('mkCor').value = data.cor_destaque || '#E5342A';
     document.getElementById('mkWhatsapp').value = data.whatsapp || '';
     document.getElementById('mkEndereco').value = data.endereco || '';
@@ -2628,6 +2682,26 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     return data.publicUrl;
   }
 
+  async function onLogoMarcaSelecionado(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { showToast('Arquivo inválido', 'Selecione um arquivo de imagem.'); return; }
+    if (file.size > 5 * 1024 * 1024) { showToast('Imagem muito grande', 'Escolha uma imagem de até 5MB.'); return; }
+
+    document.getElementById('mkLogoPreview').src = URL.createObjectURL(file);
+    document.getElementById('mkLogoPreview').style.display = 'block';
+    document.getElementById('mkLogoPlaceholder').style.display = 'none';
+    document.getElementById('mkLogoStatus').textContent = 'Enviando imagem...';
+
+    const url = await uploadImagem(file, 'marca');
+    if (url) {
+      document.getElementById('mkLogoUrl').value = url;
+      document.getElementById('mkLogoStatus').textContent = 'Imagem enviada ✓ — clique em "Salvar alterações" pra confirmar.';
+    } else {
+      document.getElementById('mkLogoStatus').textContent = 'Falha no envio, tente novamente.';
+    }
+  }
+
   async function onImagemProdutoSelecionada(input) {
     const file = input.files[0];
     if (!file) return;
@@ -2681,30 +2755,45 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
 
   let deferredInstallPrompt = null;
 
+  function jaEstaInstalado() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+  function ehIOS() {
+    return /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase()) && !window.MSStream;
+  }
+
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
-    document.getElementById('installBtnLogin')?.classList.add('show');
-    document.getElementById('installBtnApp')?.classList.add('show');
   });
 
   async function installApp() {
-    if (!deferredInstallPrompt) {
-      showToast('Instalação', 'Use o menu do navegador (⋮ ou Compartilhar) e escolha "Adicionar à tela inicial".');
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      document.getElementById('installBtnLogin')?.classList.remove('show');
+      document.getElementById('installBtnApp')?.classList.remove('show');
+      if (outcome === 'accepted') showToast('App instalado', 'O EAF Menu já está na sua tela inicial.');
       return;
     }
-    deferredInstallPrompt.prompt();
-    const { outcome } = await deferredInstallPrompt.userChoice;
-    deferredInstallPrompt = null;
-    document.getElementById('installBtnLogin')?.classList.remove('show');
-    document.getElementById('installBtnApp')?.classList.remove('show');
-    if (outcome === 'accepted') showToast('App instalado', 'O EAF Menu já está na sua tela inicial.');
+
+    if (ehIOS()) {
+      alert('Pra instalar no iPhone:\n\n1. Toque no ícone de Compartilhar (o quadrado com uma seta ↑) na barra do Safari\n2. Escolha "Adicionar à Tela de Início"\n3. Toque em "Adicionar"');
+    } else {
+      alert('Toque no menu do navegador (⋮ ou similar) e escolha "Adicionar à tela inicial" ou "Instalar app".');
+    }
   }
 
   window.addEventListener('appinstalled', () => {
     document.getElementById('installBtnLogin')?.classList.remove('show');
     document.getElementById('installBtnApp')?.classList.remove('show');
   });
+
+  if (!jaEstaInstalado()) {
+    document.getElementById('installBtnLogin')?.classList.add('show');
+    document.getElementById('installBtnApp')?.classList.add('show');
+  }
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
