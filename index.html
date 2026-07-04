@@ -310,7 +310,7 @@
         </div>
       </div>
       <button class="navitem active" id="navPedidos" onclick="switchView('pedidos')"><span class="ic">📋</span> Painel de Pedidos</button>
-      <button class="navitem" id="navFinanceiro" onclick="switchView('financeiro')" style="display:none"><span class="ic">💲</span> Painel Financeiro</button>
+      <button class="navitem" id="navFinanceiro" onclick="switchView('financeiro')" style="display:none"><span class="ic">💰</span> Caixa</button>
       <button class="navitem" id="navProdutos" onclick="switchView('produtos')"><span class="ic">🛍️</span> Produtos</button>
       <button class="navitem" id="navCategorias" onclick="switchView('categorias')"><span class="ic">🗂️</span> Categorias</button>
       <button class="navitem" id="navClientes" onclick="switchView('clientes')"><span class="ic">👥</span> Clientes</button>
@@ -372,29 +372,45 @@
       <div class="view" id="viewFinanceiro">
         <div class="main__header">
           <div>
-            <h1 class="main__title">Painel Financeiro</h1>
-            <p class="main__subtitle">Entradas e saídas do restaurante</p>
+            <h1 class="main__title">Caixa</h1>
+            <p class="main__subtitle">Controle o dinheiro que entra e sai da gaveta</p>
           </div>
           <div class="actions">
             <button class="btn primary" onclick="openDespesa()">+ Lançar Despesa</button>
           </div>
         </div>
+
+        <div id="caixaStatusCard" style="background:#fff; border:1px solid var(--border); border-radius:12px; padding:20px 22px; margin-bottom:18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
+          <div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+              <span class="dot" id="caixaStatusDot" style="width:9px; height:9px; border-radius:50%; background:#A1A1AA; display:inline-block;"></span>
+              <span id="caixaStatusTexto" style="font-weight:800; font-size:15px;">Verificando caixa...</span>
+            </div>
+            <p id="caixaStatusSub" style="margin:0; font-size:12.5px; color:var(--muted);"></p>
+          </div>
+          <div class="actions">
+            <button class="btn primary" id="btnAbrirCaixa" onclick="openAbrirCaixa()" style="display:none;">Abrir caixa</button>
+            <button class="btn" id="btnFecharCaixa" onclick="openFecharCaixa()" style="display:none;">Fechar caixa</button>
+          </div>
+        </div>
+
         <div class="summary-row">
           <div class="summary-card entrada">
-            <div class="label">Entradas</div>
+            <div class="label">Dinheiro esperado na gaveta</div>
+            <div class="value" id="caixaDinheiroEsperado">R$ 0,00</div>
+          </div>
+          <div class="summary-card entrada">
+            <div class="label">Entradas (todas formas)</div>
             <div class="value" id="totalEntradas">R$ 0,00</div>
           </div>
           <div class="summary-card saida">
             <div class="label">Saídas</div>
             <div class="value" id="totalSaidas">R$ 0,00</div>
           </div>
-          <div class="summary-card saldo">
-            <div class="label">Saldo do período</div>
-            <div class="value" id="totalSaldo">R$ 0,00</div>
-          </div>
         </div>
+
         <div class="filter-row">
-          <span class="filter-label">PERÍODO:</span>
+          <span class="filter-label">PERÍODO DO EXTRATO:</span>
           <div class="tabs" id="filterTabsFinanceiro">
             <button class="tab active" data-p="hoje" onclick="setPeriodo('hoje')">Hoje</button>
             <button class="tab" data-p="7dias" onclick="setPeriodo('7dias')">Últimos 7 dias</button>
@@ -409,6 +425,16 @@
             <h4>Nenhum lançamento nesse período</h4>
             <p>Entradas de pedidos pagos aparecem aqui automaticamente.</p>
           </div>
+        </div>
+
+        <div style="margin-top:22px;">
+          <p class="main__subtitle" style="margin-bottom:10px; font-weight:800; color:var(--ink); font-size:13px;">Histórico de fechamentos</p>
+          <table class="data-table">
+            <thead><tr><th>Aberto em</th><th>Fechado em</th><th>Esperado</th><th>Informado</th><th>Diferença</th></tr></thead>
+            <tbody id="fechamentosTableBody">
+              <tr><td colspan="5"><div class="empty-state"><div class="ic">📒</div><h4>Nenhum fechamento registrado ainda</h4></div></td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -601,9 +627,48 @@
     <h3>Lançar despesa</h3>
     <div class="field"><label>Descrição</label><input id="dDescricao" placeholder="Ex: Compra de queijo, conta de luz..."></div>
     <div class="field"><label>Valor (R$)</label><input id="dValor" type="number" step="0.01" min="0" placeholder="0,00"></div>
+    <div class="field"><label>Forma de pagamento</label>
+      <select id="dFormaPagamento">
+        <option value="dinheiro">Dinheiro (sai da gaveta)</option>
+        <option value="pix">Pix</option>
+        <option value="cartao">Cartão</option>
+      </select>
+    </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeDespesa()">Cancelar</button>
       <button class="btn primary" onclick="submitDespesa()">Lançar despesa</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="abrirCaixaModalBg">
+  <div class="modal">
+    <h3>Abrir caixa</h3>
+    <p style="font-size:12.5px; color:var(--muted); margin:-6px 0 16px;">Informe o valor que já está na gaveta antes de começar (fundo de troco).</p>
+    <div class="field"><label>Valor de abertura (R$)</label><input id="acValorAbertura" type="number" step="0.01" min="0" placeholder="0,00"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeAbrirCaixa()">Cancelar</button>
+      <button class="btn primary" onclick="submitAbrirCaixa()">Abrir caixa</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="fecharCaixaModalBg">
+  <div class="modal">
+    <h3>Fechar caixa</h3>
+    <p style="font-size:12.5px; color:var(--muted); margin:-6px 0 16px;">Conte o dinheiro físico da gaveta e informe abaixo.</p>
+    <div style="background:var(--bg); border-radius:10px; padding:14px 16px; margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px;"><span>Fundo de abertura</span><b id="fcValorAbertura">R$ 0,00</b></div>
+      <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px;"><span>+ Entradas em dinheiro</span><b id="fcEntradasDinheiro" style="color:var(--green);">R$ 0,00</b></div>
+      <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px;"><span>- Saídas em dinheiro</span><b id="fcSaidasDinheiro" style="color:var(--red);">R$ 0,00</b></div>
+      <div style="display:flex; justify-content:space-between; font-size:14px; font-weight:800; border-top:1px solid var(--border); margin-top:8px; padding-top:8px;"><span>Esperado na gaveta</span><b id="fcEsperado">R$ 0,00</b></div>
+    </div>
+    <div class="field"><label>Valor contado na gaveta (R$)</label><input id="fcValorContado" type="number" step="0.01" min="0" placeholder="0,00" oninput="atualizarDiferencaFechamento()"></div>
+    <p id="fcDiferencaTexto" style="font-size:13px; font-weight:700; margin: -6px 0 12px;"></p>
+    <div class="field"><label>Observações (opcional)</label><input id="fcObservacoes" placeholder="Ex: faltou trocado, sobrou de uma gorjeta..."></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeFecharCaixa()">Cancelar</button>
+      <button class="btn primary" onclick="submitFecharCaixa()">Confirmar fechamento</button>
     </div>
   </div>
 </div>
@@ -1040,7 +1105,7 @@ async function salvarNovaSenhaRecuperacao() {
       if (navEl) navEl.classList.toggle('active', view === v);
     });
 
-    if (view === 'financeiro') loadMovimentacoes();
+    if (view === 'financeiro') { loadMovimentacoes(); loadCaixaAtual(); }
     if (view === 'produtos') loadProdutosAdmin();
     if (view === 'categorias') loadCategoriasAdmin();
     if (view === 'clientes') loadClientes();
@@ -1329,7 +1394,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     const dataHora = new Date(o.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     const FORMA_LABEL = { dinheiro: 'Dinheiro', pix: 'Pix', cartao: 'Cartão (maquininha)' };
     const trocoHtml = (o.forma_pagamento === 'dinheiro' && o.troco_para)
-      ? `<div class="secao" style="font-weight:800;">TROCO PARA R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')}</div>`
+      ? `<div class="secao" style="font-weight:800;">PAGA COM R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')} — TROCO: R$ ${(Number(o.troco_para) - Number(o.total)).toFixed(2).replace('.', ',')}</div>`
       : '';
 
     const html = `<!DOCTYPE html>
@@ -1401,7 +1466,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
         ? `<div class="order-itens" style="margin-top:2px;">📍 ${end.logradouro}${end.numero ? ', ' + end.numero : ''}${end.bairro ? ' - ' + end.bairro : ''}</div>`
         : '';
       const trocoLinha = (o.forma_pagamento === 'dinheiro' && o.troco_para)
-        ? `<div class="order-itens" style="margin-top:2px; color:var(--amber); font-weight:700;">💵 Troco para R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')}</div>`
+        ? `<div class="order-itens" style="margin-top:2px; color:var(--amber); font-weight:700;">💵 Troco: R$ ${(Number(o.troco_para) - Number(o.total)).toFixed(2).replace('.', ',')} (paga com R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')})</div>`
         : '';
 
       const motoboySelect = (o.tipo === 'entrega' && !STATUS_FINAIS.includes(o.status))
@@ -1462,7 +1527,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     const { error } = await sb.from('pedidos').update({ pago: true }).eq('id', id);
     if (error) { showToast('Erro', error.message); return; }
     await loadPedidos();
-    if (currentView === 'financeiro') loadMovimentacoes();
+    if (currentView === 'financeiro') { loadMovimentacoes(); loadCaixaAtual(); }
   }
 
   function openManualOrder() {
@@ -1718,7 +1783,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
 
   async function loadMovimentacoes() {
     let query = sb.from('movimentacoes_financeiras')
-      .select('id, tipo, descricao, valor, pedido_id, criado_em')
+      .select('id, tipo, descricao, valor, pedido_id, criado_em, forma_pagamento')
       .eq('restaurante_id', restauranteId)
       .order('criado_em', { ascending: false });
 
@@ -1750,7 +1815,6 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
 
     document.getElementById('totalEntradas').textContent = formatMoeda(totalEntradas);
     document.getElementById('totalSaidas').textContent = formatMoeda(totalSaidas);
-    document.getElementById('totalSaldo').textContent = formatMoeda(totalEntradas - totalSaidas);
     document.getElementById('filterCountFinanceiro').textContent = `Mostrando ${movimentacoes.length} lançamento(s)`;
 
     const list = document.getElementById('extratoList');
@@ -1759,6 +1823,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
       return;
     }
 
+    const FORMA_ICONE = { dinheiro: '💵', pix: '📱', cartao: '💳' };
     list.innerHTML = movimentacoes.map(m => {
       const isEntrada = m.tipo === 'receita';
       const classeVisual = isEntrada ? 'entrada' : 'saida';
@@ -1766,7 +1831,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
         <div class="mov-row">
           <div class="mov-icon ${classeVisual}">${isEntrada ? '⬆️' : '⬇️'}</div>
           <div class="mov-main">
-            <p class="mov-desc">${m.descricao}</p>
+            <p class="mov-desc">${m.descricao} ${FORMA_ICONE[m.forma_pagamento] || ''}</p>
             <div class="mov-meta">${formatData(m.criado_em)}${m.pedido_id ? ' · gerado automaticamente' : ' · lançamento manual'}</div>
           </div>
           <div class="mov-valor ${classeVisual}">${isEntrada ? '+' : '-'} ${formatMoeda(m.valor)}</div>
@@ -1777,6 +1842,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
   function openDespesa() {
     document.getElementById('dDescricao').value = '';
     document.getElementById('dValor').value = '';
+    document.getElementById('dFormaPagamento').value = 'dinheiro';
     document.getElementById('despesaModalBg').classList.add('show');
   }
   function closeDespesa() { document.getElementById('despesaModalBg').classList.remove('show'); }
@@ -1784,6 +1850,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
   async function submitDespesa() {
     const descricao = document.getElementById('dDescricao').value.trim();
     const valor = parseFloat(document.getElementById('dValor').value);
+    const formaPagamento = document.getElementById('dFormaPagamento').value;
     if (!descricao) { showToast('Faltou a descrição', 'Informe do que se trata a despesa.'); return; }
     if (!valor || valor <= 0) { showToast('Valor inválido', 'Informe um valor maior que zero.'); return; }
 
@@ -1792,13 +1859,182 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
       tipo: 'despesa',
       descricao,
       valor,
-      criado_por: currentUser.id
+      criado_por: currentUser.id,
+      forma_pagamento: formaPagamento
     });
     if (error) { showToast('Erro ao lançar', error.message); return; }
 
     closeDespesa();
     showToast('Despesa lançada', descricao + ' · ' + formatMoeda(valor));
     await loadMovimentacoes();
+    await loadCaixaAtual();
+  }
+
+  // ---------------------------------------------------------------------
+  // CAIXA — abertura, fechamento e histórico
+  // ---------------------------------------------------------------------
+  let caixaAtual = null;
+
+  async function loadCaixaAtual() {
+    const { data, error } = await sb.from('fechamentos_caixa')
+      .select('*')
+      .eq('restaurante_id', restauranteId)
+      .eq('status', 'aberto')
+      .order('aberto_em', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) { console.error(error); return; }
+    caixaAtual = data;
+    await renderCaixaStatus();
+    await loadFechamentosHistorico();
+  }
+
+  async function calcularMovimentoDinheiro(desde) {
+    const [{ data: entradasData }, { data: saidasData }] = await Promise.all([
+      sb.from('movimentacoes_financeiras').select('valor').eq('restaurante_id', restauranteId).eq('tipo', 'receita').eq('forma_pagamento', 'dinheiro').gte('criado_em', desde),
+      sb.from('movimentacoes_financeiras').select('valor').eq('restaurante_id', restauranteId).eq('tipo', 'despesa').eq('forma_pagamento', 'dinheiro').gte('criado_em', desde)
+    ]);
+    const entradas = (entradasData || []).reduce((s, m) => s + Number(m.valor), 0);
+    const saidas = (saidasData || []).reduce((s, m) => s + Number(m.valor), 0);
+    return { entradas, saidas };
+  }
+
+  async function renderCaixaStatus() {
+    const dot = document.getElementById('caixaStatusDot');
+    const texto = document.getElementById('caixaStatusTexto');
+    const sub = document.getElementById('caixaStatusSub');
+    const btnAbrir = document.getElementById('btnAbrirCaixa');
+    const btnFechar = document.getElementById('btnFecharCaixa');
+
+    if (!caixaAtual) {
+      dot.style.background = '#A1A1AA';
+      texto.textContent = 'Caixa fechado';
+      sub.textContent = 'Abra o caixa informando o fundo de troco pra começar a operar.';
+      btnAbrir.style.display = 'inline-flex';
+      btnFechar.style.display = 'none';
+      document.getElementById('caixaDinheiroEsperado').textContent = formatMoeda(0);
+      return;
+    }
+
+    dot.style.background = 'var(--green)';
+    texto.textContent = 'Caixa aberto';
+    sub.textContent = 'Aberto às ' + formatData(caixaAtual.aberto_em) + ' · fundo de R$ ' + Number(caixaAtual.valor_abertura).toFixed(2).replace('.', ',');
+    btnAbrir.style.display = 'none';
+    btnFechar.style.display = 'inline-flex';
+
+    const { entradas, saidas } = await calcularMovimentoDinheiro(caixaAtual.aberto_em);
+    const esperado = Number(caixaAtual.valor_abertura) + entradas - saidas;
+    document.getElementById('caixaDinheiroEsperado').textContent = formatMoeda(esperado);
+  }
+
+  function openAbrirCaixa() {
+    document.getElementById('acValorAbertura').value = '';
+    document.getElementById('abrirCaixaModalBg').classList.add('show');
+  }
+  function closeAbrirCaixa() { document.getElementById('abrirCaixaModalBg').classList.remove('show'); }
+
+  async function submitAbrirCaixa() {
+    const valorAbertura = parseFloat(document.getElementById('acValorAbertura').value);
+    if (isNaN(valorAbertura) || valorAbertura < 0) { showToast('Valor inválido', 'Informe o valor do fundo de troco (pode ser 0).'); return; }
+
+    const { error } = await sb.from('fechamentos_caixa').insert({
+      restaurante_id: restauranteId,
+      valor_abertura: valorAbertura,
+      aberto_por: currentUser.id
+    });
+    if (error) { showToast('Erro ao abrir caixa', error.message); return; }
+
+    closeAbrirCaixa();
+    showToast('Caixa aberto', 'Fundo de troco: ' + formatMoeda(valorAbertura));
+    await loadCaixaAtual();
+  }
+
+  async function openFecharCaixa() {
+    if (!caixaAtual) return;
+    const { entradas, saidas } = await calcularMovimentoDinheiro(caixaAtual.aberto_em);
+    const esperado = Number(caixaAtual.valor_abertura) + entradas - saidas;
+
+    document.getElementById('fcValorAbertura').textContent = formatMoeda(caixaAtual.valor_abertura);
+    document.getElementById('fcEntradasDinheiro').textContent = formatMoeda(entradas);
+    document.getElementById('fcSaidasDinheiro').textContent = formatMoeda(saidas);
+    document.getElementById('fcEsperado').textContent = formatMoeda(esperado);
+    document.getElementById('fcEsperado').dataset.valor = esperado;
+    document.getElementById('fcValorContado').value = '';
+    document.getElementById('fcObservacoes').value = '';
+    document.getElementById('fcDiferencaTexto').textContent = '';
+    document.getElementById('fecharCaixaModalBg').classList.add('show');
+  }
+  function closeFecharCaixa() { document.getElementById('fecharCaixaModalBg').classList.remove('show'); }
+
+  function atualizarDiferencaFechamento() {
+    const esperado = Number(document.getElementById('fcEsperado').dataset.valor || 0);
+    const contado = parseFloat(document.getElementById('fcValorContado').value);
+    const texto = document.getElementById('fcDiferencaTexto');
+    if (isNaN(contado)) { texto.textContent = ''; return; }
+    const diferenca = contado - esperado;
+    if (Math.abs(diferenca) < 0.005) {
+      texto.textContent = '✓ Caixa bateu certinho.';
+      texto.style.color = 'var(--green)';
+    } else if (diferenca > 0) {
+      texto.textContent = `Sobrou ${formatMoeda(diferenca)} na gaveta.`;
+      texto.style.color = 'var(--amber)';
+    } else {
+      texto.textContent = `Faltou ${formatMoeda(Math.abs(diferenca))} na gaveta.`;
+      texto.style.color = 'var(--red)';
+    }
+  }
+
+  async function submitFecharCaixa() {
+    const esperado = Number(document.getElementById('fcEsperado').dataset.valor || 0);
+    const contado = parseFloat(document.getElementById('fcValorContado').value);
+    if (isNaN(contado) || contado < 0) { showToast('Valor inválido', 'Informe o valor contado na gaveta.'); return; }
+
+    const diferenca = contado - esperado;
+    const observacoes = document.getElementById('fcObservacoes').value.trim() || null;
+
+    const { error } = await sb.from('fechamentos_caixa').update({
+      status: 'fechado',
+      valor_dinheiro_esperado: esperado,
+      valor_dinheiro_informado: contado,
+      diferenca,
+      observacoes,
+      fechado_por: currentUser.id,
+      fechado_em: new Date().toISOString()
+    }).eq('id', caixaAtual.id);
+
+    if (error) { showToast('Erro ao fechar caixa', error.message); return; }
+
+    closeFecharCaixa();
+    showToast('Caixa fechado', Math.abs(diferenca) < 0.005 ? 'Bateu certinho!' : 'Diferença: ' + formatMoeda(diferenca));
+    await loadCaixaAtual();
+  }
+
+  async function loadFechamentosHistorico() {
+    const { data, error } = await sb.from('fechamentos_caixa')
+      .select('id, aberto_em, fechado_em, valor_dinheiro_esperado, valor_dinheiro_informado, diferenca, status')
+      .eq('restaurante_id', restauranteId)
+      .eq('status', 'fechado')
+      .order('fechado_em', { ascending: false })
+      .limit(15);
+
+    const tbody = document.getElementById('fechamentosTableBody');
+    if (error || !data || data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="ic">📒</div><h4>Nenhum fechamento registrado ainda</h4></div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.map(f => {
+      const diferencaCor = Math.abs(f.diferenca) < 0.005 ? 'var(--green)' : (f.diferenca > 0 ? 'var(--amber)' : 'var(--red)');
+      return `
+        <tr>
+          <td data-label="Aberto em">${formatData(f.aberto_em)}</td>
+          <td data-label="Fechado em">${formatData(f.fechado_em)}</td>
+          <td data-label="Esperado">${formatMoeda(f.valor_dinheiro_esperado)}</td>
+          <td data-label="Informado">${formatMoeda(f.valor_dinheiro_informado)}</td>
+          <td data-label="Diferença"><b style="color:${diferencaCor};">${formatMoeda(f.diferenca)}</b></td>
+        </tr>`;
+    }).join('');
   }
 
   async function loadCategorias() {
