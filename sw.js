@@ -3,7 +3,7 @@
 // sempre tentando a rede primeiro para os dados (Supabase), e caindo pro
 // cache só quando estiver offline. Isso evita mostrar pedidos desatualizados.
 
-const CACHE_NAME = 'eaf-menu-cache-v0.1.3';
+const CACHE_NAME = 'eaf-menu-cache-v0.1.4';
 const APP_SHELL = [
   '/index.html',
   '/manifest.json',
