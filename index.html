@@ -33,7 +33,8 @@
   input, select { font-family: inherit; }
   #loginScreen { min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--sidebar); }
   .login-card { background:#fff; border-radius:14px; padding: 34px 30px; width: 340px; text-align:center; }
-  .login-card .badge { width:42px; height:42px; background:var(--red); border-radius:10px; margin: 0 auto 14px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:15px; }
+  .login-card .badge { width:56px; height:56px; margin: 0 auto 14px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .login-card .badge img { width:100%; height:100%; object-fit:contain; }
   .login-card h2 { margin: 0 0 4px; font-size:17px; }
   .login-card p { margin:0 0 20px; font-size:12.5px; color:var(--muted); }
   .login-card input { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:13.5px; margin-bottom:10px; }
@@ -45,7 +46,8 @@
   .layout { display:flex; min-height:100vh; }
   .sidebar { width: 240px; background: var(--sidebar); color:#fff; flex-shrink:0; display:flex; flex-direction:column; padding: 18px 14px; }
   .sidebar__brand { display:flex; align-items:center; gap:10px; padding: 4px 8px 20px; }
-  .sidebar__logo { width:34px; height:34px; background:var(--red); border-radius:9px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; }
+  .sidebar__logo { width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .sidebar__logo img { width:100%; height:100%; object-fit:contain; }
   .sidebar__title { font-weight:800; font-size:14.5px; line-height:1.2; }
   .sidebar__subtitle { font-size:11px; color:#9C9CA3; }
   .navitem { display:flex; align-items:center; gap:10px; padding: 10px 10px; border-radius:9px; font-size:13px; font-weight:600; color:#D4D4D8; margin-bottom:2px; border:none; background:transparent; width:100%; text-align:left; }
@@ -199,7 +201,8 @@
     .layout { flex-direction: column; }
     .mobile-topbar { display:flex; align-items:center; justify-content:space-between; gap:10px; background: var(--sidebar); color:#fff; padding: 12px 14px; position: sticky; top:0; z-index:60; padding-top: max(12px, env(safe-area-inset-top)); }
     .mobile-topbar__brand { display:flex; align-items:center; gap:9px; min-width:0; }
-    .mobile-topbar__logo { width:30px; height:30px; background:var(--red); border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12.5px; flex-shrink:0; }
+    .mobile-topbar__logo { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }
+    .mobile-topbar__logo img { width:100%; height:100%; object-fit:contain; }
     .mobile-topbar__title { font-weight:800; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .hamburger-btn { background:transparent; border:none; color:#fff; font-size:20px; padding:6px 8px; border-radius:8px; line-height:1; flex-shrink:0; }
     .hamburger-btn:active { background: var(--sidebar-hover); }
@@ -237,7 +240,7 @@
 
 <div id="loginScreen">
   <div class="login-card">
-    <div class="badge">EM</div>
+    <div class="badge"><img src="/icons/icon512.png" alt="EAF Menu"></div>
     <h2>EAF Menu</h2>
     <p id="loginSubtitle">Entre com o telefone ou e-mail cadastrado como equipe do restaurante</p>
     <button class="install-btn" id="installBtnLogin" onclick="installApp()">⬇ Instalar aplicativo</button>
@@ -268,7 +271,7 @@
 
 <div id="primeiroAcessoScreen" style="display:none; min-height:100vh; align-items:center; justify-content:center; background: var(--sidebar);">
   <div class="login-card">
-    <div class="badge">EM</div>
+    <div class="badge"><img src="/icons/icon512.png" alt="EAF Menu"></div>
     <h2>Defina sua senha</h2>
     <p>Por segurança, crie uma nova senha de acesso antes de continuar</p>
     <input type="password" id="paNovaSenha" placeholder="Nova senha">
@@ -291,7 +294,7 @@
   <div class="mobile-topbar">
     <button class="hamburger-btn" onclick="openDrawer()" aria-label="Abrir menu">☰</button>
     <div class="mobile-topbar__brand">
-      <div class="mobile-topbar__logo">EM</div>
+      <div class="mobile-topbar__logo"><img src="/icons/icon512.png" alt="EAF Menu"></div>
       <div class="mobile-topbar__title" id="mobileRestauranteNome">EAF Menu</div>
     </div>
     <div style="width:32px"></div>
@@ -300,7 +303,7 @@
   <div class="layout">
     <div class="sidebar" id="sidebarEl">
       <div class="sidebar__brand">
-        <div class="sidebar__logo">EM</div>
+        <div class="sidebar__logo"><img src="/icons/icon512.png" alt="EAF Menu"></div>
         <div>
           <div class="sidebar__title" id="restauranteNome">EAF Menu</div>
           <div class="sidebar__subtitle">Restaurante</div>
@@ -473,9 +476,9 @@
           </div>
         </div>
         <table class="data-table">
-          <thead><tr><th>Nome</th><th>Telefone</th><th>Veículo</th><th>Status</th><th>Ações</th></tr></thead>
+          <thead><tr><th>Nome</th><th>Telefone</th><th>Veículo / Placa</th><th>Status</th><th>Disponível</th><th>Entregas (hoje/total)</th><th>Ações</th></tr></thead>
           <tbody id="entregadoresTableBody">
-            <tr><td colspan="5"><div class="empty-state"><div class="ic">🚚</div><h4>Nenhum entregador cadastrado</h4></div></td></tr>
+            <tr><td colspan="7"><div class="empty-state"><div class="ic">🚚</div><h4>Nenhum entregador cadastrado</h4></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -491,9 +494,9 @@
           </div>
         </div>
         <table class="data-table">
-          <thead><tr><th>Nome</th><th>Telefone</th><th>Cargo</th><th>Status</th><th>Entregas (hoje / total)</th><th>Ações</th></tr></thead>
+          <thead><tr><th>Nome</th><th>Telefone</th><th>Cargo</th><th>Status</th><th>Ações</th></tr></thead>
           <tbody id="equipeTableBody">
-            <tr><td colspan="6"><div class="empty-state"><div class="ic">🛡️</div><h4>Nenhum membro cadastrado</h4></div></td></tr>
+            <tr><td colspan="5"><div class="empty-state"><div class="ic">🛡️</div><h4>Nenhum membro cadastrado</h4></div></td></tr>
           </tbody>
         </table>
         <div style="margin-top:22px;">
@@ -674,6 +677,7 @@
     <input type="hidden" id="entId">
     <div class="field"><label>Nome</label><input id="entNome" placeholder="Ex: João Silva"></div>
     <div class="field"><label>Telefone</label><input id="entTelefone" placeholder="(41) 9...."></div>
+    <div class="field" id="entSenhaField"><label>Senha de acesso</label><input id="entSenha" placeholder="Defina a senha (mín. 4 caracteres)"></div>
     <div class="field"><label>Veículo</label>
       <select id="entVeiculo">
         <option value="moto">Moto</option>
@@ -683,11 +687,7 @@
       </select>
     </div>
     <div class="field"><label>Placa (opcional)</label><input id="entPlaca" placeholder="ABC-1234"></div>
-    <div class="field">
-      <label style="display:flex; align-items:center; gap:8px; font-weight:600; color:var(--ink);">
-        <input type="checkbox" id="entAtivo" checked style="width:auto;"> Entregador ativo
-      </label>
-    </div>
+    <p style="font-size:11.5px; color:var(--muted); margin:-4px 0 12px;">Essa senha é o que o entregador usa pra entrar no PWA do Motoboy junto com o telefone.</p>
     <div class="modal-actions">
       <button class="btn" onclick="closeEntregador()">Cancelar</button>
       <button class="btn primary" onclick="submitEntregador()">Salvar entregador</button>
@@ -708,7 +708,6 @@
     <div class="field"><label>Cargo</label>
       <select id="mbRole">
         <option value="atendente">Atendente</option>
-        <option value="motoboy">Motoboy</option>
         <option value="gerente">Gerente</option>
         <option value="dono">Dono</option>
       </select>
@@ -2088,12 +2087,26 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
   }
 
   async function loadEntregadores() {
-    const { data, error } = await sb.from('entregadores')
-      .select('id, nome, telefone, veiculo, placa, ativo')
+    const { data, error } = await sb.from('usuarios')
+      .select('id, nome, telefone, ativo, motoboys ( veiculo, placa, disponivel )')
       .eq('restaurante_id', restauranteId)
+      .eq('role', 'motoboy')
       .order('nome', { ascending: true });
     if (error) { showToast('Erro ao carregar entregadores', error.message); return; }
     entregadoresCache = data || [];
+
+    if (entregadoresCache.length > 0) {
+      const dataHoje = diaComercialData();
+      await Promise.all(entregadoresCache.map(async (m) => {
+        const [{ count: hoje }, { count: total }] = await Promise.all([
+          sb.from('pedidos').select('id', { count: 'exact', head: true }).eq('motoboy_id', m.id).eq('status', 'entregue').eq('data_pedido', dataHoje),
+          sb.from('pedidos').select('id', { count: 'exact', head: true }).eq('motoboy_id', m.id).eq('status', 'entregue')
+        ]);
+        m.entregasHoje = hoje || 0;
+        m.entregasTotal = total || 0;
+      }));
+    }
+
     renderEntregadoresTable();
   }
 
@@ -2102,22 +2115,28 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
   function renderEntregadoresTable() {
     const tbody = document.getElementById('entregadoresTableBody');
     if (entregadoresCache.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="ic">🚚</div><h4>Nenhum entregador cadastrado</h4></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="ic">🚚</div><h4>Nenhum entregador cadastrado</h4></div></td></tr>`;
       return;
     }
-    tbody.innerHTML = entregadoresCache.map(e => `
+    tbody.innerHTML = entregadoresCache.map(e => {
+      const mb = e.motoboys || {};
+      return `
       <tr>
         <td data-label="Nome"><b>${e.nome}</b></td>
         <td data-label="Telefone">${e.telefone || '—'}</td>
-        <td data-label="Veículo">${VEICULO_LABEL[e.veiculo] || e.veiculo || '—'}${e.placa ? ' · ' + e.placa : ''}</td>
-        <td data-label="Status"><span class="status-pill ${e.ativo ? 'ativo' : 'inativo'}">${e.ativo ? 'Ativo' : 'Inativo'}</span></td>
+        <td data-label="Veículo / Placa">${VEICULO_LABEL[mb.veiculo] || mb.veiculo || '—'}${mb.placa ? ' · ' + mb.placa : ''}</td>
+        <td data-label="Status"><span class="status-pill ${e.ativo ? 'ativo' : 'inativo'}">${e.ativo ? 'Ativo' : 'Desligado'}</span></td>
+        <td data-label="Disponível">${mb.disponivel ? '🟢 Sim' : '⚪ Não'}</td>
+        <td data-label="Entregas">${e.entregasHoje ?? 0} / ${e.entregasTotal ?? 0}</td>
         <td data-label="Ações">
           <div class="row-actions">
-            <button onclick='openEntregador(${JSON.stringify(e)})'>Editar</button>
-            <button onclick="toggleEntregadorAtivo('${e.id}', ${e.ativo})">${e.ativo ? 'Desativar' : 'Reativar'}</button>
+            <button onclick='openEntregador(${JSON.stringify({ id: e.id, nome: e.nome, telefone: e.telefone, veiculo: mb.veiculo, placa: mb.placa })})'>Editar</button>
+            <button onclick="toggleEntregadorAtivo('${e.id}', ${e.ativo})">${e.ativo ? 'Desligar acesso' : 'Liberar acesso'}</button>
+            <button onclick="abrirResetSenhaEntregador('${e.id}', '${e.nome.replace(/'/g, "\\'")}')">Redefinir senha</button>
           </div>
         </td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
   }
 
   function openEntregador(e) {
@@ -2127,7 +2146,9 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     document.getElementById('entTelefone').value = e ? (e.telefone || '') : '';
     document.getElementById('entVeiculo').value = e ? (e.veiculo || 'moto') : 'moto';
     document.getElementById('entPlaca').value = e ? (e.placa || '') : '';
-    document.getElementById('entAtivo').checked = e ? e.ativo : true;
+    document.getElementById('entSenha').value = '';
+    // Senha só é definida na criação; editar entregador existente usa "Redefinir senha" separadamente.
+    document.getElementById('entSenhaField').style.display = e ? 'none' : 'block';
     document.getElementById('entregadorModalBg').classList.add('show');
   }
   function closeEntregador() { document.getElementById('entregadorModalBg').classList.remove('show'); }
@@ -2135,53 +2156,73 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
   async function submitEntregador() {
     const id = document.getElementById('entId').value || null;
     const nome = document.getElementById('entNome').value.trim();
+    const telefone = document.getElementById('entTelefone').value.trim();
+    const veiculo = document.getElementById('entVeiculo').value;
+    const placa = document.getElementById('entPlaca').value.trim() || null;
     if (!nome) { showToast('Faltou o nome', 'Informe o nome do entregador.'); return; }
-    const payload = {
-      nome,
-      telefone: document.getElementById('entTelefone').value.trim() || null,
-      veiculo: document.getElementById('entVeiculo').value,
-      placa: document.getElementById('entPlaca').value.trim() || null,
-      ativo: document.getElementById('entAtivo').checked,
-      restaurante_id: restauranteId
-    };
-    const { error } = id
-      ? await sb.from('entregadores').update(payload).eq('id', id)
-      : await sb.from('entregadores').insert(payload);
-    if (error) { showToast('Erro ao salvar', error.message); return; }
+    if (!telefone) { showToast('Faltou o telefone', 'Informe o telefone (usado pra login no PWA do Motoboy).'); return; }
+
+    if (id) {
+      // Edição: atualiza nome/telefone (usuarios) e veículo/placa (motoboys)
+      const { error: errUsuario } = await sb.from('usuarios').update({ nome, telefone }).eq('id', id);
+      if (errUsuario) { showToast('Erro ao salvar', errUsuario.message); return; }
+      const { error: errMoto } = await sb.from('motoboys').update({ veiculo, placa }).eq('id', id);
+      if (errMoto) { showToast('Erro ao salvar veículo', errMoto.message); return; }
+      closeEntregador();
+      showToast('Entregador atualizado', nome);
+      await loadEntregadores();
+      return;
+    }
+
+    const senha = document.getElementById('entSenha').value;
+    if (!senha || senha.length < 4) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 4 caracteres.'); return; }
+
+    const { error } = await sb.rpc('criar_usuario_equipe', {
+      p_nome: nome,
+      p_telefone: telefone,
+      p_email: null,
+      p_role: 'motoboy',
+      p_senha: senha,
+      p_veiculo: veiculo,
+      p_placa: placa
+    });
+    if (error) { showToast('Erro ao criar entregador', error.message); return; }
+
     closeEntregador();
-    showToast('Entregador salvo', nome);
+    showToast('Entregador criado', `${nome} já pode entrar no PWA do Motoboy com o telefone e a senha definida.`);
     await loadEntregadores();
   }
 
   async function toggleEntregadorAtivo(id, ativoAtual) {
-    const { error } = await sb.from('entregadores').update({ ativo: !ativoAtual }).eq('id', id);
+    const { error } = await sb.from('usuarios').update({ ativo: !ativoAtual }).eq('id', id);
     if (error) { showToast('Erro', error.message); return; }
     await loadEntregadores();
   }
 
-  const ROLE_LABEL = { dono: 'Dono', gerente: 'Gerente', atendente: 'Atendente', motoboy: 'Motoboy' };
+  function abrirResetSenhaEntregador(id, nome) {
+    const novaSenha = prompt(`Nova senha de acesso para ${nome} (mín. 4 caracteres):`);
+    if (novaSenha === null) return;
+    if (novaSenha.trim().length < 4) { showToast('Senha muito curta', 'Use pelo menos 4 caracteres.'); return; }
+    redefinirSenhaEntregador(id, novaSenha.trim(), nome);
+  }
+
+  async function redefinirSenhaEntregador(id, novaSenha, nome) {
+    const { error } = await sb.rpc('redefinir_senha_usuario', { p_usuario_id: id, p_nova_senha: novaSenha });
+    if (error) { showToast('Erro ao redefinir senha', error.message); return; }
+    showToast('Senha redefinida', `Nova senha de ${nome} definida.`);
+  }
+
+  const ROLE_LABEL = { dono: 'Dono', gerente: 'Gerente', atendente: 'Atendente' };
 
   async function loadEquipe() {
+    // Motoboy não aparece aqui — é criado e gerenciado em Entregadores (Motoboys).
     const { data: usuarios, error } = await sb.from('usuarios')
       .select('id, nome, email, telefone, role, ativo')
       .eq('restaurante_id', restauranteId)
+      .neq('role', 'motoboy')
       .order('nome', { ascending: true });
     if (error) { showToast('Erro ao carregar equipe', error.message); return; }
     equipeCache = usuarios || [];
-
-    // Contagem de entregas (hoje e total) só pra quem é motoboy
-    const motoboysDaEquipe = equipeCache.filter(u => u.role === 'motoboy');
-    if (motoboysDaEquipe.length > 0) {
-      const dataHoje = diaComercialData();
-      await Promise.all(motoboysDaEquipe.map(async (m) => {
-        const [{ count: hoje }, { count: total }] = await Promise.all([
-          sb.from('pedidos').select('id', { count: 'exact', head: true }).eq('motoboy_id', m.id).eq('status', 'entregue').eq('data_pedido', dataHoje),
-          sb.from('pedidos').select('id', { count: 'exact', head: true }).eq('motoboy_id', m.id).eq('status', 'entregue')
-        ]);
-        m.entregasHoje = hoje || 0;
-        m.entregasTotal = total || 0;
-      }));
-    }
 
     const { data: convites, error: convErr } = await sb.from('convites_equipe')
       .select('id, nome, email, role')
@@ -2195,7 +2236,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
   function renderEquipeTable() {
     const tbody = document.getElementById('equipeTableBody');
     if (equipeCache.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="ic">🛡️</div><h4>Nenhum membro cadastrado</h4></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="ic">🛡️</div><h4>Nenhum membro cadastrado</h4></div></td></tr>`;
     } else {
       tbody.innerHTML = equipeCache.map(u => `
         <tr>
@@ -2205,7 +2246,6 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
           <td data-label="Status">
             <span class="status-pill ${u.ativo ? 'ativo' : 'inativo'}">${u.ativo ? 'Ativo' : 'Desativado'}</span>
           </td>
-          <td data-label="Entregas">${u.role === 'motoboy' ? `${u.entregasHoje ?? 0} / ${u.entregasTotal ?? 0}` : '—'}</td>
           <td data-label="Ações">
             <div class="row-actions">
               <select onchange="mudarRole('${u.id}', this.value)" style="border:1px solid var(--border); border-radius:7px; padding:5px 8px; font-size:11.5px;" ${u.id === currentUser.id ? 'disabled' : ''}>
@@ -2533,11 +2573,15 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
         return;
       }
       // Sessão caiu (token expirou, ou foi encerrada em outro dispositivo/aba) enquanto
-      // o painel estava aberto: em vez de deixar a tela "logada" travada e sem funcionar,
-      // volta sozinho pra tela de login.
+      // o painel estava aberto. Só recarrega se, alguns segundos depois, confirmarmos que
+      // realmente não há mais sessão — evita falso positivo de renovação de token que
+      // falha passageiramente (ex: ao abrir o DevTools, que dispara eventos de visibilidade
+      // e faz o Supabase tentar renovar duas vezes ao mesmo tempo).
       if (event === 'SIGNED_OUT' && document.getElementById('app').style.display === 'block') {
-        setLoginMsg('Sua sessão expirou. Faça login novamente.', true);
-        location.reload();
+        setTimeout(async () => {
+          const { data: { session } } = await sb.auth.getSession();
+          if (!session) location.reload();
+        }, 2500);
       }
     });
 
