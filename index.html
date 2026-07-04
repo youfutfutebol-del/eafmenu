@@ -1209,7 +1209,7 @@ async function salvarNovaSenhaRecuperacao() {
   async function loadProdutos() {
     const { data, error } = await sb
       .from('produtos')
-      .select('id, nome, produto_precos(id, preco, opcoes_tamanho(nome))')
+      .select('id, nome, produto_precos(id, preco, opcao_tamanho_id, opcoes_tamanho(nome))')
       .eq('restaurante_id', restauranteId)
       .eq('ativo', true);
     if (!error) produtosCache = data || [];
@@ -1636,7 +1636,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
       const produto = produtosCache.find(p => (p.produto_precos||[]).some(pp => pp.id === l.precoId));
       const preco = produto.produto_precos.find(pp => pp.id === l.precoId);
       total += preco.preco * l.qtd;
-      itensParaInserir.push({ produto_id: produto.id, opcao_tamanho_id: preco.opcoes_tamanho ? l.precoId : null, quantidade: l.qtd, preco_unitario: preco.preco });
+      itensParaInserir.push({ produto_id: produto.id, opcao_tamanho_id: preco.opcao_tamanho_id || null, quantidade: l.qtd, preco_unitario: preco.preco });
     }
 
     // Numeração diária: agora é automática (trigger no banco), não precisa mais
