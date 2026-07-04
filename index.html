@@ -239,15 +239,42 @@
   <div class="login-card">
     <div class="badge">EM</div>
     <h2>EAF Menu</h2>
-    <p>Entre com o e-mail cadastrado como equipe do restaurante</p>
+    <p id="loginSubtitle">Entre com o telefone ou e-mail cadastrado como equipe do restaurante</p>
     <button class="install-btn" id="installBtnLogin" onclick="installApp()">⬇ Instalar aplicativo</button>
-      <div id="stepLogin">
-      <input type="email" id="emailInput" placeholder="seu@email.com">
-      <input type="password" id="senhaInput" placeholder="Sua senha">
+
+    <div id="stepLogin">
+      <input type="text" id="identInput" placeholder="Telefone ou e-mail" autocomplete="username">
+      <input type="password" id="senhaInput" placeholder="Sua senha" autocomplete="current-password">
       <button class="primary" id="loginBtn" onclick="fazerLogin()">Entrar</button>
+      <a href="#" onclick="abrirEsqueciSenha(); return false;" style="display:block; text-align:center; margin-top:10px; font-size:12px; color:var(--muted);">Esqueci minha senha</a>
     </div>
-    <a href="/esqueci-senha.html" style="display:block; text-align:center; margin-top:10px; font-size:12px; color:var(--muted);">Esqueci minha senha</a>
+
+    <div id="stepEsqueciSenha" style="display:none;">
+      <input type="text" id="recIdentInput" placeholder="Telefone ou e-mail cadastrado">
+      <button class="primary" id="recBtn" onclick="enviarRecuperacaoSenha()">Enviar link de recuperação</button>
+      <a href="#" onclick="fecharEsqueciSenha(); return false;" style="display:block; text-align:center; margin-top:10px; font-size:12px; color:var(--muted);">Voltar para o login</a>
+    </div>
+
+    <div id="stepNovaSenha" style="display:none;">
+      <p style="margin:0 0 14px; font-size:12.5px; color:var(--muted);">Crie sua nova senha de acesso.</p>
+      <input type="password" id="novaSenhaRecInput" placeholder="Nova senha">
+      <input type="password" id="novaSenhaRecConfirm" placeholder="Confirmar nova senha">
+      <button class="primary" id="novaSenhaRecBtn" onclick="salvarNovaSenhaRecuperacao()">Salvar nova senha</button>
+    </div>
+
     <div class="login-msg" id="loginMsg"></div>
+  </div>
+</div>
+
+<div id="primeiroAcessoScreen" style="display:none; min-height:100vh; align-items:center; justify-content:center; background: var(--sidebar);">
+  <div class="login-card">
+    <div class="badge">EM</div>
+    <h2>Defina sua senha</h2>
+    <p>Por segurança, crie uma nova senha de acesso antes de continuar</p>
+    <input type="password" id="paNovaSenha" placeholder="Nova senha">
+    <input type="password" id="paNovaSenhaConfirm" placeholder="Confirmar nova senha">
+    <button class="primary" id="paBtn" onclick="salvarSenhaPrimeiroAcesso()">Salvar e continuar</button>
+    <div class="login-msg" id="paMsg"></div>
   </div>
 </div>
 
@@ -450,7 +477,7 @@
             <p class="main__subtitle">Convide colaboradores e gerencie os cargos de acesso ao painel</p>
           </div>
           <div class="actions">
-            <button class="btn primary" onclick="openMembro()">+ Convidar Membro</button>
+            <button class="btn primary" onclick="openMembro()">+ Criar novo usuário</button>
           </div>
         </div>
         <table class="data-table">
@@ -660,21 +687,22 @@
 
 <div class="modal-bg" id="membroModalBg">
   <div class="modal">
-    <h3>Convidar membro da equipe</h3>
+    <h3>Criar novo usuário</h3>
     <div class="field"><label>Nome</label><input id="mbNome" placeholder="Nome completo"></div>
-    <div class="field"><label>E-mail</label><input id="mbEmail" type="email" placeholder="email@exemplo.com"></div>
+    <div class="field"><label>Telefone</label><input id="mbTelefone" placeholder="(41) 9...."></div>
+    <div class="field"><label>E-mail (opcional)</label><input id="mbEmail" type="email" placeholder="email@exemplo.com"></div>
     <div class="field"><label>Cargo</label>
       <select id="mbRole">
-        <option value="gerente">Gerente</option>
         <option value="atendente">Atendente</option>
         <option value="motoboy">Motoboy</option>
+        <option value="gerente">Gerente</option>
         <option value="dono">Dono</option>
       </select>
     </div>
-    <p style="font-size:11.5px; color:var(--muted); margin:-4px 0 12px;">A pessoa receberá acesso assim que fizer login pela primeira vez com esse e-mail.</p>
+    <p style="font-size:11.5px; color:var(--muted); margin:-4px 0 12px;">Uma senha provisória é gerada automaticamente. Você vai precisar repassá-la para a pessoa (WhatsApp, verbalmente etc.) — o sistema não envia nada por conta própria.</p>
     <div class="modal-actions">
       <button class="btn" onclick="closeMembro()">Cancelar</button>
-      <button class="btn primary" onclick="submitMembro()">Enviar convite</button>
+      <button class="btn primary" onclick="submitMembro()">Criar usuário</button>
     </div>
   </div>
 </div>
@@ -752,18 +780,26 @@
 async function fazerLogin() {
   if (!sb) { setLoginMsg('Ainda carregando configuração, aguarde...', false); return; }
 
-  const email = document.getElementById('emailInput').value.trim();
+  const identificador = document.getElementById('identInput').value.trim();
   const senha = document.getElementById('senhaInput').value;
-  if (!email || !senha) { setLoginMsg('Preencha e-mail e senha.', true); return; }
+  if (!identificador || !senha) { setLoginMsg('Preencha telefone/e-mail e senha.', true); return; }
 
   setLoginMsg('Entrando...', false);
   document.getElementById('loginBtn').disabled = true;
 
-  const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+  const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
+
+  if (resolveErr || !emailResolvido) {
+    document.getElementById('loginBtn').disabled = false;
+    setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
+    return;
+  }
+
+  const { error } = await sb.auth.signInWithPassword({ email: emailResolvido, password: senha });
 
   document.getElementById('loginBtn').disabled = false;
 
-  if (error) { setLoginMsg('E-mail ou senha incorretos.', true); return; }
+  if (error) { setLoginMsg('Telefone/e-mail ou senha incorretos.', true); return; }
 
   await boot();
 }
@@ -772,6 +808,62 @@ function setLoginMsg(msg, isError) {
   const el = document.getElementById('loginMsg');
   el.textContent = msg;
   el.className = 'login-msg' + (isError ? ' error' : '');
+}
+
+function abrirEsqueciSenha() {
+  document.getElementById('stepLogin').style.display = 'none';
+  document.getElementById('stepEsqueciSenha').style.display = 'block';
+  document.getElementById('loginMsg').textContent = '';
+}
+function fecharEsqueciSenha() {
+  document.getElementById('stepEsqueciSenha').style.display = 'none';
+  document.getElementById('stepLogin').style.display = 'block';
+  document.getElementById('loginMsg').textContent = '';
+}
+
+// Recuperação de senha 100% via Supabase (e-mail transacional do próprio Supabase Auth, sem serviço externo).
+async function enviarRecuperacaoSenha() {
+  const identificador = document.getElementById('recIdentInput').value.trim();
+  if (!identificador) { setLoginMsg('Informe seu telefone ou e-mail cadastrado.', true); return; }
+
+  document.getElementById('recBtn').disabled = true;
+  const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
+
+  if (resolveErr || !emailResolvido) {
+    document.getElementById('recBtn').disabled = false;
+    setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
+    return;
+  }
+
+  const { error } = await sb.auth.resetPasswordForEmail(emailResolvido, { redirectTo: location.origin + location.pathname });
+  document.getElementById('recBtn').disabled = false;
+
+  if (error) { setLoginMsg('Erro ao enviar o link: ' + error.message, true); return; }
+  setLoginMsg('Se o e-mail cadastrado tiver acesso à caixa de entrada, um link de redefinição foi enviado.', false);
+}
+
+// Chega aqui pelo link do e-mail de recuperação (Supabase dispara o evento PASSWORD_RECOVERY)
+function mostrarTelaNovaSenhaRecuperacao() {
+  document.getElementById('stepLogin').style.display = 'none';
+  document.getElementById('stepEsqueciSenha').style.display = 'none';
+  document.getElementById('stepNovaSenha').style.display = 'block';
+  document.getElementById('loginMsg').textContent = '';
+}
+
+async function salvarNovaSenhaRecuperacao() {
+  const nova = document.getElementById('novaSenhaRecInput').value;
+  const conf = document.getElementById('novaSenhaRecConfirm').value;
+  if (!nova || nova.length < 6) { setLoginMsg('A senha precisa ter pelo menos 6 caracteres.', true); return; }
+  if (nova !== conf) { setLoginMsg('As senhas não coincidem.', true); return; }
+
+  document.getElementById('novaSenhaRecBtn').disabled = true;
+  const { error } = await sb.auth.updateUser({ password: nova });
+  document.getElementById('novaSenhaRecBtn').disabled = false;
+
+  if (error) { setLoginMsg('Erro ao salvar a senha: ' + error.message, true); return; }
+
+  setLoginMsg('Senha redefinida! Entrando...', false);
+  await boot();
 }
 
   async function logout() {
@@ -785,38 +877,12 @@ function setLoginMsg(msg, isError) {
 
     let { data: userRow, error: userErr } = await sb
       .from('usuarios')
-      .select('id, nome, email, role, restaurante_id, restaurantes(nome, slug)')
+      .select('id, nome, email, role, restaurante_id, primeiro_acesso, restaurantes(nome, slug)')
       .eq('id', session.user.id)
       .single();
 
-    if ((userErr || !userRow) && session.user.email) {
-      const { data: convite } = await sb.from('convites_equipe')
-        .select('id, nome, role, restaurante_id')
-        .eq('email', session.user.email)
-        .maybeSingle();
-
-      if (convite) {
-        const { data: novoUsuario, error: criaErr } = await sb.from('usuarios')
-          .insert({
-            id: session.user.id,
-            nome: convite.nome,
-            email: session.user.email,
-            role: convite.role,
-            restaurante_id: convite.restaurante_id
-          })
-          .select('id, nome, email, role, restaurante_id, restaurantes(nome, slug)')
-          .single();
-
-        if (!criaErr) {
-          userRow = novoUsuario;
-          userErr = null;
-          await sb.from('convites_equipe').delete().eq('id', convite.id);
-        }
-      }
-    }
-
     if (userErr || !userRow) {
-      setLoginMsg('Este e-mail não está cadastrado como equipe de nenhum restaurante.', true);
+      setLoginMsg('Este telefone/e-mail não está cadastrado como equipe de nenhum restaurante.', true);
       await sb.auth.signOut();
       return;
     }
@@ -824,6 +890,14 @@ function setLoginMsg(msg, isError) {
     currentUser = userRow;
     restauranteId = userRow.restaurante_id;
     restauranteSlugAtual = userRow.restaurantes?.slug || null;
+
+    // Primeiro acesso: bloqueia o painel até a pessoa trocar a senha provisória.
+    if (userRow.primeiro_acesso) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('primeiroAcessoScreen').style.display = 'flex';
+      return;
+    }
+    document.getElementById('primeiroAcessoScreen').style.display = 'none';
 
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
@@ -846,6 +920,27 @@ function setLoginMsg(msg, isError) {
     await loadPedidos();
     subscribeRealtime();
     iniciarResetDiarioPedidos();
+  }
+
+  async function salvarSenhaPrimeiroAcesso() {
+    const nova = document.getElementById('paNovaSenha').value;
+    const conf = document.getElementById('paNovaSenhaConfirm').value;
+    const msgEl = document.getElementById('paMsg');
+    if (!nova || nova.length < 6) { msgEl.textContent = 'A senha precisa ter pelo menos 6 caracteres.'; msgEl.className = 'login-msg error'; return; }
+    if (nova !== conf) { msgEl.textContent = 'As senhas não coincidem.'; msgEl.className = 'login-msg error'; return; }
+
+    document.getElementById('paBtn').disabled = true;
+    const { error: authErr } = await sb.auth.updateUser({ password: nova });
+    if (authErr) {
+      document.getElementById('paBtn').disabled = false;
+      msgEl.textContent = 'Erro ao salvar: ' + authErr.message;
+      msgEl.className = 'login-msg error';
+      return;
+    }
+
+    await sb.from('usuarios').update({ primeiro_acesso: false }).eq('id', currentUser.id);
+    document.getElementById('paBtn').disabled = false;
+    await boot();
   }
 
   function switchView(view) {
@@ -1961,27 +2056,43 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
 
   function openMembro() {
     document.getElementById('mbNome').value = '';
+    document.getElementById('mbTelefone').value = '';
     document.getElementById('mbEmail').value = '';
-    document.getElementById('mbRole').value = 'atendente';
+    const roleSelect = document.getElementById('mbRole');
+    // Gerente não pode criar outro gerente ou dono (regra também aplicada no banco).
+    [...roleSelect.options].forEach(opt => {
+      opt.disabled = (currentUser.role === 'gerente' && (opt.value === 'gerente' || opt.value === 'dono'));
+    });
+    roleSelect.value = 'atendente';
     document.getElementById('membroModalBg').classList.add('show');
   }
   function closeMembro() { document.getElementById('membroModalBg').classList.remove('show'); }
 
   async function submitMembro() {
     const nome = document.getElementById('mbNome').value.trim();
+    const telefone = document.getElementById('mbTelefone').value.trim();
     const email = document.getElementById('mbEmail').value.trim().toLowerCase();
     const role = document.getElementById('mbRole').value;
-    if (!nome) { showToast('Faltou o nome', 'Informe o nome do convidado.'); return; }
-    if (!email) { showToast('Faltou o e-mail', 'Informe o e-mail do convidado.'); return; }
+    if (!nome) { showToast('Faltou o nome', 'Informe o nome da pessoa.'); return; }
+    if (!telefone) { showToast('Faltou o telefone', 'Informe o telefone da pessoa (usado para o login).'); return; }
 
-    const jaExiste = equipeCache.some(u => (u.email || '').toLowerCase() === email) ||
-                      convitesCache.some(c => c.email.toLowerCase() === email);
-    if (jaExiste) { showToast('E-mail já cadastrado', 'Esse e-mail já faz parte da equipe ou já tem convite pendente.'); return; }
+    const { data, error } = await sb.rpc('criar_usuario_equipe', {
+      p_nome: nome,
+      p_telefone: telefone,
+      p_email: email || null,
+      p_role: role
+    });
 
-    const { error } = await sb.from('convites_equipe').insert({ nome, email, role, restaurante_id: restauranteId });
-    if (error) { showToast('Erro ao convidar', error.message); return; }
+    if (error) { showToast('Erro ao criar usuário', error.message); return; }
+
+    const resultado = Array.isArray(data) ? data[0] : data;
     closeMembro();
-    showToast('Convite enviado', `${nome} terá acesso ao fazer login com ${email}`);
+    alert(
+      `Usuário "${nome}" criado com sucesso!\n\n` +
+      `Login: ${telefone}\n` +
+      `Senha provisória: ${resultado.senha_provisoria}\n\n` +
+      `Repasse esses dados pra pessoa (ela vai ter que trocar a senha no primeiro acesso).`
+    );
     await loadEquipe();
   }
 
@@ -2224,6 +2335,11 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
       console.error(e);
       return;
     }
+    sb.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        mostrarTelaNovaSenhaRecuperacao();
+      }
+    });
     await boot();
   })();
 </script>
