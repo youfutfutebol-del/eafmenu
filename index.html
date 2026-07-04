@@ -863,6 +863,9 @@ async function salvarNovaSenhaRecuperacao() {
 
   if (error) { setLoginMsg('Erro ao salvar a senha: ' + error.message, true); return; }
 
+  // Limpa o token da URL antes de entrar, senão um refresh de página cairia de novo nessa tela.
+  history.replaceState(null, '', location.pathname);
+
   setLoginMsg('Senha redefinida! Entrando...', false);
   await boot();
 }
@@ -2329,6 +2332,12 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     });
   }
 
+  function urlIndicaRecuperacaoSenha() {
+    const hash = location.hash || '';
+    const search = location.search || '';
+    return hash.includes('type=recovery') || search.includes('type=recovery');
+  }
+
   (async function start() {
     try {
       await initSupabase();
@@ -2336,11 +2345,21 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
       console.error(e);
       return;
     }
+
     sb.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         mostrarTelaNovaSenhaRecuperacao();
       }
     });
+
+    // Se o link de recuperação trouxe a pessoa pra cá, NÃO chama boot() ainda —
+    // senão ele detecta a sessão já criada pelo Supabase e loga direto no painel,
+    // pulando a tela de definir nova senha. boot() só roda depois que ela salvar a senha.
+    if (urlIndicaRecuperacaoSenha()) {
+      mostrarTelaNovaSenhaRecuperacao();
+      return;
+    }
+
     await boot();
   })();
 </script>
