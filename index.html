@@ -285,7 +285,7 @@
   <div class="login-card">
     <div class="badge">🛵</div>
     <h2>Use o app de entregas</h2>
-    <p>Este painel é exclusivo da equipe do restaurante. Motoboys acompanham as entregas pelo PWA do Motoboy.</p>
+    <p>Este painel é exclusivo da equipe do restaurante. Motoboys acompanham as entregas pelo App do Motoboy.</p>
     <button class="primary" onclick="logout()">Entendi, sair</button>
   </div>
 </div>
@@ -318,9 +318,9 @@
       <button class="navitem" id="navEquipe" onclick="switchView('equipe')" style="display:none"><span class="ic">🛡️</span> Gestão de Equipe</button>
       <button class="navitem" id="navMarca" onclick="switchView('marca')" style="display:none"><span class="ic">⚙️</span> Personalizar Marca</button>
       <div class="sidebar__divider"></div>
-      <div class="sidebar__section-label">Acessar PWAs</div>
-      <button class="navitem" onclick="abrirPwaCliente()"><span class="ic">📱</span> PWA do Cliente</button>
-      <button class="navitem" onclick="abrirPwaMotoboy()"><span class="ic">🛵</span> PWA do Motoboy</button>
+      <div class="sidebar__section-label">Acessar Apps</div>
+      <button class="navitem" onclick="abrirPwaCliente()"><span class="ic">📱</span> App do Cliente</button>
+      <button class="navitem" onclick="abrirPwaMotoboy()"><span class="ic">🛵</span> App do Motoboy</button>
       <div class="sidebar__footer">
         <button class="install-btn" id="installBtnApp" onclick="installApp()">⬇ Instalar aplicativo</button>
         <div class="admin-badge">
@@ -688,7 +688,7 @@
       </select>
     </div>
     <div class="field"><label>Placa (opcional)</label><input id="entPlaca" placeholder="ABC-1234"></div>
-    <p style="font-size:11.5px; color:var(--muted); margin:-4px 0 12px;">Essa senha é o que o entregador usa pra entrar no PWA do Motoboy junto com o telefone.</p>
+    <p style="font-size:11.5px; color:var(--muted); margin:-4px 0 12px;">Essa senha é o que o entregador usa pra entrar no App do Motoboy junto com o telefone.</p>
     <div class="modal-actions">
       <button class="btn" onclick="closeEntregador()">Cancelar</button>
       <button class="btn primary" onclick="submitEntregador()">Salvar entregador</button>
@@ -953,7 +953,7 @@ async function salvarNovaSenhaRecuperacao() {
     }
     document.getElementById('primeiroAcessoScreen').style.display = 'none';
 
-    // Motoboy não tem acesso ao painel administrativo — só ao PWA de entregas.
+    // Motoboy não tem acesso ao painel administrativo — só ao App de entregas.
     if (userRow.role === 'motoboy') {
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('motoboyBloqueadoScreen').style.display = 'flex';
@@ -1641,7 +1641,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
 
     // Numeração diária: agora é automática (trigger no banco), não precisa mais
     // chamar a função manualmente aqui — funciona igual para pedidos vindos
-    // do painel ou do PWA do cliente.
+    // do painel ou do App do Cliente.
     const { data: pedido, error: pedErr } = await sb.from('pedidos')
       .insert({
         restaurante_id: restauranteId, cliente_id: clienteId, tipo, forma_pagamento: forma,
@@ -2298,7 +2298,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     const veiculo = document.getElementById('entVeiculo').value;
     const placa = document.getElementById('entPlaca').value.trim() || null;
     if (!nome) { showToast('Faltou o nome', 'Informe o nome do entregador.'); return; }
-    if (!telefone) { showToast('Faltou o telefone', 'Informe o telefone (usado pra login no PWA do Motoboy).'); return; }
+    if (!telefone) { showToast('Faltou o telefone', 'Informe o telefone (usado pra login no App do Motoboy).'); return; }
 
     if (id) {
       // Edição: atualiza nome/telefone (usuarios) e veículo/placa (motoboys)
@@ -2327,7 +2327,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     if (error) { showToast('Erro ao criar entregador', error.message); return; }
 
     closeEntregador();
-    showToast('Entregador criado', `${nome} já pode entrar no PWA do Motoboy com o telefone e a senha definida.`);
+    showToast('Entregador criado', `${nome} já pode entrar no App do Motoboy com o telefone e a senha definida.`);
     await loadEntregadores();
   }
 
