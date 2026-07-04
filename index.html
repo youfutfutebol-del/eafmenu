@@ -1554,11 +1554,47 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
         await sb.from('clientes').update({ nome }).eq('id', clienteId);
       }
     } else {
-      const { data: cliente, error: cliErr } = await sb.from('clientes')
-        .insert({ nome, telefone: telefone || null, restaurante_id: restauranteId, auth_user_id: null })
-        .select().single();
-      if (cliErr) { showToast('Erro ao criar cliente', cliErr.message); return; }
-      clienteId = cliente.id;
+      // Checagem final por telefone antes de criar — evita duplicidade se a busca
+      // automática (com debounce) ainda não tinha rodado quando o pedido foi enviado.
+      let clienteExistente = null;
+      if (telefone) {
+        const { data } = await sb.from('clientes')
+          .select('id, nome')
+          .eq('restaurante_id', restauranteId)
+          .eq('telefone', telefone)
+          .maybeSingle();
+        clienteExistente = data;
+      }
+
+      if (clienteExistente) {
+        clienteId = clienteExistente.id;
+        if (clienteExistente.nome !== nome) {
+          await sb.from('clientes').update({ nome }).eq('id', clienteId);
+        }
+      } else {
+        const { data: cliente, error: cliErr } = await sb.from('clientes')
+          .insert({ nome, telefone: telefone || null, restaurante_id: restauranteId, auth_user_id: null })
+          .select().single();
+
+        if (cliErr) {
+          // Corrida rara: alguém criou o mesmo telefone entre a checagem acima e o insert.
+          if (cliErr.code === '23505' && telefone) {
+            const { data: clienteCorrida } = await sb.from('clientes')
+              .select('id').eq('restaurante_id', restauranteId).eq('telefone', telefone).maybeSingle();
+            if (clienteCorrida) {
+              clienteId = clienteCorrida.id;
+            } else {
+              showToast('Erro ao criar cliente', cliErr.message);
+              return;
+            }
+          } else {
+            showToast('Erro ao criar cliente', cliErr.message);
+            return;
+          }
+        } else {
+          clienteId = cliente.id;
+        }
+      }
     }
 
     // Endereço de entrega (só quando o tipo é entrega)
