@@ -157,6 +157,10 @@
   </div>
 
   <div class="main">
+    <div id="statsEntregas" style="background:#fff; border:1px solid var(--border); border-radius:12px; padding:12px 16px; margin-bottom:14px; font-size:13px; font-weight:700; display:flex; justify-content:space-around; text-align:center;">
+      <span>Hoje: <b id="statHoje">0</b></span>
+      <span>Total: <b id="statTotal">0</b></span>
+    </div>
     <div id="entregasList">
       <div class="empty-state">
         <div class="ic">🛵</div>
@@ -327,6 +331,7 @@
 
     await carregarDisponibilidade();
     await carregarEntregas();
+    await carregarStatsEntregas();
     subscribeTrackingEntregas();
   }
 
@@ -433,6 +438,37 @@
     if (error) { showToast('Erro', error.message); return; }
     showToast('Entrega concluída', 'Bom trabalho! 🎉');
     await carregarEntregas();
+    await carregarStatsEntregas();
+  }
+
+  // Mesmo corte de 7h usado no resto do sistema, calculado em Brasília
+  // independente do fuso horário configurado no celular do motoboy.
+  const HORA_RESET_PEDIDOS_MOTOBOY = 7;
+  function dataDiaComercialAtual() {
+    const partes = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false
+    }).formatToParts(new Date());
+    const mapa = {};
+    partes.forEach(p => mapa[p.type] = p.value);
+    let ano = parseInt(mapa.year, 10), mes = parseInt(mapa.month, 10), dia = parseInt(mapa.day, 10);
+    let hora = parseInt(mapa.hour, 10);
+    if (hora === 24) hora = 0;
+    if (hora < HORA_RESET_PEDIDOS_MOTOBOY) {
+      const d = new Date(Date.UTC(ano, mes - 1, dia));
+      d.setUTCDate(d.getUTCDate() - 1);
+      ano = d.getUTCFullYear(); mes = d.getUTCMonth() + 1; dia = d.getUTCDate();
+    }
+    return `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+  }
+
+  async function carregarStatsEntregas() {
+    const dataHoje = dataDiaComercialAtual();
+    const [{ count: hoje }, { count: total }] = await Promise.all([
+      sb.from('pedidos').select('id', { count: 'exact', head: true }).eq('motoboy_id', currentUser.id).eq('status', 'entregue').eq('data_pedido', dataHoje),
+      sb.from('pedidos').select('id', { count: 'exact', head: true }).eq('motoboy_id', currentUser.id).eq('status', 'entregue')
+    ]);
+    document.getElementById('statHoje').textContent = hoje || 0;
+    document.getElementById('statTotal').textContent = total || 0;
   }
 
   function subscribeTrackingEntregas() {
@@ -443,6 +479,7 @@
         async () => {
           beep();
           await carregarEntregas();
+          await carregarStatsEntregas();
         }
       )
       .subscribe();
