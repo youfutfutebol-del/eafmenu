@@ -139,6 +139,19 @@
 
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
+<div class="modal-bg" id="editarRestModalBg">
+  <div class="modal">
+    <h3>Editar restaurante</h3>
+    <input type="hidden" id="erId">
+    <div class="field"><label>Nome do restaurante</label><input id="erNome"></div>
+    <div class="field"><label>Link do cardápio (slug)</label><input id="erSlug" placeholder="ex: pizzaria-do-joao"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharEditarRestaurante()">Cancelar</button>
+      <button class="btn primary" onclick="submitEditarRestaurante()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <script>
   let sb = null;
   async function initSupabase() {
@@ -204,12 +217,65 @@
         <div>
           <div class="rest-card__nome">${r.nome}</div>
           <div class="rest-card__slug">${r.slug ? '/cliente/?r=' + r.slug : 'sem link ainda'}</div>
+          ${r.dono_nome ? `<div class="rest-card__slug" style="margin-top:2px;">Dono: ${r.dono_nome}${r.dono_telefone ? ' · ' + r.dono_telefone : ''}</div>` : ''}
         </div>
         <div class="rest-card__meta">
           <div class="rest-card__stat"><div class="num">${r.total_usuarios}</div><div class="label">Usuários</div></div>
+          <button class="btn" onclick='abrirEditarRestaurante(${JSON.stringify({ id: r.id, nome: r.nome, slug: r.slug })})'>Editar</button>
+          ${r.dono_id ? `<button class="btn" onclick="abrirResetSenhaDono('${r.dono_id}', '${r.dono_nome.replace(/'/g, "\\'")}')">Redefinir senha do dono</button>` : ''}
+          <button class="btn" style="color:var(--accent); border-color:#FCA5A5;" onclick="removerRestaurante('${r.id}', '${r.nome.replace(/'/g, "\\'")}')">Remover</button>
         </div>
       </div>
     `).join('');
+  }
+
+  function abrirEditarRestaurante(r) {
+    document.getElementById('erId').value = r.id;
+    document.getElementById('erNome').value = r.nome;
+    document.getElementById('erSlug').value = r.slug || '';
+    document.getElementById('editarRestModalBg').classList.add('show');
+  }
+  function fecharEditarRestaurante() { document.getElementById('editarRestModalBg').classList.remove('show'); }
+
+  async function submitEditarRestaurante() {
+    const id = document.getElementById('erId').value;
+    const nome = document.getElementById('erNome').value.trim();
+    const slug = document.getElementById('erSlug').value.trim();
+    if (!nome) { showToast('Faltou o nome', 'Informe o nome do restaurante.'); return; }
+
+    const { error } = await sb.rpc('super_admin_editar_restaurante', {
+      p_restaurante_id: id, p_novo_nome: nome, p_novo_slug: slug || null
+    });
+    if (error) { showToast('Erro ao salvar', error.message); return; }
+    fecharEditarRestaurante();
+    showToast('Restaurante atualizado', nome);
+    await carregarRestaurantes();
+  }
+
+  function abrirResetSenhaDono(donoId, donoNome) {
+    const novaSenha = prompt(`Nova senha de acesso para ${donoNome} (mín. 4 caracteres):`);
+    if (novaSenha === null) return;
+    if (novaSenha.trim().length < 4) { showToast('Senha muito curta', 'Use pelo menos 4 caracteres.'); return; }
+    redefinirSenhaDono(donoId, novaSenha.trim(), donoNome);
+  }
+
+  async function redefinirSenhaDono(donoId, novaSenha, donoNome) {
+    const { error } = await sb.rpc('super_admin_redefinir_senha', { p_usuario_id: donoId, p_nova_senha: novaSenha });
+    if (error) { showToast('Erro ao redefinir senha', error.message); return; }
+    showToast('Senha redefinida', `Nova senha de ${donoNome} definida.`);
+  }
+
+  async function removerRestaurante(id, nome) {
+    const confirmacao = prompt(`Isso apaga "${nome}" e TODOS os dados dele (pedidos, produtos, clientes, equipe) para sempre — não dá pra desfazer.\n\nDigite o nome do restaurante pra confirmar:`);
+    if (confirmacao === null) return;
+    if (confirmacao.trim().toLowerCase() !== nome.trim().toLowerCase()) {
+      showToast('Não removido', 'O nome digitado não bateu com o nome do restaurante.');
+      return;
+    }
+    const { error } = await sb.rpc('remover_restaurante', { p_restaurante_id: id });
+    if (error) { showToast('Erro ao remover', error.message); return; }
+    showToast('Restaurante removido', nome);
+    await carregarRestaurantes();
   }
 
   function abrirNovoRestaurante() {
