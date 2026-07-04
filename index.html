@@ -331,6 +331,7 @@
           Som de Pedidos
           <button class="switch on" id="soundSwitch" onclick="toggleSound()"></button>
         </div>
+        <button class="logout-btn" style="color:#D4D4D8;" onclick="abrirTrocarMinhaSenha()">🔑 Trocar minha senha</button>
         <button class="logout-btn" onclick="logout()">⎋ Sair do Painel</button>
       </div>
     </div>
@@ -733,6 +734,18 @@
   </div>
 </div>
 
+<div class="modal-bg" id="minhaSenhaModalBg">
+  <div class="modal">
+    <h3>Trocar minha senha</h3>
+    <div class="field"><label>Nova senha</label><input type="password" id="msNovaSenha" placeholder="Mín. 4 caracteres"></div>
+    <div class="field"><label>Confirmar nova senha</label><input type="password" id="msNovaSenhaConfirm"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharTrocarMinhaSenha()">Cancelar</button>
+      <button class="btn primary" onclick="submitTrocarMinhaSenha()">Salvar nova senha</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
 <script>
@@ -887,6 +900,25 @@ async function salvarNovaSenhaRecuperacao() {
   setLoginMsg('Senha redefinida! Entrando...', false);
   await boot();
 }
+
+  function abrirTrocarMinhaSenha() {
+    document.getElementById('msNovaSenha').value = '';
+    document.getElementById('msNovaSenhaConfirm').value = '';
+    document.getElementById('minhaSenhaModalBg').classList.add('show');
+  }
+  function fecharTrocarMinhaSenha() { document.getElementById('minhaSenhaModalBg').classList.remove('show'); }
+
+  async function submitTrocarMinhaSenha() {
+    const nova = document.getElementById('msNovaSenha').value;
+    const conf = document.getElementById('msNovaSenhaConfirm').value;
+    if (!nova || nova.length < 4) { showToast('Senha muito curta', 'Use pelo menos 4 caracteres.'); return; }
+    if (nova !== conf) { showToast('Senhas diferentes', 'A confirmação não bateu com a nova senha.'); return; }
+
+    const { error } = await sb.auth.updateUser({ password: nova });
+    if (error) { showToast('Erro ao trocar senha', error.message); return; }
+    fecharTrocarMinhaSenha();
+    showToast('Senha atualizada', 'Sua senha foi trocada com sucesso.');
+  }
 
   async function logout() {
     await sb.auth.signOut();
@@ -2260,6 +2292,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
                 ${Object.keys(ROLE_LABEL).map(r => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}
               </select>
               ${u.id === currentUser.id ? '' : `<button onclick="toggleAtivoUsuario('${u.id}', ${u.ativo})">${u.ativo ? 'Desligar acesso' : 'Liberar acesso'}</button>`}
+              ${(u.id !== currentUser.id && currentUser.role === 'dono') ? `<button onclick="abrirResetSenhaEquipe('${u.id}', '${u.nome.replace(/'/g, "\\'")}')">Redefinir senha</button>` : ''}
               ${u.id === currentUser.id ? '' : `<button class="danger" onclick="removerMembro('${u.id}', '${u.nome.replace(/'/g, "\\'")}')">Remover</button>`}
             </div>
           </td>
@@ -2280,6 +2313,19 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     }
   }
 
+  function abrirResetSenhaEquipe(id, nome) {
+    const novaSenha = prompt(`Nova senha de acesso para ${nome} (mín. 4 caracteres):`);
+    if (novaSenha === null) return;
+    if (novaSenha.trim().length < 4) { showToast('Senha muito curta', 'Use pelo menos 4 caracteres.'); return; }
+    redefinirSenhaEquipe(id, novaSenha.trim(), nome);
+  }
+
+  async function redefinirSenhaEquipe(id, novaSenha, nome) {
+    const { error } = await sb.rpc('redefinir_senha_usuario', { p_usuario_id: id, p_nova_senha: novaSenha });
+    if (error) { showToast('Erro ao redefinir senha', error.message); return; }
+    showToast('Senha redefinida', `Nova senha de ${nome} definida.`);
+  }
+
   async function toggleAtivoUsuario(id, ativoAtual) {
     const { error } = await sb.from('usuarios').update({ ativo: !ativoAtual }).eq('id', id);
     if (error) { showToast('Erro ao atualizar acesso', error.message); return; }
@@ -2295,7 +2341,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     const roleSelect = document.getElementById('mbRole');
     // Gerente não pode criar outro gerente ou dono (regra também aplicada no banco).
     [...roleSelect.options].forEach(opt => {
-      opt.disabled = (currentUser.role === 'gerente' && (opt.value === 'gerente' || opt.value === 'dono'));
+      opt.disabled = (currentUser.role === 'gerente' && opt.value === 'dono');
     });
     roleSelect.value = 'atendente';
     document.getElementById('membroModalBg').classList.add('show');
