@@ -533,7 +533,7 @@
             <div class="entrega-card__cliente">${o.clientes?.nome || 'Cliente'}</div>
             ${enderecoStr ? `<div class="entrega-card__endereco">📍 <span>${enderecoStr}</span></div>` : ''}
             <div class="entrega-card__itens">${itens || 'sem itens'}</div>
-            ${(o.forma_pagamento === 'dinheiro' && o.troco_para) ? `<div style="background:#FEF3C7; color:#92400E; font-weight:700; font-size:12px; padding:8px 10px; border-radius:8px; margin-bottom:10px;">💵 Levar troco para R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')}</div>` : ''}
+            ${(o.forma_pagamento === 'dinheiro' && o.troco_para) ? `<div style="background:#FEF3C7; color:#92400E; font-weight:700; font-size:12px; padding:8px 10px; border-radius:8px; margin-bottom:10px;">💵 Troco: R$ ${(Number(o.troco_para) - Number(o.total)).toFixed(2).replace('.', ',')} (cliente paga com R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')})</div>` : ''}
             <div class="entrega-card__footer">
               <span class="entrega-card__total">R$ ${Number(o.total).toFixed(2).replace('.', ',')}</span>
             </div>
