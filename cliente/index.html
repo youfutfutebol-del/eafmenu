@@ -434,7 +434,7 @@
     if (!res.ok) throw new Error('Falha ao buscar /api/config');
     const { url, anonKey } = await res.json();
     if (!url || !anonKey) throw new Error('Config incompleta');
-    sb = supabase.createClient(url, anonKey);
+    sb = supabase.createClient(url, anonKey, { auth: { storageKey: 'eaf-cliente-auth' } });
   }
 
   // =====================================================================
