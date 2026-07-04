@@ -1005,9 +1005,11 @@
         session = data.session;
       }
 
-      const { data: novoCliente, error: cliErr } = await sb.from('clientes')
-        .insert({ nome, telefone, restaurante_id: restaurante.id, auth_user_id: session.user.id })
-        .select('id, nome, telefone').single();
+      const { data: novoCliente, error: cliErr } = await sb.rpc('vincular_cliente_por_telefone', {
+        p_restaurante_id: restaurante.id,
+        p_telefone: telefone,
+        p_nome: nome
+      });
       if (cliErr) throw cliErr;
 
       salvarSessaoCliente(novoCliente);
