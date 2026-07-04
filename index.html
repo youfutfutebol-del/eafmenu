@@ -701,6 +701,10 @@
     <div class="field"><label>Nome</label><input id="mbNome" placeholder="Nome completo"></div>
     <div class="field"><label>Telefone</label><input id="mbTelefone" placeholder="(41) 9...."></div>
     <div class="field"><label>E-mail (opcional)</label><input id="mbEmail" type="email" placeholder="email@exemplo.com"></div>
+    <div class="field">
+      <label>Senha de acesso</label>
+      <input id="mbSenha" placeholder="Defina a senha (mín. 4 caracteres)">
+    </div>
     <div class="field"><label>Cargo</label>
       <select id="mbRole">
         <option value="atendente">Atendente</option>
@@ -709,7 +713,7 @@
         <option value="dono">Dono</option>
       </select>
     </div>
-    <p style="font-size:11.5px; color:var(--muted); margin:-4px 0 12px;">Uma senha provisória é gerada automaticamente. Você vai precisar repassá-la para a pessoa (WhatsApp, verbalmente etc.) — o sistema não envia nada por conta própria.</p>
+    <p style="font-size:11.5px; color:var(--muted); margin:-4px 0 12px;">Você define a senha agora e repassa pra pessoa (WhatsApp, verbalmente etc.) — o sistema não envia nada por conta própria.</p>
     <div class="modal-actions">
       <button class="btn" onclick="closeMembro()">Cancelar</button>
       <button class="btn primary" onclick="submitMembro()">Criar usuário</button>
@@ -2239,6 +2243,7 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     document.getElementById('mbNome').value = '';
     document.getElementById('mbTelefone').value = '';
     document.getElementById('mbEmail').value = '';
+    document.getElementById('mbSenha').value = '';
     const roleSelect = document.getElementById('mbRole');
     // Gerente não pode criar outro gerente ou dono (regra também aplicada no banco).
     [...roleSelect.options].forEach(opt => {
@@ -2253,27 +2258,24 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     const nome = document.getElementById('mbNome').value.trim();
     const telefone = document.getElementById('mbTelefone').value.trim();
     const email = document.getElementById('mbEmail').value.trim().toLowerCase();
+    const senha = document.getElementById('mbSenha').value;
     const role = document.getElementById('mbRole').value;
     if (!nome) { showToast('Faltou o nome', 'Informe o nome da pessoa.'); return; }
     if (!telefone) { showToast('Faltou o telefone', 'Informe o telefone da pessoa (usado para o login).'); return; }
+    if (!senha || senha.length < 4) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 4 caracteres.'); return; }
 
     const { data, error } = await sb.rpc('criar_usuario_equipe', {
       p_nome: nome,
       p_telefone: telefone,
       p_email: email || null,
-      p_role: role
+      p_role: role,
+      p_senha: senha
     });
 
     if (error) { showToast('Erro ao criar usuário', error.message); return; }
 
-    const resultado = Array.isArray(data) ? data[0] : data;
     closeMembro();
-    alert(
-      `Usuário "${nome}" criado com sucesso!\n\n` +
-      `Login: ${telefone}\n` +
-      `Senha provisória: ${resultado.senha_provisoria}\n\n` +
-      `Repasse esses dados pra pessoa (ela vai ter que trocar a senha no primeiro acesso).`
-    );
+    showToast(`Usuário "${nome}" criado`, `Login: ${telefone} · Senha: a que você definiu`);
     await loadEquipe();
   }
 
@@ -2528,6 +2530,14 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     sb.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         mostrarTelaNovaSenhaRecuperacao();
+        return;
+      }
+      // Sessão caiu (token expirou, ou foi encerrada em outro dispositivo/aba) enquanto
+      // o painel estava aberto: em vez de deixar a tela "logada" travada e sem funcionar,
+      // volta sozinho pra tela de login.
+      if (event === 'SIGNED_OUT' && document.getElementById('app').style.display === 'block') {
+        setLoginMsg('Sua sessão expirou. Faça login novamente.', true);
+        location.reload();
       }
     });
 
