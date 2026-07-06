@@ -286,6 +286,8 @@
 
   let trackingChannel = null;
   let abaAtual = 'rota';
+  let entregasRefreshInterval = null;
+  let visibilityListenerRegistrado = false;
 
   // =====================================================================
   // LOGIN
@@ -373,6 +375,7 @@
 
   async function logout() {
     if (trackingChannel) sb.removeChannel(trackingChannel);
+    if (entregasRefreshInterval) clearInterval(entregasRefreshInterval);
     await sb.auth.signOut();
     location.reload();
   }
@@ -424,6 +427,7 @@
     await carregarEntregas();
     await carregarStatsEntregas();
     subscribeTrackingEntregas();
+    iniciarRefreshEntregasMotoboy();
   }
 
   async function salvarSenhaPrimeiroAcesso() {
@@ -557,16 +561,36 @@
 
   function subscribeTrackingEntregas() {
     if (trackingChannel) sb.removeChannel(trackingChannel);
-    trackingChannel = sb.channel('motoboy-entregas-' + currentUser.id)
+    trackingChannel = sb.channel('motoboy-entregas-restaurante-' + currentUser.restaurante_id)
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'pedidos', filter: `motoboy_id=eq.${currentUser.id}` },
+        { event: '*', schema: 'public', table: 'pedidos', filter: `restaurante_id=eq.${currentUser.restaurante_id}` },
         async () => {
-          beep();
-          await carregarEntregas();
-          await carregarStatsEntregas();
+          await refreshEntregasMotoboy();
         }
       )
       .subscribe();
+  }
+
+  async function refreshEntregasMotoboy() {
+    if (!currentUser) return;
+    try {
+      await carregarEntregas();
+      await carregarStatsEntregas();
+    } catch (e) {
+      console.error('Falha ao atualizar entregas do motoboy:', e);
+    }
+  }
+
+  function iniciarRefreshEntregasMotoboy() {
+    if (entregasRefreshInterval) clearInterval(entregasRefreshInterval);
+    entregasRefreshInterval = setInterval(refreshEntregasMotoboy, 30000);
+
+    if (!visibilityListenerRegistrado) {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') refreshEntregasMotoboy();
+      });
+      visibilityListenerRegistrado = true;
+    }
   }
 
   // Mesmo corte de 7h usado no resto do sistema, calculado em Brasília
