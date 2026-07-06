@@ -587,3 +587,39 @@ O fechamento automático vale para o cardápio público/cliente. O painel admin 
 - lógica de preço/total
 - `horarios_semana`
 - pedido manual
+
+---
+
+## Checkpoint UX/Operacional — Pedido Manual estilo PDV
+
+**Status:** ✅ Concluído
+
+### Resumo
+A tela de "Lançar pedido manual" foi melhorada para ficar mais parecida com um PDV/caixa, facilitando a operação do atendente.
+
+### Itens concluídos
+- ✅ Adicionado campo de pesquisa de produto
+- ✅ Produtos/tamanhos agora podem ser filtrados antes de adicionar
+- ✅ Itens adicionados aparecem em uma lista clara
+- ✅ Adicionado botão para remover item
+- ✅ Adicionados controles de quantidade com + e -
+- ✅ Produto/tamanho repetido soma quantidade na mesma linha
+- ✅ Total visível no modal, atualizado em tempo real
+- ✅ Pedido manual continua usando a mesma lógica de criação no banco
+- ✅ Pedido manual continua permitido fora do horário de funcionamento
+
+### Arquivos alterados
+- `index.html`
+- `assets/js/pedido-manual.js`
+- `assets/css/painel.css`
+
+### Não houve alteração em
+- SQL
+- RLS
+- RPCs
+- triggers financeiras
+- lógica de preço/total no banco
+- bloqueio de horário no pedido manual
+
+### Decisão de produto
+O pedido manual deve funcionar como ferramenta interna de operação. Mesmo com a loja fechada no cardápio público, o atendente pode lançar pedido por telefone, balcão, exceção operacional ou pré-venda.
