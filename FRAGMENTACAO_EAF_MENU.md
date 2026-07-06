@@ -550,3 +550,40 @@ Foram revisados e corrigidos os principais pontos sensíveis de segurança do EA
 
 ### Conclusão
 O sistema está em posição sólida de segurança para entrada dos primeiros restaurantes reais.
+
+---
+
+## Checkpoint Operacional — Horário de Funcionamento
+
+**Status:** ✅ Concluído
+
+### Resumo
+Foi ajustado o comportamento visual e operacional relacionado ao horário de funcionamento dos restaurantes.
+
+### Itens concluídos
+- ✅ Removido o subtítulo abaixo de "Monitor de Pedidos em Tempo Real" no painel admin
+- ✅ Mantida a lógica interna de dia comercial/reset às 7h funcionando por baixo
+- ✅ Mantida a exibição de status aberto/fechado no cardápio público
+- ✅ Mantido o bloqueio de checkout quando o restaurante está fechado
+- ✅ Mantida a dupla validação no cliente:
+  - antes de abrir o checkout
+  - antes de inserir o pedido em `confirmarPedido()`
+- ✅ Ajustada a mensagem para: "Restaurante fechado no momento. Volte no próximo horário de funcionamento."
+- ✅ Pedido manual no admin continua permitido fora do horário de funcionamento
+
+### Decisão de produto
+O fechamento automático vale para o cardápio público/cliente. O painel admin continua operacional mesmo fora do horário. Pedido manual continua permitido, pois pode representar telefone, balcão, exceção operacional ou pré-venda.
+
+### Arquivos alterados
+- `index.html`
+- `assets/js/dia-comercial.js`
+- `cliente/index.html`
+
+### Não houve alteração em
+- SQL
+- RLS
+- RPCs
+- triggers financeiras
+- lógica de preço/total
+- `horarios_semana`
+- pedido manual
