@@ -219,3 +219,26 @@
     .horario-dia-row { flex-wrap:wrap; }
     .horario-dia-tempos { width:100%; }
   }
+
+/* ===== Pedido Manual (PDV) — busca de produto, carrinho de itens, total ===== */
+.pm-section-label { font-size:11px; font-weight:800; color: var(--muted); text-transform:uppercase; letter-spacing:.04em; margin: 16px 0 8px; }
+.pm-busca-row { margin-bottom: 8px; }
+.pm-busca-row input { width:100%; padding:9px 10px; border:1px solid var(--border); border-radius:8px; font-size:13px; }
+.pm-add-row { display:flex; gap:8px; margin-bottom:10px; }
+.pm-select-produto { flex:1; padding:9px 10px; border:1px solid var(--border); border-radius:8px; font-size:12.5px; min-width:0; }
+.pm-qtd-add { width:64px; padding:9px 8px; border:1px solid var(--border); border-radius:8px; font-size:13px; text-align:center; }
+.pm-btn-add { flex:none; padding:9px 16px; }
+.pm-itens-lista { background:#FAFAFA; border:1px solid var(--border); border-radius:10px; padding: 4px 12px; margin-bottom:14px; max-height:220px; overflow-y:auto; }
+.pm-itens-vazio { font-size:12.5px; color:var(--muted); text-align:center; padding:18px 8px; margin:0; }
+.pm-item-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px dashed var(--border); }
+.pm-item-row:last-child { border-bottom:none; }
+.pm-item-info { flex:1; min-width:0; }
+.pm-item-nome { font-weight:700; font-size:12.5px; margin:0; }
+.pm-item-tamanho { font-weight:600; color:var(--muted); }
+.pm-item-preco { font-size:11px; color:var(--muted); margin:2px 0 0; }
+.pm-item-qtd { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.pm-item-qtd button { width:22px; height:22px; border-radius:50%; border:1px solid var(--border); background:#fff; font-size:12px; line-height:1; }
+.pm-item-qtd span { min-width:16px; text-align:center; font-weight:700; font-size:12.5px; }
+.pm-item-subtotal { font-weight:800; font-size:12.5px; min-width:64px; text-align:right; flex-shrink:0; }
+.pm-item-remover { background:none; border:none; color: var(--red); font-size:14px; padding:4px; flex-shrink:0; }
+.pm-total-row { display:flex; justify-content:space-between; align-items:center; font-size:15px; font-weight:800; border-top:1px solid var(--border); padding-top:12px; margin-top:4px; }
