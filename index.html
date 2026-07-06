@@ -688,6 +688,7 @@
 
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
+<script src="/assets/js/utils.js"></script>
 <script>
   let sb = null;
 
@@ -979,8 +980,6 @@ async function salvarNovaSenhaRecuperacao() {
     closeDrawer();
   }
 
-  function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
-
   function openDrawer() {
     document.getElementById('sidebarEl').classList.add('open');
     document.getElementById('drawerOverlay').classList.add('show');
@@ -1027,10 +1026,6 @@ async function salvarNovaSenhaRecuperacao() {
     return `${y}-${m}-${d}`;
   }
 
-  function formatHoraCurta(d) {
-    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  }
-
   function atualizarSubtituloPedidos() {
     const el = document.getElementById('pedidosSubtitle');
     if (!el) return;
@@ -1067,13 +1062,6 @@ async function salvarNovaSenhaRecuperacao() {
     const minuto = parseInt(partes.find(p => p.type === 'minute').value, 10);
     if (hora === 24) hora = 0;
     return { diaSemana, minutosDoDia: hora * 60 + minuto };
-  }
-
-  function formatarDuracao(min) {
-    const h = Math.floor(min / 60);
-    const m = min % 60;
-    if (h > 0) return `${h}h${String(m).padStart(2, '0')}min`;
-    return `${m}min`;
   }
 
   // Retorna { aberto, minutosRestantes, minutosParaAbrir } com base em horariosLojaAtual
@@ -1699,13 +1687,6 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     loadMovimentacoes();
   }
 
-  function formatMoeda(v) {
-    return 'R$ ' + Number(v).toFixed(2).replace('.', ',');
-  }
-  function formatData(iso) {
-    return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  }
-
   function renderExtrato() {
     const totalEntradas = movimentacoes.filter(m => m.tipo === 'receita').reduce((s, m) => s + Number(m.valor), 0);
     const totalSaidas = movimentacoes.filter(m => m.tipo === 'despesa').reduce((s, m) => s + Number(m.valor), 0);
@@ -1937,7 +1918,6 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
   // ---------------------------------------------------------------------
   // RELATÓRIO FINANCEIRO (só dono — a RPC bloqueia qualquer outro role por dentro)
   // ---------------------------------------------------------------------
-  function formatMoedaRel(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ','); }
 
   async function loadRelatorioFinanceiro() {
     document.getElementById('relPeriodoResultado').classList.add('hidden');
@@ -2776,14 +2756,6 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     await loadEquipe();
   }
 
-  function slugify(texto) {
-    return (texto || '')
-      .toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
-  }
-
   function atualizarLinkCardapioPreview() {
     const slug = document.getElementById('mkSlug').value.trim();
     document.getElementById('mkLinkPreview').textContent = slug ? (location.origin + '/cliente/?r=' + slugify(slug)) : '—';
@@ -2975,15 +2947,6 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
     } catch (e) {}
   }
   function testAlert() { beep(); showToast('Teste de alerta', 'Assim que soa um pedido novo.'); }
-
-  function showToast(title, body) {
-    const t = document.getElementById('toast');
-    document.getElementById('toastTitle').textContent = title;
-    document.getElementById('toastBody').textContent = body;
-    t.classList.add('show');
-    clearTimeout(t._timer);
-    t._timer = setTimeout(() => t.classList.remove('show'), 3600);
-  }
 
   let deferredInstallPrompt = null;
 
