@@ -485,7 +485,7 @@
 
     if (!restauranteSlug) { showInvalido(); return; }
 
-    const { data, error } = await sb.from('restaurantes')
+    const { data, error } = await sb.from('restaurantes_publico')
       .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horarios_semana, taxa_entrega_padrao')
       .eq('slug', restauranteSlug)
       .maybeSingle();
