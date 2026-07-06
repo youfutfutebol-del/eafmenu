@@ -5,8 +5,9 @@
 // loadPedidos() (pedidos.js). So chamadas apos o script principal rodar.
 // Continuam globais (sem type=module).
 
+  let pedidoManualItens = [];
+
   function openManualOrder() {
-    document.getElementById('mItens').innerHTML = '';
     document.getElementById('mCliTel').value = '';
     document.getElementById('mCliNome').value = '';
     document.getElementById('mTipo').value = 'retirada';
@@ -16,10 +17,14 @@
     document.getElementById('mEndComplemento').value = '';
     document.getElementById('mForma').value = 'dinheiro';
     document.getElementById('mTrocoPara').value = '';
+    document.getElementById('mBuscaProduto').value = '';
+    document.getElementById('mQtdAdicionar').value = 1;
     onFormaPagamentoManualChange();
     limparLookupCliente();
     onTipoManualChange();
-    addItemLine();
+    pedidoManualItens = [];
+    filtrarProdutosBusca();
+    renderItensManualLista();
     document.getElementById('manualModalBg').classList.add('show');
   }
 
@@ -101,16 +106,98 @@
     }
   }
 
-  function addItemLine() {
+  function obterOpcoesProdutoFlat() {
+    return produtosCache.flatMap(p => (p.produto_precos || []).map(pp => ({
+      precoId: pp.id,
+      produtoId: p.id,
+      opcaoTamanhoId: pp.opcao_tamanho_id || null,
+      nomeProduto: p.nome,
+      nomeTamanho: pp.opcoes_tamanho ? pp.opcoes_tamanho.nome : null,
+      preco: Number(pp.preco)
+    })));
+  }
+
+  function filtrarProdutosBusca() {
+    const termo = document.getElementById('mBuscaProduto').value.trim().toLowerCase();
+    const todas = obterOpcoesProdutoFlat();
+    const filtradas = termo
+      ? todas.filter(o => o.nomeProduto.toLowerCase().includes(termo) || (o.nomeTamanho || '').toLowerCase().includes(termo))
+      : todas;
+    const sel = document.getElementById('mProdutoSelecionado');
+    sel.innerHTML = filtradas.length
+      ? filtradas.map(o => `<option value="${o.precoId}">${o.nomeProduto}${o.nomeTamanho ? ' - ' + o.nomeTamanho : ''} (${formatMoeda(o.preco)})</option>`).join('')
+      : '<option value="">Nenhum produto encontrado</option>';
+  }
+
+  function adicionarItemManual() {
+    const precoId = document.getElementById('mProdutoSelecionado').value;
+    if (!precoId) { showToast('Selecione um produto', 'Pesquise e escolha um produto antes de adicionar.'); return; }
+
+    const qtdInput = document.getElementById('mQtdAdicionar');
+    const qtd = Math.max(1, parseInt(qtdInput.value || '1', 10));
+
+    const opcao = obterOpcoesProdutoFlat().find(o => o.precoId === precoId);
+    if (!opcao) { showToast('Produto inválido', 'Tente pesquisar novamente.'); return; }
+
+    // Mesma combinação produto+tamanho já está no carrinho: soma a quantidade em vez de duplicar linha.
+    const existente = pedidoManualItens.find(i => i.precoId === precoId);
+    if (existente) {
+      existente.qtd += qtd;
+    } else {
+      pedidoManualItens.push({
+        uid: 'pm' + Date.now() + Math.random().toString(36).slice(2, 6),
+        precoId: opcao.precoId,
+        produtoId: opcao.produtoId,
+        opcaoTamanhoId: opcao.opcaoTamanhoId,
+        nomeProduto: opcao.nomeProduto,
+        nomeTamanho: opcao.nomeTamanho,
+        precoUnit: opcao.preco,
+        qtd
+      });
+    }
+
+    qtdInput.value = 1;
+    renderItensManualLista();
+  }
+
+  function removerItemManual(uid) {
+    pedidoManualItens = pedidoManualItens.filter(i => i.uid !== uid);
+    renderItensManualLista();
+  }
+
+  function alterarQtdItemManual(uid, delta) {
+    const item = pedidoManualItens.find(i => i.uid === uid);
+    if (!item) return;
+    item.qtd = Math.max(1, item.qtd + delta);
+    renderItensManualLista();
+  }
+
+  function renderItensManualLista() {
     const wrap = document.getElementById('mItens');
-    const row = document.createElement('div');
-    row.className = 'item-line';
-    const options = produtosCache.flatMap(p => (p.produto_precos || []).map(pp =>
-      `<option value="${pp.id}">${p.nome}${pp.opcoes_tamanho ? ' - ' + pp.opcoes_tamanho.nome : ''} (R$ ${Number(pp.preco).toFixed(2)})</option>`
-    )).join('');
-    row.innerHTML = `<select class="mItemPreco">${options || '<option value="">cadastre produtos primeiro</option>'}</select>
-                      <input class="mItemQtd" type="number" min="1" value="1">`;
-    wrap.appendChild(row);
+    if (pedidoManualItens.length === 0) {
+      wrap.innerHTML = '<p class="pm-itens-vazio">Nenhum item adicionado ainda. Pesquise um produto acima.</p>';
+    } else {
+      wrap.innerHTML = pedidoManualItens.map(item => `
+        <div class="pm-item-row">
+          <div class="pm-item-info">
+            <p class="pm-item-nome">${item.nomeProduto}${item.nomeTamanho ? ' <span class="pm-item-tamanho">(' + item.nomeTamanho + ')</span>' : ''}</p>
+            <p class="pm-item-preco">${formatMoeda(item.precoUnit)} un.</p>
+          </div>
+          <div class="pm-item-qtd">
+            <button type="button" onclick="alterarQtdItemManual('${item.uid}', -1)">−</button>
+            <span>${item.qtd}</span>
+            <button type="button" onclick="alterarQtdItemManual('${item.uid}', 1)">+</button>
+          </div>
+          <div class="pm-item-subtotal">${formatMoeda(item.precoUnit * item.qtd)}</div>
+          <button type="button" class="pm-item-remover" onclick="removerItemManual('${item.uid}')" title="Remover">🗑</button>
+        </div>`).join('');
+    }
+    atualizarTotalManualPreview();
+  }
+
+  function atualizarTotalManualPreview() {
+    const total = pedidoManualItens.reduce((s, i) => s + i.precoUnit * i.qtd, 0);
+    document.getElementById('mTotalPreview').textContent = formatMoeda(total);
   }
 
   async function submitManualOrder() {
@@ -198,10 +285,10 @@
       }
     }
 
-    const linhas = [...document.querySelectorAll('#mItens .item-line')].map(row => ({
-      precoId: row.querySelector('.mItemPreco').value,
-      qtd: parseInt(row.querySelector('.mItemQtd').value || '1', 10)
-    })).filter(l => l.precoId);
+    const linhas = pedidoManualItens.map(item => ({
+      precoId: item.precoId,
+      qtd: item.qtd
+    }));
 
     if (linhas.length === 0) { showToast('Faltou item', 'Adicione ao menos um item.'); return; }
 
@@ -240,6 +327,7 @@
     const { error: itensErr } = await sb.from('itens_pedido').insert(itensFinal);
     if (itensErr) { showToast('Erro ao salvar itens', itensErr.message); return; }
 
+    pedidoManualItens = [];
     closeManualOrder();
     showToast('Pedido #' + numeroDiario + ' lançado', nome + ' · R$ ' + total.toFixed(2).replace('.', ','));
     await loadPedidos();
