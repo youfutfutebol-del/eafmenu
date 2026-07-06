@@ -965,7 +965,7 @@
     if (cart.length === 0) { showToast('Carrinho vazio', 'Adicione itens antes de finalizar.'); return; }
 
     if (!atualizarStatusAberto()) {
-      showToast('Estamos fechados', 'Não é possível finalizar pedidos fora do horário de funcionamento.');
+      showToast('Restaurante fechado', 'Restaurante fechado no momento. Volte no próximo horário de funcionamento.');
       return;
     }
 
@@ -1150,7 +1150,7 @@
 
   async function confirmarPedido() {
     if (!atualizarStatusAberto()) {
-      showToast('Estamos fechados', 'Não é possível finalizar pedidos fora do horário de funcionamento.');
+      showToast('Restaurante fechado', 'Restaurante fechado no momento. Volte no próximo horário de funcionamento.');
       closeSheet('sheetCheckout');
       return;
     }
