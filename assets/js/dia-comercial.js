@@ -26,12 +26,10 @@
     return `${y}-${m}-${d}`;
   }
 
-  function atualizarSubtituloPedidos() {
-    const el = document.getElementById('pedidosSubtitle');
-    if (!el) return;
-    const inicio = inicioDiaComercial();
-    el.textContent = 'Pedidos desde as ' + formatHoraCurta(inicio) + ' de hoje · reinicia automaticamente às ' + String(HORA_RESET_PEDIDOS).padStart(2,'0') + 'h';
-  }
+  // Subtítulo removido da interface por decisão de produto (dono não precisa ver esse texto).
+  // Função mantida como no-op — iniciarResetDiarioPedidos() e boot() ainda a chamam,
+  // então isso evita mexer em mais nenhum outro lugar. Não escreve mais nada no DOM.
+  function atualizarSubtituloPedidos() {}
 
   function iniciarResetDiarioPedidos() {
     diaComercialAtualKey = diaComercialKey();
