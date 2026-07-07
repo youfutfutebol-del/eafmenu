@@ -322,6 +322,7 @@
       .select().single();
     if (pedErr) { showToast('Erro ao criar pedido', pedErr.message); return; }
     const numeroDiario = pedido.numero_diario;
+    pedidosCriadosManualmente.add(pedido.id);
 
     const itensFinal = itensParaInserir.map(i => ({ ...i, pedido_id: pedido.id }));
     const { error: itensErr } = await sb.from('itens_pedido').insert(itensFinal);
