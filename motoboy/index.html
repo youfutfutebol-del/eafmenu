@@ -236,6 +236,7 @@
       <div class="topbar__right">
         <button class="logout-btn" onclick="logout()">⎋ Sair</button>
         <button class="tema-toggle-btn" id="temaToggleBtn" onclick="toggleModoNoturno()" title="Alternar tema">🌙</button>
+        <button class="tema-toggle-btn" id="btnTestarSomDevMotoboy" style="display:none;" onclick="tocarNovaEntregaMotoboy()" title="Testar som (dev)">🔔</button>
         <div class="disp-toggle">
           Disponível
           <button class="switch on" id="dispSwitch" onclick="toggleDisponivel()"></button>
@@ -286,6 +287,7 @@
 
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
+<script src="/assets/js/sons.js"></script>
 <script>
   let sb = null;
 
@@ -308,6 +310,12 @@
   }
 
   aplicarModoNoturno();
+
+  // Botão temporário de teste de som real — só em ambiente local, remover depois de validar em produção.
+  if (location.hostname === 'localhost') {
+    const btnTestarSomMotoboy = document.getElementById('btnTestarSomDevMotoboy');
+    if (btnTestarSomMotoboy) btnTestarSomMotoboy.style.display = 'inline-flex';
+  }
 
   async function initSupabase() {
     const res = await fetch('/api/config');
@@ -525,7 +533,11 @@
   // =====================================================================
   // ROTA DE HOJE (entregas ativas)
   // =====================================================================
+  let motoboyJaCarregouEntregasUmaVez = false;
+
   async function carregarEntregas() {
+    const idsAntes = new Set(entregas.map(e => e.id));
+
     const { data, error } = await sb.from('pedidos')
       .select(`
         id, numero_diario, tipo, status, total, criado_em, forma_pagamento, troco_para, observacoes,
@@ -539,6 +551,15 @@
 
     if (error) { console.error(error); return; }
     entregas = data || [];
+
+    // Só toca som se já tinha carregado antes (nunca ao abrir o app com entregas já existentes)
+    // e se apareceu um pedido novo que não estava na lista anterior.
+    if (motoboyJaCarregouEntregasUmaVez) {
+      const apareceuEntregaNova = entregas.some(e => !idsAntes.has(e.id));
+      if (apareceuEntregaNova) tocarNovaEntregaMotoboy();
+    }
+    motoboyJaCarregouEntregasUmaVez = true;
+
     renderEntregas();
   }
 
