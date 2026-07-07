@@ -185,3 +185,51 @@
   }
 
   function testAlert() { beep(); showToast('Teste de alerta', 'Assim que soa um pedido novo.'); }
+
+  // =====================================================================
+  // CANCELAMENTO DE PEDIDO (segurança real fica na RPC cancelar_pedido no banco;
+  // o frontend só coleta motivo/senha e mostra o erro amigável se a RPC recusar)
+  // =====================================================================
+  function abrirCancelarPedido(pedidoId) {
+    document.getElementById('cpPedidoId').value = pedidoId;
+    document.getElementById('cpMotivo').value = '';
+    document.getElementById('cpSenha').value = '';
+    document.getElementById('cpErro').classList.add('hidden');
+    document.getElementById('cancelarPedidoModalBg').classList.add('show');
+  }
+
+  function fecharCancelarPedido() {
+    document.getElementById('cancelarPedidoModalBg').classList.remove('show');
+  }
+
+  async function submitCancelarPedido() {
+    const pedidoId = document.getElementById('cpPedidoId').value;
+    const motivo = document.getElementById('cpMotivo').value.trim();
+    const senha = document.getElementById('cpSenha').value;
+    const erroEl = document.getElementById('cpErro');
+    erroEl.classList.add('hidden');
+
+    if (!motivo) { erroEl.textContent = 'Informe o motivo do cancelamento.'; erroEl.classList.remove('hidden'); return; }
+    if (!senha) { erroEl.textContent = 'Informe a senha de confirmação.'; erroEl.classList.remove('hidden'); return; }
+
+    const btn = document.getElementById('cpConfirmarBtn');
+    btn.disabled = true; btn.textContent = 'Cancelando...';
+
+    const { error } = await sb.rpc('cancelar_pedido', {
+      p_pedido_id: pedidoId,
+      p_motivo: motivo,
+      p_senha_confirmacao: senha
+    });
+
+    btn.disabled = false; btn.textContent = 'Confirmar cancelamento';
+
+    if (error) {
+      erroEl.textContent = error.message;
+      erroEl.classList.remove('hidden');
+      return;
+    }
+
+    fecharCancelarPedido();
+    showToast('Pedido cancelado', motivo);
+    await loadPedidos();
+  }
