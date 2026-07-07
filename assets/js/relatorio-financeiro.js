@@ -24,6 +24,14 @@
     document.getElementById(`rel${prefixo}Valor`).textContent = formatMoedaRel(bloco.faturamento);
     document.getElementById(`rel${prefixo}Sub`).textContent =
       `${bloco.pedidos} pedido${bloco.pedidos === 1 ? '' : 's'} · ticket médio ${formatMoedaRel(bloco.ticket_medio)}`;
+
+    const cancelados = bloco.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
+    const elCancelados = document.getElementById(`rel${prefixo}Cancelados`);
+    if (elCancelados) {
+      elCancelados.textContent = cancelados.pedidos > 0
+        ? `Cancelados: ${cancelados.pedidos} · Valor cancelado: ${formatMoedaRel(cancelados.valor)} (${cancelados.percentual}%)`
+        : 'Cancelados: 0';
+    }
   }
 
   function renderTabelaChaveValorRel(tbodyId, obj) {
@@ -70,6 +78,15 @@
       document.getElementById('relPeriodoValor').textContent = formatMoedaRel(p.faturamento);
       document.getElementById('relPeriodoSub').textContent =
         `${p.pedidos} pedido${p.pedidos === 1 ? '' : 's'} · ticket médio ${formatMoedaRel(p.ticket_medio)}`;
+
+      const canceladosPeriodo = p.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
+      const elPeriodoCancelados = document.getElementById('relPeriodoCancelados');
+      if (elPeriodoCancelados) {
+        elPeriodoCancelados.textContent = canceladosPeriodo.pedidos > 0
+          ? `Cancelados: ${canceladosPeriodo.pedidos} · Valor cancelado: ${formatMoedaRel(canceladosPeriodo.valor)} (${canceladosPeriodo.percentual}%)`
+          : 'Cancelados: 0';
+      }
+
       renderTabelaChaveValorRel('relPeriodoFormaPagamentoBody', p.por_forma_pagamento);
       renderTabelaChaveValorRel('relPeriodoTipoBody', p.por_tipo);
       renderTabelaTopProdutosRel('relPeriodoTopProdutosBody', p.top_produtos);
