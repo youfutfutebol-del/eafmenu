@@ -708,6 +708,21 @@
   </div>
 </div>
 
+<div class="modal-bg" id="cancelarPedidoModalBg">
+  <div class="modal">
+    <h3>Cancelar pedido</h3>
+    <p style="font-size:12.5px; color:var(--muted); margin:-6px 0 16px;">Essa ação não pode ser desfeita. Se você é atendente, peça a senha de um gerente ou dono pra confirmar.</p>
+    <input type="hidden" id="cpPedidoId">
+    <div class="field"><label>Motivo do cancelamento</label><input id="cpMotivo" placeholder="Ex: cliente desistiu, endereço errado..."></div>
+    <div class="field"><label>Senha de confirmação (gerente ou dono)</label><input type="password" id="cpSenha" placeholder="Sua senha, ou a de um gerente/dono"></div>
+    <p class="sub error hidden" id="cpErro" style="color:var(--red); font-size:12.5px; margin:-6px 0 12px;"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharCancelarPedido()">Voltar</button>
+      <button class="btn primary" id="cpConfirmarBtn" onclick="submitCancelarPedido()">Confirmar cancelamento</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
 <script src="/assets/js/utils.js"></script>
