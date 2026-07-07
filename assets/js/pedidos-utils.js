@@ -58,17 +58,18 @@
 
       let actionHtml;
       if (STATUS_FINAIS.includes(o.status)) {
-        actionHtml = `<div class="done">✓ ${STATUS_LABEL[o.status] || 'Concluído'}</div>`;
+        if (o.status === 'cancelado') {
+          actionHtml = `<div class="done cancelado">✕ Cancelado</div>`;
+        } else {
+          actionHtml = `<div class="done">✓ ${STATUS_LABEL[o.status] || 'Concluído'}</div>`;
+        }
       } else {
         actionHtml = `<button onclick="advanceStatus('${o.id}','${o.status}','${o.tipo}')">${NEXT_LABEL[o.status] || 'Avançar'}</button>`;
       }
-
-      if (!o.pago && !STATUS_FINAIS.includes(o.status)) {
+      if (!o.pago) {
         actionHtml += `<button class="pago-btn" onclick="marcarPago('${o.id}')">Marcar pago</button>`;
       }
-
       actionHtml += `<button class="pago-btn" onclick="imprimirComanda('${o.id}')">🖨️ Imprimir</button>`;
-
       if (!STATUS_FINAIS.includes(o.status)) {
         actionHtml += `<button class="pago-btn" style="color:var(--red);" onclick="abrirCancelarPedido('${o.id}')">✕ Cancelar</button>`;
       }
