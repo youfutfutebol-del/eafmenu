@@ -31,7 +31,12 @@
 
   function toggleSound() {
     soundOn = !soundOn;
-    document.getElementById('soundSwitch').classList.toggle('on', soundOn);
+
+    if (typeof setSoundOn === 'function') {
+      setSoundOn(soundOn);
+    }
+
+    document.getElementById('soundSwitch')?.classList.toggle('on', soundOn);
   }
 
   function jaEstaInstalado() {
