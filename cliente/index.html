@@ -277,6 +277,7 @@
       </div>
       <button class="btn-instalar" id="btnInstalar" onclick="installApp()">⬇ Instalar</button>
       <button class="btn-pedidos" onclick="openMeusPedidos()">📦<span class="badge-count hidden" id="pedidosBadge">0</span></button>
+      <button class="btn-pedidos" id="btnTestarSomDevCliente" style="display:none;" onclick="tocarSaiuEntregaCliente()">🔔</button>
     </div>
   </div>
 
@@ -428,6 +429,7 @@
 
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
+<script src="/assets/js/sons.js"></script>
 <script>
   // =====================================================================
   // CONFIGURAÇÃO
@@ -1287,7 +1289,7 @@
     const ch = sb.channel('tracking-cliente-' + cliente.id)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'pedidos', filter: `cliente_id=eq.${cliente.id}` },
-        async () => {
+        async (payload) => {
           const { data } = await sb.from('pedidos')
             .select(`id, tipo, status, total, criado_em, itens_pedido ( quantidade, produtos ( nome ) )`)
             .eq('cliente_id', cliente.id)
@@ -1295,7 +1297,11 @@
             .limit(20);
           if (data) renderMeusPedidos(data);
           await atualizarBadgePedidos();
-          beveNotificacao();
+          const statusAnterior = payload.old?.status;
+          const statusNovo = payload.new?.status;
+          if (statusAnterior && statusAnterior !== statusNovo && statusNovo === 'saiu_para_entrega') {
+            tocarSaiuEntregaCliente();
+          }
         }
       )
       .subscribe();
@@ -1375,6 +1381,12 @@
   // de instalação automática) ele precisa ficar visível pra mostrar o passo a passo manual.
   if (!jaEstaInstalado()) {
     document.getElementById('btnInstalar')?.classList.add('show');
+  }
+
+  // Botão temporário de teste de som real — só em ambiente local, remover depois de validar em produção.
+  if (location.hostname === 'localhost') {
+    const btnTestarSomCliente = document.getElementById('btnTestarSomDevCliente');
+    if (btnTestarSomCliente) btnTestarSomCliente.style.display = 'inline-flex';
   }
 </script>
 </body>
