@@ -127,6 +127,7 @@
           <div class="actions">
             <button class="btn primary" onclick="openManualOrder()">+ Lançar Pedido (Manual)</button>
             <button class="btn" onclick="testAlert()">🔊 Testar Alerta</button>
+            <button class="btn" id="btnTestarSomDev" style="display:none;" onclick="tocarNovoPedido()">🔔 Testar Som (dev)</button>
             <div class="pill-status on" id="lojaStatusPill"><span class="dot"></span> <span id="lojaStatusTxt">Carregando horário...</span></div>
             <div class="pill-status on" id="connPill"><span class="dot"></span> <span id="connLabel">Conectado</span></div>
           </div>
@@ -726,6 +727,7 @@
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
 <script src="/assets/js/utils.js"></script>
+<script src="/assets/js/sons.js"></script>
 <script src="/assets/js/auth.js"></script>
 <script src="/assets/js/pedidos-utils.js"></script>
 <script src="/assets/js/pedidos.js"></script>
