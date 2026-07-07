@@ -75,3 +75,9 @@
       navigator.serviceWorker.register('/sw.js').catch((err) => console.warn('SW falhou:', err));
     });
   }
+
+  // Botão temporário de teste de som real — só em ambiente local, remover depois de validar em produção.
+  if (location.hostname === 'localhost') {
+    const btnTestarSom = document.getElementById('btnTestarSomDev');
+    if (btnTestarSom) btnTestarSom.style.display = 'inline-flex';
+  }
