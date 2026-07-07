@@ -1,112 +1,33 @@
-// assets/js/sons.js
-// Helper compartilhado de audio para Admin, Motoboy e Cliente.
-// Sem base64, sem dependencia externa. So toca arquivos MP3 reais.
+// /assets/js/sons.js
+// Sistema de sons compartilhado entre admin, motoboy e cliente.
+// Usa arquivos MP3 reais (não beep sintetizado). Sem dependências externas,
+// sem import/export, sem type="module" — funções ficam globais como as demais do projeto.
 
-(function () {
-  let audioDesbloqueado = false;
-
-  // Chave usada no localStorage para o controle de som (usada quando nao existir um controle proprio na tela)
-  const CHAVE_SOM = 'eaf_som_ativado';
-
-  function isSoundOn() {
-    if (typeof window.soundOn === 'boolean') return window.soundOn;
-
-    const valor = localStorage.getItem(CHAVE_SOM);
-    // padrao: som ligado, a menos que o usuario tenha desligado explicitamente
-    return valor !== 'false';
-  }
-
-  function setSoundOn(ligado) {
-    localStorage.setItem(CHAVE_SOM, ligado ? 'true' : 'false');
-  }
-
-  // Desbloqueio de audio no mobile: navegadores bloqueiam autoplay ate
-  // o usuario interagir com a pagina. Toca um dos arquivos reais em volume 0
-  // e imediatamente pausa - libera o contexto de audio sem o usuario ouvir nada.
-  function desbloquearAudio() {
-    if (audioDesbloqueado) return;
-
-    try {
-      const audio = new Audio('/assets/sounds/novo-pedido.mp3');
-      audio.volume = 0;
-      const promessa = audio.play();
-
-      if (promessa && typeof promessa.then === 'function') {
-        promessa
-          .then(() => {
-            audio.pause();
-            audio.currentTime = 0;
-            audio.volume = 1;
-          })
-          .catch(() => {});
-      }
-    } catch (e) {
-      // ignora - apenas tentativa de desbloqueio
-    }
-
-    audioDesbloqueado = true;
-  }
-
-  document.addEventListener('click', desbloquearAudio, { once: true });
-  document.addEventListener('touchstart', desbloquearAudio, { once: true });
-
-  /**
-   * Toca um arquivo de audio uma vez.
-   * Nunca lanca erro para fora - falha de audio nao pode quebrar o app.
-   */
-  function tocarAudioArquivo(caminho, volume) {
-    if (!isSoundOn()) return;
-    try {
+function tocarSomRepetido(caminho, vezes, intervaloMs) {
+  intervaloMs = intervaloMs || 700;
+  for (let i = 0; i < vezes; i++) {
+    setTimeout(() => {
       const audio = new Audio(caminho);
-      audio.volume = typeof volume === 'number' ? volume : 1.0;
-      const promessa = audio.play();
-      if (promessa && typeof promessa.catch === 'function') {
-        promessa.catch((err) => {
-          console.warn('[sons] nao foi possivel tocar audio:', caminho, err.message);
-        });
-      }
-    } catch (err) {
-      console.warn('[sons] erro ao tocar audio:', caminho, err.message);
-    }
+      // .play() pode ser bloqueado pelo navegador antes de qualquer interação do usuário
+      // (login já costuma contar como interação) — falha silenciosa, sem quebrar a tela.
+      audio.play().catch(() => {});
+    }, i * intervaloMs);
   }
+}
 
-  /**
-   * Toca um arquivo N vezes com intervalos definidos (em ms).
-   * Ex: tocarRepetido('a.mp3', [0, 550, 1100])
-   */
-  function tocarRepetido(caminho, intervalosMs, volume) {
-    if (!isSoundOn()) return;
-    intervalosMs.forEach((atraso) => {
-      setTimeout(() => tocarAudioArquivo(caminho, volume), atraso);
-    });
-  }
+// Admin: toca 3 vezes quando chega pedido novo vindo do cliente/cardápio (nunca em pedido manual).
+function tocarNovoPedido() {
+  tocarSomRepetido('/assets/sounds/novo-pedido.mp3', 3);
+}
 
-  // ---- Funcoes especificas por contexto ----
+// Motoboy: toca 2 vezes + vibra quando uma entrega nova é atribuída a ele
+// (nunca ao só abrir o app com entregas que já existiam).
+function tocarNovaEntregaMotoboy() {
+  tocarSomRepetido('/assets/sounds/nova-entrega.mp3', 2);
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+}
 
-  function tocarNovoPedido() {
-    tocarRepetido('/assets/sounds/novo-pedido.mp3', [0, 550, 1100]);
-  }
-
-  function tocarNovaEntregaMotoboy() {
-    tocarRepetido('/assets/sounds/nova-entrega.mp3', [0, 450]);
-    try {
-      if (navigator.vibrate) {
-        navigator.vibrate([250, 100, 250]);
-      }
-    } catch (e) {
-      // ignora - vibracao nao suportada
-    }
-  }
-
-  function tocarSaiuEntregaCliente() {
-    tocarAudioArquivo('/assets/sounds/saiu-entrega.mp3');
-  }
-
-  // Exposto globalmente para uso simples em pedidos.js / motoboy / cliente
-  window.tocarAudioArquivo = tocarAudioArquivo;
-  window.tocarNovoPedido = tocarNovoPedido;
-  window.tocarNovaEntregaMotoboy = tocarNovaEntregaMotoboy;
-  window.tocarSaiuEntregaCliente = tocarSaiuEntregaCliente;
-  window.isSoundOn = isSoundOn;
-  window.setSoundOn = setSoundOn;
-})();
+// Cliente: toca 1 vez quando o pedido dele muda especificamente para "saiu para entrega".
+function tocarSaiuEntregaCliente() {
+  tocarSomRepetido('/assets/sounds/saiu-entrega.mp3', 1);
+}
