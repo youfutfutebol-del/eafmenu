@@ -3,6 +3,13 @@
 // Dependem de globais do script principal: sb, restauranteId, orders, restauranteInfo, currentView,
 // soundOn, audioCtx, FLOW, e das funcoes loadMovimentacoes/loadCaixaAtual/atualizarSubtituloPedidos/
 // showToast/renderOrders/codigoPedido. So chamadas apos o script principal rodar. Continuam globais.
+// tocarNovoPedido() vem de /assets/js/sons.js (carregado antes deste arquivo).
+
+  // Pedidos lancados via pedido manual entram aqui (por pedidos.js) e sao removidos quando
+  // o Realtime avisar sobre eles — assim o som de "novo pedido" nao toca pra pedido manual.
+  // Limitacao conhecida: so funciona na mesma aba que criou o pedido manual (sem coluna no banco
+  // pra diferenciar a origem, nao da pra saber isso em outra aba/dispositivo).
+  let pedidosCriadosManualmente = new Set();
 
   async function loadPedidos() {
     const inicio = inicioDiaComercial().toISOString();
@@ -30,8 +37,13 @@
         { event: '*', schema: 'public', table: 'pedidos', filter: `restaurante_id=eq.${restauranteId}` },
         async (payload) => {
           if (payload.eventType === 'INSERT') {
-            beep();
-            showToast('Novo pedido recebido', 'Um pedido novo chegou no monitor.');
+            const idNovo = payload.new?.id;
+            if (idNovo && pedidosCriadosManualmente.has(idNovo)) {
+              pedidosCriadosManualmente.delete(idNovo);
+            } else {
+              tocarNovoPedido();
+              showToast('Novo pedido recebido', 'Um pedido novo chegou no monitor.');
+            }
           }
           await loadPedidos();
         }
