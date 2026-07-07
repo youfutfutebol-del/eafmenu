@@ -62,10 +62,13 @@
       } else {
         actionHtml = `<button onclick="advanceStatus('${o.id}','${o.status}','${o.tipo}')">${NEXT_LABEL[o.status] || 'Avançar'}</button>`;
       }
-      if (!o.pago) {
+
+      if (!o.pago && !STATUS_FINAIS.includes(o.status)) {
         actionHtml += `<button class="pago-btn" onclick="marcarPago('${o.id}')">Marcar pago</button>`;
       }
+
       actionHtml += `<button class="pago-btn" onclick="imprimirComanda('${o.id}')">🖨️ Imprimir</button>`;
+
       if (!STATUS_FINAIS.includes(o.status)) {
         actionHtml += `<button class="pago-btn" style="color:var(--red);" onclick="abrirCancelarPedido('${o.id}')">✕ Cancelar</button>`;
       }
