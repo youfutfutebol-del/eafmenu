@@ -36,6 +36,7 @@
         const nomeSabores = i.produtos?.nome || (i.itens_pedido_sabores || []).map(s => s.produtos?.nome).filter(Boolean).join(' + ') || 'item';
         return `${i.quantidade}x ${nomeSabores}`;
       }).join(' · ');
+
       const cliente = o.clientes?.nome || 'Cliente balcão';
       const tipoBadge = o.tipo === 'entrega' ? `<span class="badge entrega">🛵 entrega</span>` : `<span class="badge retirada">🏠 retirada</span>`;
       const pagoBadge = o.pago ? `<span class="badge pago">pago</span>` : `<span class="badge pendente">pendente</span>`;
@@ -45,6 +46,7 @@
       const enderecoLinha = (o.tipo === 'entrega' && end?.logradouro)
         ? `<div class="order-itens" style="margin-top:2px;">📍 ${end.logradouro}${end.numero ? ', ' + end.numero : ''}${end.bairro ? ' - ' + end.bairro : ''}</div>`
         : '';
+
       const trocoLinha = (o.forma_pagamento === 'dinheiro' && o.troco_para)
         ? `<div class="order-itens" style="margin-top:2px; color:var(--amber); font-weight:700;">💵 Troco: R$ ${(Number(o.troco_para) - Number(o.total)).toFixed(2).replace('.', ',')} (paga com R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')})</div>`
         : '';
@@ -66,10 +68,13 @@
       } else {
         actionHtml = `<button onclick="advanceStatus('${o.id}','${o.status}','${o.tipo}')">${NEXT_LABEL[o.status] || 'Avançar'}</button>`;
       }
-      if (!o.pago) {
+
+      if (!o.pago && !STATUS_FINAIS.includes(o.status)) {
         actionHtml += `<button class="pago-btn" onclick="marcarPago('${o.id}')">Marcar pago</button>`;
       }
+
       actionHtml += `<button class="pago-btn" onclick="imprimirComanda('${o.id}')">🖨️ Imprimir</button>`;
+
       if (!STATUS_FINAIS.includes(o.status)) {
         actionHtml += `<button class="pago-btn" style="color:var(--red);" onclick="abrirCancelarPedido('${o.id}')">✕ Cancelar</button>`;
       }
