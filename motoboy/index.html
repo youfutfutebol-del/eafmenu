@@ -28,6 +28,7 @@
     --muted: #6B7280;
     --muted-soft: #9AA1AA;
     --line: #E7E2D9;
+    --chrome-escuro: #14181C;
     --shadow: 0 2px 10px rgba(20,24,28,.06);
     --shadow-lg: 0 16px 40px rgba(20,24,28,.16);
     --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -53,7 +54,7 @@
 
   /* ---------- Login / telas cheias ---------- */
   #loginScreen, #primeiroAcessoScreen {
-    min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--ink); padding:24px;
+    min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--chrome-escuro); padding:24px;
   }
   #primeiroAcessoScreen { display:none; }
   .login-card { background: var(--surface); border-radius:20px; padding: 36px 28px; width: 340px; max-width:100%; text-align:center; box-shadow: var(--shadow-lg); }
@@ -83,7 +84,7 @@
   #app { display:none; min-height:100vh; padding-bottom: 40px; }
 
   .topbar {
-    background: var(--ink); color:#fff; padding: max(18px, env(safe-area-inset-top)) 20px 18px;
+    background: var(--chrome-escuro); color:#fff; padding: max(18px, env(safe-area-inset-top)) 20px 18px;
   }
   .topbar__row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
   .topbar__titulo { font-family: var(--font-display); font-weight:700; font-size:19px; letter-spacing:-.3px; }
@@ -143,10 +144,10 @@
   .entrega-card__contato { display:flex; gap:8px; margin-bottom:10px; }
   .entrega-card__retirada { font-weight:700; font-size:13px; background:#EFE4FF; color:#5B2A9E; padding:8px 10px; border-radius:8px; margin-bottom:10px; }
   .entrega-card__sem-endereco { font-weight:700; font-size:12.5px; background:#FEE2E2; color:#B91C1C; padding:8px 10px; border-radius:8px; margin-bottom:10px; }
-  .entrega-card__detalhe-endereco { font-size:12.5px; color:var(--ink); background:#F6F3ED; padding:6px 10px; border-radius:8px; margin-bottom:6px; }
+  .entrega-card__detalhe-endereco { font-size:12.5px; color:#3F3F46; background:#F6F3ED; padding:6px 10px; border-radius:8px; margin-bottom:6px; }
   .entrega-card__item-linha { font-size:12.5px; color:var(--ink); padding:2px 0; }
   .entrega-card__item-obs { font-size:11.5px; color:var(--muted); font-style:italic; padding:0 0 6px 12px; }
-  .entrega-card__obs-pedido { font-size:12.5px; color:var(--ink); background:#FFF7E0; padding:8px 10px; border-radius:8px; margin: 4px 0 12px; }
+  .entrega-card__obs-pedido { font-size:12.5px; color:#7A5B00; background:#FFF7E0; padding:8px 10px; border-radius:8px; margin: 4px 0 12px; }
   .btn { flex:1; text-align:center; border-radius:11px; padding:12px; font-size:12.5px; font-weight:700; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px; }
   .btn.primary { background: var(--route); border-color: var(--route); color:#fff; }
   .btn.primary:disabled { opacity:.45; }
@@ -156,7 +157,7 @@
   .hist-busca input[type="date"] {
     flex:1; padding:12px 13px; border:1.5px solid var(--line); border-radius:12px; font-size:13.5px; background: var(--surface); color: var(--ink);
   }
-  .hist-busca button { background: var(--ink); color:#fff; border-radius:12px; padding:0 18px; font-weight:700; font-size:12.5px; }
+  .hist-busca button { background: var(--chrome-escuro); color:#fff; border-radius:12px; padding:0 18px; font-weight:700; font-size:12.5px; }
 
   .hist-resumo { background: var(--surface); border-radius:14px; padding:14px 16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; box-shadow: var(--shadow); }
   .hist-resumo .txt { font-size:12.5px; color:var(--muted); font-weight:600; }
