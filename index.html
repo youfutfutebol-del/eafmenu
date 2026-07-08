@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -223,110 +223,81 @@
         <div class="main__header">
           <div>
             <h1 class="main__title">Relatório Financeiro</h1>
-            <p class="main__subtitle">Faturamento, cancelamentos, formas de pagamento e produtos mais vendidos</p>
-          </div>
-          <div class="actions">
-            <button class="btn" type="button" disabled title="Exportação ainda não disponível">Exportar</button>
+            <p class="main__subtitle">Faturamento, formas de pagamento e produtos mais vendidos — visível só para o dono</p>
           </div>
         </div>
 
-        <div class="relatorio-filtros">
-          <div class="relatorio-tabs" id="relPeriodoTabs">
-            <button class="active" type="button" data-periodo="hoje" onclick="selecionarPeriodoRelatorio('hoje')">Hoje</button>
-            <button type="button" data-periodo="semana" onclick="selecionarPeriodoRelatorio('semana')">Últimos 7 dias</button>
-            <button type="button" data-periodo="mes" onclick="selecionarPeriodoRelatorio('mes')">Este mês</button>
-            <button type="button" data-periodo="personalizado" onclick="selecionarPeriodoRelatorio('personalizado')">Personalizado</button>
+        <div class="summary-row">
+          <div class="summary-card entrada">
+            <div class="label">Hoje</div>
+            <div class="value" id="relHojeValor">R$ 0,00</div>
+            <p class="main__subtitle" id="relHojeSub" style="margin-top:6px;">0 pedidos · ticket médio R$ 0,00</p>
+            <p class="main__subtitle cancelados-link" id="relHojeCancelados" style="margin-top:2px; font-size:11.5px;" onclick="abrirCancelamentosPeriodo('hoje')"></p>
           </div>
-          <div class="relatorio-date-fields">
-            <div class="field"><label>Data inicial</label><input type="date" id="relDataInicio"></div>
-            <div class="field"><label>Data final</label><input type="date" id="relDataFim"></div>
-            <button class="btn primary" type="button" onclick="aplicarPeriodoRelatorio()">Aplicar período</button>
+          <div class="summary-card entrada">
+            <div class="label">Últimos 7 dias</div>
+            <div class="value" id="relSemanaValor">R$ 0,00</div>
+            <p class="main__subtitle" id="relSemanaSub" style="margin-top:6px;">0 pedidos · ticket médio R$ 0,00</p>
+            <p class="main__subtitle cancelados-link" id="relSemanaCancelados" style="margin-top:2px; font-size:11.5px;" onclick="abrirCancelamentosPeriodo('semana')"></p>
           </div>
+          <div class="summary-card entrada">
+            <div class="label">Este mês</div>
+            <div class="value" id="relMesValor">R$ 0,00</div>
+            <p class="main__subtitle" id="relMesSub" style="margin-top:6px;">0 pedidos · ticket médio R$ 0,00</p>
+            <p class="main__subtitle cancelados-link" id="relMesCancelados" style="margin-top:2px; font-size:11.5px;" onclick="abrirCancelamentosPeriodo('mes')"></p>
+          </div>
+        </div>
+
+        <div class="filter-row"><span class="filter-label">FORMAS DE PAGAMENTO (MÊS)</span></div>
+        <table class="data-table" style="margin-bottom:20px;">
+          <thead><tr><th>Forma</th><th>Faturamento</th></tr></thead>
+          <tbody id="relFormaPagamentoBody"></tbody>
+        </table>
+
+        <div class="filter-row"><span class="filter-label">ENTREGA X RETIRADA (MÊS)</span></div>
+        <table class="data-table" style="margin-bottom:20px;">
+          <thead><tr><th>Tipo</th><th>Faturamento</th></tr></thead>
+          <tbody id="relTipoBody"></tbody>
+        </table>
+
+        <div class="filter-row"><span class="filter-label">TOP 5 PRODUTOS (MÊS)</span></div>
+        <table class="data-table" style="margin-bottom:20px;">
+          <thead><tr><th>Produto</th><th>Quantidade</th></tr></thead>
+          <tbody id="relTopProdutosBody"></tbody>
+        </table>
+
+        <div class="filter-row" style="flex-wrap:wrap;">
+          <span class="filter-label">PERÍODO PERSONALIZADO</span>
+          <div class="field" style="margin:0; min-width:150px;"><input type="date" id="relDataInicio"></div>
+          <div class="field" style="margin:0; min-width:150px;"><input type="date" id="relDataFim"></div>
+          <button class="btn primary" onclick="aplicarPeriodoRelatorio()">Aplicar período</button>
         </div>
         <p class="main__subtitle hidden" id="relErro" style="color:var(--red); margin-bottom:14px;"></p>
 
-        <div class="relatorio-kpis">
-          <div class="relatorio-kpi relatorio-kpi--strong"><span>Faturamento</span><strong id="relKpiFaturamento">R$ 0,00</strong></div>
-          <div class="relatorio-kpi"><span>Pedidos concluídos</span><strong id="relKpiPedidos">0</strong></div>
-          <div class="relatorio-kpi"><span>Ticket médio</span><strong id="relKpiTicket">R$ 0,00</strong></div>
-          <div class="relatorio-kpi relatorio-kpi--warn"><span>Cancelados</span><strong id="relKpiCancelados">0</strong></div>
-          <div class="relatorio-kpi relatorio-kpi--warn"><span>Valor cancelado</span><strong id="relKpiValorCancelado">R$ 0,00</strong></div>
-          <div class="relatorio-kpi"><span>Taxa de cancelamento</span><strong id="relKpiTaxaCancelamento">0%</strong></div>
-        </div>
-
-        <div class="relatorio-section relatorio-resumo">
-          <div>
-            <span class="relatorio-eyebrow">Resumo do período</span>
-            <h3 id="relResumoTitulo">Hoje</h3>
-            <p id="relResumoDescricao">Dados consolidados do período selecionado.</p>
-          </div>
-          <div class="relatorio-resumo-grid">
-            <span><b id="relResumoFaturamento">R$ 0,00</b> faturamento</span>
-            <span><b id="relResumoPedidos">0</b> concluídos</span>
-            <span><b id="relResumoTicket">R$ 0,00</b> ticket médio</span>
-            <span><b id="relResumoCancelados">0</b> cancelados</span>
-            <span><b id="relResumoValorCancelado">R$ 0,00</b> valor cancelado</span>
-            <span><b id="relResumoTaxaCancelamento">0%</b> taxa</span>
-          </div>
-        </div>
-
-        <div class="relatorio-grid">
-          <div class="relatorio-section">
-            <div class="relatorio-section-head">
-              <div><span class="relatorio-eyebrow">Evolução</span><h3>Evolução do faturamento</h3></div>
+        <div id="relPeriodoResultado" class="hidden">
+          <div class="summary-row">
+            <div class="summary-card saldo">
+              <div class="label" id="relPeriodoLabel">Período</div>
+              <div class="value" id="relPeriodoValor">R$ 0,00</div>
+              <p class="main__subtitle" id="relPeriodoSub" style="margin-top:6px;">0 pedidos · ticket médio R$ 0,00</p>
+              <p class="main__subtitle cancelados-link" id="relPeriodoCancelados" style="margin-top:2px; font-size:11.5px;" onclick="abrirCancelamentosPeriodo('personalizado')"></p>
             </div>
-            <div class="relatorio-empty-mini" id="relEvolucaoBody">Série diária não disponível na RPC atual.</div>
           </div>
-
-          <div class="relatorio-section">
-            <div class="relatorio-section-head">
-              <div><span class="relatorio-eyebrow">Pagamentos</span><h3>Formas de pagamento</h3></div>
-            </div>
-            <div class="relatorio-bars" id="relFormaPagamentoVisual"></div>
-          </div>
-
-          <div class="relatorio-section">
-            <div class="relatorio-section-head">
-              <div><span class="relatorio-eyebrow">Operação</span><h3>Entrega x Retirada</h3></div>
-            </div>
-            <div class="relatorio-bars" id="relTipoVisual"></div>
-          </div>
-
-          <div class="relatorio-section">
-            <div class="relatorio-section-head">
-              <div><span class="relatorio-eyebrow">Produtos</span><h3>Top produtos</h3></div>
-            </div>
-            <div class="relatorio-top-list" id="relTopProdutosVisual"></div>
-          </div>
-        </div>
-
-        <div class="relatorio-detail-grid">
-          <div class="relatorio-section">
-            <div class="relatorio-section-head">
-              <div><span class="relatorio-eyebrow">Detalhamento</span><h3>Por forma de pagamento</h3></div>
-            </div>
-            <table class="data-table">
-              <thead><tr><th>Forma</th><th>Faturamento</th></tr></thead>
-              <tbody id="relFormaPagamentoBody"></tbody>
-            </table>
-          </div>
-
-          <div class="relatorio-section">
-            <div class="relatorio-section-head">
-              <div><span class="relatorio-eyebrow">Detalhamento</span><h3>Entrega x retirada</h3></div>
-            </div>
-            <table class="data-table">
-              <thead><tr><th>Tipo</th><th>Faturamento</th></tr></thead>
-              <tbody id="relTipoBody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="relatorio-section">
-          <div class="relatorio-section-head">
-            <div><span class="relatorio-eyebrow">Leitura rápida</span><h3>Insights do período</h3></div>
-          </div>
-          <div class="relatorio-insights" id="relInsightsBody"></div>
+          <div class="filter-row"><span class="filter-label">FORMAS DE PAGAMENTO (PERÍODO)</span></div>
+          <table class="data-table" style="margin-bottom:20px;">
+            <thead><tr><th>Forma</th><th>Faturamento</th></tr></thead>
+            <tbody id="relPeriodoFormaPagamentoBody"></tbody>
+          </table>
+          <div class="filter-row"><span class="filter-label">ENTREGA X RETIRADA (PERÍODO)</span></div>
+          <table class="data-table" style="margin-bottom:20px;">
+            <thead><tr><th>Tipo</th><th>Faturamento</th></tr></thead>
+            <tbody id="relPeriodoTipoBody"></tbody>
+          </table>
+          <div class="filter-row"><span class="filter-label">TOP PRODUTOS (PERÍODO)</span></div>
+          <table class="data-table">
+            <thead><tr><th>Produto</th><th>Quantidade</th></tr></thead>
+            <tbody id="relPeriodoTopProdutosBody"></tbody>
+          </table>
         </div>
       </div>
 
@@ -753,6 +724,17 @@
     <div class="modal-actions">
       <button class="btn" onclick="fecharCancelarPedido()">Voltar</button>
       <button class="btn primary" id="cpConfirmarBtn" onclick="submitCancelarPedido()">Confirmar cancelamento</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="cancelamentosPeriodoModalBg">
+  <div class="modal" style="max-width:520px;">
+    <h3>Cancelamentos do período</h3>
+    <p class="main__subtitle" id="cancelamentosPeriodoLabel" style="margin:-6px 0 14px;">—</p>
+    <div id="cancelamentosPeriodoLista" style="max-height:400px; overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharCancelamentosPeriodo()">Fechar</button>
     </div>
   </div>
 </div>
