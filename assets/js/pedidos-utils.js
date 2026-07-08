@@ -43,7 +43,10 @@
 
       const end = o.enderecos_cliente;
       const enderecoLinha = (o.tipo === 'entrega' && end?.logradouro)
-        ? `<div class="order-itens" style="margin-top:2px;">📍 ${end.logradouro}${end.numero ? ', ' + end.numero : ''}${end.bairro ? ' - ' + end.bairro : ''}</div>`
+        ? `<div class="order-itens" style="margin-top:2px;">📍 ${end.logradouro}${end.numero ? ', ' + end.numero : ''}${end.bairro ? ' - ' + end.bairro : ''}${end.referencia ? ' · Ref: ' + end.referencia : ''}</div>`
+        : '';
+      const obsLinha = o.observacoes
+        ? `<div class="order-itens" style="margin-top:4px; background:#FEF9C3; color:#854D0E; padding:4px 8px; border-radius:6px; font-weight:600;">📝 ${o.observacoes}</div>`
         : '';
       const trocoLinha = (o.forma_pagamento === 'dinheiro' && o.troco_para)
         ? `<div class="order-itens" style="margin-top:2px; color:var(--amber); font-weight:700;">💵 Troco: R$ ${(Number(o.troco_para) - Number(o.total)).toFixed(2).replace('.', ',')} (paga com R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')})</div>`
@@ -81,6 +84,7 @@
             <div class="order-cliente">${cliente}</div>
             <div class="order-itens">${itens || 'sem itens'}</div>
             ${enderecoLinha}
+            ${obsLinha}
             ${trocoLinha}
           </div>
           <div class="order-badges">${tipoBadge}${statusBadge}${pagoBadge}</div>
