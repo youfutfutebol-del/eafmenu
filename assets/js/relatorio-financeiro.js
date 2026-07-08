@@ -331,3 +331,80 @@
         </div>`;
     }).join('');
   }
+
+  // =====================================================================
+  // EXPORTAR CSV (período atualmente selecionado, mesma fonte da tela: relDadosAtuais)
+  // =====================================================================
+  function relNumeroCSV(n) {
+    return Number(n || 0).toFixed(2).replace('.', ',');
+  }
+
+  function exportarRelatorioFinanceiro() {
+    if (!relDadosAtuais) {
+      showToast('Nada para exportar', 'Carregue um período primeiro.');
+      return;
+    }
+
+    const p = relDadosAtuais;
+    const cancelados = p.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
+    const linhas = [];
+
+    linhas.push('Relatório Financeiro');
+    linhas.push(`Período;${relFormatarPeriodoBR(p.data_inicio, p.data_fim)}`);
+    linhas.push('');
+    linhas.push(`Faturamento;${relNumeroCSV(p.faturamento)}`);
+    linhas.push(`Pedidos concluídos;${p.pedidos}`);
+    linhas.push(`Ticket médio;${relNumeroCSV(p.ticket_medio)}`);
+    linhas.push(`Cancelados;${cancelados.pedidos}`);
+    linhas.push(`Valor cancelado;${relNumeroCSV(cancelados.valor)}`);
+    linhas.push(`Taxa de cancelamento;${relNumeroCSV(cancelados.percentual)}%`);
+    linhas.push('');
+
+    linhas.push('Formas de pagamento');
+    linhas.push('Forma;Valor');
+    const formas = Object.entries(p.por_forma_pagamento || {});
+    if (formas.length === 0) {
+      linhas.push('Nenhum dado no período;');
+    } else {
+      formas.forEach(([nome, valor]) => {
+        linhas.push(`${nome.charAt(0).toUpperCase() + nome.slice(1)};${relNumeroCSV(valor)}`);
+      });
+    }
+    linhas.push('');
+
+    linhas.push('Entrega x Retirada');
+    linhas.push('Tipo;Valor');
+    const tipos = Object.entries(p.por_tipo || {});
+    if (tipos.length === 0) {
+      linhas.push('Nenhum dado no período;');
+    } else {
+      tipos.forEach(([nome, valor]) => {
+        linhas.push(`${nome.charAt(0).toUpperCase() + nome.slice(1)};${relNumeroCSV(valor)}`);
+      });
+    }
+    linhas.push('');
+
+    linhas.push('Top produtos');
+    linhas.push('Produto;Quantidade');
+    const produtos = p.top_produtos || [];
+    if (produtos.length === 0) {
+      linhas.push('Nenhuma venda no período;');
+    } else {
+      produtos.forEach(prod => {
+        linhas.push(`${prod.nome};${prod.quantidade}`);
+      });
+    }
+
+    // BOM (\uFEFF) garante acentuação correta ao abrir no Excel.
+    const conteudoCsv = '\uFEFF' + linhas.join('\r\n');
+    const blob = new Blob([conteudoCsv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio-financeiro-${p.data_inicio}-a-${p.data_fim}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
