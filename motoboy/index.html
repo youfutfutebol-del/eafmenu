@@ -337,6 +337,102 @@
   let abaAtual = 'rota';
   let entregasRefreshInterval = null;
   let visibilityListenerRegistrado = false;
+  const SESSION_GUARD_MOTOBOY_KEY = 'eaf_motoboy_session_guard';
+  const SESSION_MAX_MS = 12 * 60 * 60 * 1000;
+  const SESSION_IDLE_MS = 2 * 60 * 60 * 1000;
+  const SESSION_CHECK_MS = 60 * 1000;
+  let sessionGuardStarted = false;
+  let sessionGuardExpiring = false;
+  let sessionGuardLastPersist = 0;
+
+  function lerSessionGuardMotoboy() {
+    try { return JSON.parse(localStorage.getItem(SESSION_GUARD_MOTOBOY_KEY) || '{}'); }
+    catch (e) { return {}; }
+  }
+
+  function salvarSessionGuardMotoboy(meta) {
+    localStorage.setItem(SESSION_GUARD_MOTOBOY_KEY, JSON.stringify(meta));
+  }
+
+  function prepararSessionGuardMotoboy(forcarNovoLogin) {
+    const agora = Date.now();
+    const meta = forcarNovoLogin ? {} : lerSessionGuardMotoboy();
+    salvarSessionGuardMotoboy({
+      loginAt: meta.loginAt || agora,
+      lastActivityAt: meta.lastActivityAt || agora
+    });
+  }
+
+  function registrarAtividadeMotoboy() {
+    if (!sessionGuardStarted || sessionGuardExpiring) return;
+    const agora = Date.now();
+    const meta = lerSessionGuardMotoboy();
+    meta.loginAt = meta.loginAt || agora;
+    meta.lastActivityAt = agora;
+    if (agora - sessionGuardLastPersist > 15000) {
+      salvarSessionGuardMotoboy(meta);
+      sessionGuardLastPersist = agora;
+    }
+  }
+
+  async function expirarSessaoMotoboy() {
+    if (sessionGuardExpiring) return;
+    sessionGuardExpiring = true;
+    try {
+      localStorage.removeItem(SESSION_GUARD_MOTOBOY_KEY);
+      if (trackingChannel) sb.removeChannel(trackingChannel);
+      if (entregasRefreshInterval) clearInterval(entregasRefreshInterval);
+      await sb.auth.signOut();
+    } catch (e) {}
+    location.reload();
+  }
+
+  async function avaliarSessaoMotoboy() {
+    if (!sessionGuardStarted || sessionGuardExpiring || !sb) return;
+    const agora = Date.now();
+    const meta = lerSessionGuardMotoboy();
+    if (!meta.loginAt || !meta.lastActivityAt) {
+      prepararSessionGuardMotoboy(false);
+      return;
+    }
+
+    if (agora - meta.loginAt >= SESSION_MAX_MS) {
+      await expirarSessaoMotoboy();
+      return;
+    }
+
+    if (agora - meta.lastActivityAt >= SESSION_IDLE_MS) {
+      const continuar = confirm('Sua sessão vai expirar por segurança. Deseja continuar?');
+      if (continuar) registrarAtividadeMotoboy();
+      else await expirarSessaoMotoboy();
+    }
+  }
+
+  function iniciarControleSessaoMotoboy() {
+    if (sessionGuardStarted) return;
+    const appAberto = document.getElementById('app')?.style.display === 'block';
+    if (!appAberto || !currentUser) return;
+
+    prepararSessionGuardMotoboy(false);
+    sessionGuardStarted = true;
+
+    ['click', 'touchstart', 'keydown', 'mousemove'].forEach(evt => {
+      window.addEventListener(evt, registrarAtividadeMotoboy, { passive: true });
+    });
+    window.addEventListener('focus', async () => {
+      await avaliarSessaoMotoboy();
+      if (sessionGuardExpiring) return;
+      registrarAtividadeMotoboy();
+    });
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible') {
+        await avaliarSessaoMotoboy();
+        if (sessionGuardExpiring) return;
+        registrarAtividadeMotoboy();
+      }
+    });
+    setInterval(avaliarSessaoMotoboy, SESSION_CHECK_MS);
+  }
 
   // =====================================================================
   // LOGIN
@@ -361,6 +457,7 @@
     document.getElementById('loginBtn').disabled = false;
     if (error) { setLoginMsg('Telefone/e-mail ou senha incorretos.', true); return; }
 
+    prepararSessionGuardMotoboy(true);
     await boot();
   }
 
@@ -425,6 +522,7 @@
   async function logout() {
     if (trackingChannel) sb.removeChannel(trackingChannel);
     if (entregasRefreshInterval) clearInterval(entregasRefreshInterval);
+    localStorage.removeItem(SESSION_GUARD_MOTOBOY_KEY);
     await sb.auth.signOut();
     location.reload();
   }
@@ -477,6 +575,7 @@
     await carregarStatsEntregas();
     subscribeTrackingEntregas();
     iniciarRefreshEntregasMotoboy();
+    iniciarControleSessaoMotoboy();
   }
 
   async function salvarSenhaPrimeiroAcesso() {

@@ -4,6 +4,103 @@
 // So sao chamadas via clique do usuario, depois que o script principal ja rodou - por isso e seguro
 // carregar este arquivo ANTES do script principal. Continuam globais (sem type=module).
 
+const SESSION_GUARD_PANEL_KEY = 'eaf_painel_session_guard';
+const SESSION_MAX_MS = 12 * 60 * 60 * 1000;
+const SESSION_IDLE_MS = 2 * 60 * 60 * 1000;
+const SESSION_CHECK_MS = 60 * 1000;
+let sessionGuardStarted = false;
+let sessionGuardExpiring = false;
+let sessionGuardLastPersist = 0;
+
+function lerSessionGuardPainel() {
+  try { return JSON.parse(localStorage.getItem(SESSION_GUARD_PANEL_KEY) || '{}'); }
+  catch (e) { return {}; }
+}
+
+function salvarSessionGuardPainel(meta) {
+  localStorage.setItem(SESSION_GUARD_PANEL_KEY, JSON.stringify(meta));
+}
+
+function prepararSessionGuardPainel(forcarNovoLogin) {
+  const agora = Date.now();
+  const meta = forcarNovoLogin ? {} : lerSessionGuardPainel();
+  salvarSessionGuardPainel({
+    loginAt: meta.loginAt || agora,
+    lastActivityAt: meta.lastActivityAt || agora
+  });
+}
+
+function registrarAtividadePainel() {
+  if (!sessionGuardStarted || sessionGuardExpiring) return;
+  const agora = Date.now();
+  const meta = lerSessionGuardPainel();
+  meta.loginAt = meta.loginAt || agora;
+  meta.lastActivityAt = agora;
+  if (agora - sessionGuardLastPersist > 15000) {
+    salvarSessionGuardPainel(meta);
+    sessionGuardLastPersist = agora;
+  }
+}
+
+async function expirarSessaoPainel() {
+  if (sessionGuardExpiring) return;
+  sessionGuardExpiring = true;
+  try {
+    localStorage.removeItem(SESSION_GUARD_PANEL_KEY);
+    await sb.auth.signOut();
+  } catch (e) {}
+  location.reload();
+}
+
+async function avaliarSessaoPainel() {
+  if (!sessionGuardStarted || sessionGuardExpiring || !sb) return;
+  const agora = Date.now();
+  const meta = lerSessionGuardPainel();
+  if (!meta.loginAt || !meta.lastActivityAt) {
+    prepararSessionGuardPainel(false);
+    return;
+  }
+
+  if (agora - meta.loginAt >= SESSION_MAX_MS) {
+    await expirarSessaoPainel();
+    return;
+  }
+
+  if (agora - meta.lastActivityAt >= SESSION_IDLE_MS) {
+    const continuar = confirm('Sua sessão vai expirar por segurança. Deseja continuar?');
+    if (continuar) registrarAtividadePainel();
+    else await expirarSessaoPainel();
+  }
+}
+
+function iniciarControleSessaoPainel() {
+  if (sessionGuardStarted) return;
+  const appAberto = document.getElementById('app')?.style.display === 'block';
+  if (!appAberto || !currentUser) return;
+
+  prepararSessionGuardPainel(false);
+  sessionGuardStarted = true;
+
+  ['click', 'touchstart', 'keydown', 'mousemove'].forEach(evt => {
+    window.addEventListener(evt, registrarAtividadePainel, { passive: true });
+  });
+  window.addEventListener('focus', async () => {
+    await avaliarSessaoPainel();
+    if (sessionGuardExpiring) return;
+    registrarAtividadePainel();
+  });
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible') {
+      await avaliarSessaoPainel();
+      if (sessionGuardExpiring) return;
+      registrarAtividadePainel();
+    }
+  });
+  setInterval(avaliarSessaoPainel, SESSION_CHECK_MS);
+}
+
+setInterval(iniciarControleSessaoPainel, 1000);
+
 async function fazerLogin() {
   if (!sb) { setLoginMsg('Ainda carregando configuração, aguarde...', false); return; }
 
@@ -28,6 +125,7 @@ async function fazerLogin() {
 
   if (error) { setLoginMsg('Telefone/e-mail ou senha incorretos.', true); return; }
 
+  prepararSessionGuardPainel(true);
   await boot();
 }
 
@@ -116,6 +214,7 @@ async function salvarNovaSenhaRecuperacao() {
   }
 
   async function logout() {
+    localStorage.removeItem(SESSION_GUARD_PANEL_KEY);
     await sb.auth.signOut();
     location.reload();
   }
