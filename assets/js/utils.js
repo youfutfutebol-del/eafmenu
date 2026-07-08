@@ -28,6 +28,12 @@
       .replace(/'/g, '&#039;');
   }
 
+  function getProdutoPlaceholder(produto) {
+    const nome = typeof produto === 'string' ? produto : produto?.nome;
+    const letra = String(nome || 'P').trim().charAt(0).toUpperCase() || 'P';
+    return `<div class="produto-placeholder">${escapeHtml(letra)}</div>`;
+  }
+
   function formatMoedaRel(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ','); }
 
   function formatData(iso) {

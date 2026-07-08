@@ -140,7 +140,7 @@
 
       const thumb = p.imagem_url
         ? `<img src="${p.imagem_url}" alt="">`
-        : '🍕';
+        : getProdutoPlaceholder(p);
 
       return `
         <tr>
@@ -249,6 +249,7 @@
     document.getElementById('pImagemUrl').value = '';
     document.getElementById('pImagemArquivo').value = '';
     document.getElementById('pImagemPreview').style.display = 'none';
+    document.getElementById('pImagemPlaceholder').textContent = 'P';
     document.getElementById('pImagemPlaceholder').style.display = 'block';
     document.getElementById('pImagemStatus').textContent = '';
     document.getElementById('pAtivo').checked = true;
@@ -276,6 +277,7 @@
     document.getElementById('pImagemUrl').value = p.imagem_url || '';
     document.getElementById('pImagemArquivo').value = '';
     document.getElementById('pImagemStatus').textContent = '';
+    document.getElementById('pImagemPlaceholder').textContent = String(p.nome || 'P').trim().charAt(0).toUpperCase() || 'P';
     if (p.imagem_url) {
       document.getElementById('pImagemPreview').src = p.imagem_url;
       document.getElementById('pImagemPreview').style.display = 'block';
@@ -311,6 +313,11 @@
     }
 
     document.getElementById('produtoModalBg').classList.add('show');
+  }
+
+  function atualizarPlaceholderImagemProduto() {
+    const nome = document.getElementById('pNome').value.trim();
+    document.getElementById('pImagemPlaceholder').textContent = nome.charAt(0).toUpperCase() || 'P';
   }
 
   function closeProduto() { document.getElementById('produtoModalBg').classList.remove('show'); }

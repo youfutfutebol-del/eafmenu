@@ -124,6 +124,8 @@
   .prod-row-name { display:flex; align-items:center; gap:10px; }
   .prod-thumb { width:38px; height:38px; border-radius:8px; background:#F4F4F5; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; overflow:hidden; }
   .prod-thumb img { width:100%; height:100%; object-fit:cover; }
+  .produto-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#F4F4F5; color:#71717A; font-weight:800; font-size:16px; text-transform:uppercase; }
+  .produto-placeholder--modal { font-size:20px; }
   .prod-name-text b { display:block; font-size:13px; }
   .prod-name-text span { font-size:11.5px; color: var(--muted); }
   .status-pill { font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:20px; }
