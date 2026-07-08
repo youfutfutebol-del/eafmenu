@@ -1,98 +1,76 @@
 // /assets/js/relatorio-financeiro.js
-// Logica da aba Relatorio Financeiro, extraida do index.html (Etapa 9).
-// Dependem de globais/funcoes: sb, showToast, formatMoedaRel (utils.js).
-// So chamadas apos o script principal rodar. Continuam globais (sem type=module).
+// Recriado do zero (redesign do dashboard financeiro).
+// Único ponto de entrada externo: loadRelatorioFinanceiro(), chamada por switchView('relatorio')
+// no script principal do index.html — esse nome precisa continuar existindo com essa assinatura.
+//
+// Estratégia: a RPC relatorio_financeiro_v1 só devolve formas de pagamento / entrega x retirada /
+// top produtos completos dentro do bloco `periodo_personalizado` (os blocos hoje/semana/mes trazem
+// só faturamento/pedidos/ticket_medio/cancelados). Por isso, para QUALQUER filtro (Hoje, Últimos 7
+// dias, Este mês ou Personalizado), sempre chamamos a RPC com datas explícitas e usamos só o bloco
+// periodo_personalizado como fonte de dados — um único caminho de renderização pros 4 filtros.
+//
+// Depende de: sb, showToast, formatMoedaRel (utils.js). Continua global (sem type=module).
 
+  let relFiltroAtivo = 'hoje';       // 'hoje' | 'semana' | 'mes' | 'personalizado'
+  let relDiaComercialRef = null;     // 'YYYY-MM-DD', vem do servidor (respeita o corte às 7h)
+  let relDadosAtuais = null;         // último periodo_personalizado retornado — usado pela auditoria
+
+  // =====================================================================
+  // HELPERS DE DATA (strings 'YYYY-MM-DD', sem depender de fuso do navegador)
+  // =====================================================================
+  function relParseISO(iso) {
+    return new Date(iso + 'T00:00:00');
+  }
+
+  function relParaISO(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function relSomarDias(iso, n) {
+    const d = relParseISO(iso);
+    d.setDate(d.getDate() + n);
+    return relParaISO(d);
+  }
+
+  function relInicioDoMes(iso) {
+    const d = relParseISO(iso);
+    return relParaISO(new Date(d.getFullYear(), d.getMonth(), 1));
+  }
+
+  function relFormatarDataBR(iso) {
+    if (!iso) return '—';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  function relFormatarPeriodoBR(inicio, fim) {
+    if (!inicio || !fim) return '—';
+    return inicio === fim ? relFormatarDataBR(inicio) : `${relFormatarDataBR(inicio)} até ${relFormatarDataBR(fim)}`;
+  }
+
+  // =====================================================================
+  // ENTRADA PRINCIPAL
+  // =====================================================================
   async function loadRelatorioFinanceiro() {
-    document.getElementById('relPeriodoResultado').classList.add('hidden');
-    document.getElementById('relErro').classList.add('hidden');
     document.getElementById('relDataInicio').value = '';
     document.getElementById('relDataFim').value = '';
-    await buscarRelatorioFinanceiro();
+    document.getElementById('relErro').classList.add('hidden');
+    relDiaComercialRef = null;
+    await setRelFiltro('hoje');
   }
 
-  async function buscarRelatorioFinanceiro(dataInicio, dataFim) {
-    const { data, error } = await sb.rpc('relatorio_financeiro_v1', {
-      p_data_inicio: dataInicio || null,
-      p_data_fim: dataFim || null
-    });
-    if (error) { showToast('Não foi possível carregar o relatório', error.message); return; }
-    renderRelatorioFinanceiro(data);
-  }
+  async function setRelFiltro(filtro) {
+    relFiltroAtivo = filtro;
+    document.querySelectorAll('.rel-chip').forEach(el => el.classList.toggle('active', el.dataset.filtro === filtro));
+    document.getElementById('relPersonalizadoBox').classList.toggle('show', filtro === 'personalizado');
 
-  function renderBlocoRel(prefixo, bloco) {
-    document.getElementById(`rel${prefixo}Valor`).textContent = formatMoedaRel(bloco.faturamento);
-    document.getElementById(`rel${prefixo}Sub`).textContent =
-      `${bloco.pedidos} pedido${bloco.pedidos === 1 ? '' : 's'} · ticket médio ${formatMoedaRel(bloco.ticket_medio)}`;
+    // No modo personalizado, só busca quando a pessoa clicar em "Aplicar período".
+    if (filtro === 'personalizado') return;
 
-    const cancelados = bloco.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
-    const elCancelados = document.getElementById(`rel${prefixo}Cancelados`);
-    if (elCancelados) {
-      elCancelados.textContent = cancelados.pedidos > 0
-        ? `Cancelados: ${cancelados.pedidos} · Valor cancelado: ${formatMoedaRel(cancelados.valor)} (${cancelados.percentual}%)`
-        : 'Cancelados: 0';
-    }
-  }
-
-  function renderTabelaChaveValorRel(tbodyId, obj) {
-    const tbody = document.getElementById(tbodyId);
-    const chaves = Object.keys(obj || {});
-    if (chaves.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="2"><div class="empty-state"><div class="ic">💲</div><h4>Nenhum dado no período</h4></div></td></tr>`;
-      return;
-    }
-    tbody.innerHTML = chaves.map(k => `
-      <tr>
-        <td data-label="Item">${k.charAt(0).toUpperCase() + k.slice(1)}</td>
-        <td data-label="Faturamento">${formatMoedaRel(obj[k])}</td>
-      </tr>`).join('');
-  }
-
-  function renderTabelaTopProdutosRel(tbodyId, lista) {
-    const tbody = document.getElementById(tbodyId);
-    if (!lista || lista.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="2"><div class="empty-state"><div class="ic">🍽️</div><h4>Nenhuma venda no período</h4></div></td></tr>`;
-      return;
-    }
-    tbody.innerHTML = lista.map((p, i) => `
-      <tr>
-        <td data-label="Produto">${i + 1}. ${p.nome}</td>
-        <td data-label="Quantidade">${p.quantidade}x</td>
-      </tr>`).join('');
-  }
-
-  function renderRelatorioFinanceiro(data) {
-    renderBlocoRel('Hoje', data.hoje);
-    renderBlocoRel('Semana', data.semana);
-    renderBlocoRel('Mes', data.mes);
-
-    renderTabelaChaveValorRel('relFormaPagamentoBody', data.por_forma_pagamento);
-    renderTabelaChaveValorRel('relTipoBody', data.por_tipo);
-    renderTabelaTopProdutosRel('relTopProdutosBody', data.top_produtos_mes);
-
-    const bloco = document.getElementById('relPeriodoResultado');
-    if (data.periodo_personalizado) {
-      bloco.classList.remove('hidden');
-      const p = data.periodo_personalizado;
-      document.getElementById('relPeriodoLabel').textContent = `Período: ${p.data_inicio} até ${p.data_fim}`;
-      document.getElementById('relPeriodoValor').textContent = formatMoedaRel(p.faturamento);
-      document.getElementById('relPeriodoSub').textContent =
-        `${p.pedidos} pedido${p.pedidos === 1 ? '' : 's'} · ticket médio ${formatMoedaRel(p.ticket_medio)}`;
-
-      const canceladosPeriodo = p.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
-      const elPeriodoCancelados = document.getElementById('relPeriodoCancelados');
-      if (elPeriodoCancelados) {
-        elPeriodoCancelados.textContent = canceladosPeriodo.pedidos > 0
-          ? `Cancelados: ${canceladosPeriodo.pedidos} · Valor cancelado: ${formatMoedaRel(canceladosPeriodo.valor)} (${canceladosPeriodo.percentual}%)`
-          : 'Cancelados: 0';
-      }
-
-      renderTabelaChaveValorRel('relPeriodoFormaPagamentoBody', p.por_forma_pagamento);
-      renderTabelaChaveValorRel('relPeriodoTipoBody', p.por_tipo);
-      renderTabelaTopProdutosRel('relPeriodoTopProdutosBody', p.top_produtos);
-    } else {
-      bloco.classList.add('hidden');
-    }
+    await relBuscarPeriodo();
   }
 
   async function aplicarPeriodoRelatorio() {
@@ -111,33 +89,202 @@
       erroEl.classList.remove('hidden');
       return;
     }
-    await buscarRelatorioFinanceiro(inicio, fim);
+    await relBuscarPeriodo(inicio, fim);
+  }
+
+  async function relBuscarPeriodo(dataInicioForcada, dataFimForcada) {
+    const erroEl = document.getElementById('relErro');
+    erroEl.classList.add('hidden');
+
+    try {
+      // Primeira carga: descobre o "dia comercial" oficial do servidor (corte às 7h),
+      // pra Hoje/Semana/Mês sempre baterem com o resto do painel.
+      if (!relDiaComercialRef) {
+        const { data, error } = await sb.rpc('relatorio_financeiro_v1', { p_data_inicio: null, p_data_fim: null });
+        if (error) throw error;
+        relDiaComercialRef = data.dia_comercial_referencia;
+      }
+
+      let dataInicio, dataFim;
+      if (dataInicioForcada) {
+        dataInicio = dataInicioForcada;
+        dataFim = dataFimForcada;
+      } else if (relFiltroAtivo === 'semana') {
+        dataInicio = relSomarDias(relDiaComercialRef, -6);
+        dataFim = relDiaComercialRef;
+      } else if (relFiltroAtivo === 'mes') {
+        dataInicio = relInicioDoMes(relDiaComercialRef);
+        dataFim = relDiaComercialRef;
+      } else {
+        dataInicio = relDiaComercialRef;
+        dataFim = relDiaComercialRef;
+      }
+
+      const { data, error } = await sb.rpc('relatorio_financeiro_v1', { p_data_inicio: dataInicio, p_data_fim: dataFim });
+      if (error) throw error;
+
+      relDadosAtuais = data.periodo_personalizado;
+      relRenderTudo(relDadosAtuais);
+    } catch (e) {
+      showToast('Erro ao carregar relatório', e.message);
+    }
   }
 
   // =====================================================================
-  // AUDITORIA DE CANCELAMENTOS (clique no "Cancelados" de cada card)
+  // RENDERIZAÇÃO
   // =====================================================================
-  async function abrirCancelamentosPeriodo(periodo) {
-    let dataInicio = null;
-    let dataFim = null;
+  function relRenderTudo(p) {
+    if (!p) return;
+    relRenderKpis(p);
+    relRenderResumo(p);
+    relRenderBarras('relFormaPagamentoBars', p.por_forma_pagamento);
+    relRenderBarras('relTipoBars', p.por_tipo);
+    relRenderTabela('relFormaPagamentoBody', p.por_forma_pagamento);
+    relRenderTabela('relTipoBody', p.por_tipo);
+    relRenderTopProdutos(p.top_produtos);
+    relRenderInsights(p);
+  }
 
-    if (periodo === 'personalizado') {
-      dataInicio = document.getElementById('relDataInicio').value;
-      dataFim = document.getElementById('relDataFim').value;
-      if (!dataInicio || !dataFim) {
-        showToast('Escolha o período primeiro', 'Preencha e aplique as datas antes de ver os cancelamentos.');
-        return;
-      }
+  function relRenderKpis(p) {
+    const cancelados = p.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
+
+    document.getElementById('relKpiFaturamento').textContent = formatMoedaRel(p.faturamento);
+    document.getElementById('relKpiFaturamentoSub').textContent =
+      `${p.pedidos} pedido${p.pedidos === 1 ? '' : 's'} concluído${p.pedidos === 1 ? '' : 's'}`;
+    document.getElementById('relKpiPedidos').textContent = p.pedidos;
+    document.getElementById('relKpiTicket').textContent = formatMoedaRel(p.ticket_medio);
+    document.getElementById('relKpiCancelados').textContent = cancelados.pedidos;
+    document.getElementById('relKpiValorCancelado').textContent = formatMoedaRel(cancelados.valor);
+    document.getElementById('relKpiTaxa').textContent = `${cancelados.percentual}%`;
+  }
+
+  function relRenderResumo(p) {
+    const cancelados = p.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
+    document.getElementById('relResumoData').textContent = relFormatarPeriodoBR(p.data_inicio, p.data_fim);
+
+    const stats = [
+      { lbl: 'Faturamento', val: formatMoedaRel(p.faturamento) },
+      { lbl: 'Pedidos concluídos', val: String(p.pedidos) },
+      { lbl: 'Ticket médio', val: formatMoedaRel(p.ticket_medio) },
+      { lbl: 'Cancelados', val: String(cancelados.pedidos), destaque: true },
+      { lbl: 'Valor cancelado', val: formatMoedaRel(cancelados.valor), destaque: true },
+      { lbl: 'Taxa de cancelamento', val: `${cancelados.percentual}%`, destaque: true }
+    ];
+
+    document.getElementById('relResumoStats').innerHTML = stats.map(s => `
+      <div class="rel-resumo__stat ${s.destaque ? 'destaque' : ''}">
+        <span class="lbl">${s.lbl}</span>
+        <span class="val">${s.val}</span>
+      </div>`).join('');
+  }
+
+  function relRenderBarras(containerId, objValores) {
+    const el = document.getElementById(containerId);
+    const entradas = Object.entries(objValores || {});
+    if (entradas.length === 0) {
+      el.innerHTML = `<div class="empty-state"><div class="ic">📊</div><h4>Sem dados no período</h4></div>`;
+      return;
     }
+    const total = entradas.reduce((s, [, v]) => s + Number(v), 0);
+    el.innerHTML = entradas
+      .sort((a, b) => Number(b[1]) - Number(a[1]))
+      .map(([chave, valor]) => {
+        const pct = total > 0 ? (Number(valor) / total) * 100 : 0;
+        const nome = chave.charAt(0).toUpperCase() + chave.slice(1);
+        return `
+          <div class="rel-bar-row">
+            <div class="rel-bar-row__top">
+              <span>${nome}</span>
+              <span class="valor">${formatMoedaRel(valor)} · ${pct.toFixed(1)}%</span>
+            </div>
+            <div class="rel-bar-track"><div class="rel-bar-fill" style="width:${pct.toFixed(1)}%"></div></div>
+          </div>`;
+      }).join('');
+  }
+
+  function relRenderTabela(tbodyId, objValores) {
+    const tbody = document.getElementById(tbodyId);
+    const entradas = Object.entries(objValores || {});
+    if (entradas.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3"><div class="empty-state"><div class="ic">💲</div><h4>Nenhum dado no período</h4></div></td></tr>`;
+      return;
+    }
+    const total = entradas.reduce((s, [, v]) => s + Number(v), 0);
+    tbody.innerHTML = entradas
+      .sort((a, b) => Number(b[1]) - Number(a[1]))
+      .map(([chave, valor]) => {
+        const pct = total > 0 ? (Number(valor) / total) * 100 : 0;
+        const nome = chave.charAt(0).toUpperCase() + chave.slice(1);
+        return `
+          <tr>
+            <td data-label="Item">${nome}</td>
+            <td data-label="Faturamento">${formatMoedaRel(valor)}</td>
+            <td data-label="%">${pct.toFixed(1)}%</td>
+          </tr>`;
+      }).join('');
+  }
+
+  function relRenderTopProdutos(lista) {
+    const el = document.getElementById('relTopProdutosLista');
+    if (!lista || lista.length === 0) {
+      el.innerHTML = `<div class="empty-state"><div class="ic">🍽️</div><h4>Nenhuma venda no período</h4></div>`;
+      return;
+    }
+    const maiorQtd = Math.max(...lista.map(p => Number(p.quantidade)));
+    el.innerHTML = lista.map((p, i) => {
+      const pct = maiorQtd > 0 ? (Number(p.quantidade) / maiorQtd) * 100 : 0;
+      return `
+        <div class="rel-top-item">
+          <span class="rel-top-item__pos">${i + 1}</span>
+          <span class="rel-top-item__nome">${p.nome}</span>
+          <span class="rel-top-item__qtd">${p.quantidade}x</span>
+          <div class="rel-top-item__barra"><div class="rel-top-item__barra-fill" style="width:${pct.toFixed(1)}%"></div></div>
+        </div>`;
+    }).join('');
+  }
+
+  function relRenderInsights(p) {
+    const el = document.getElementById('relInsights');
+    const cancelados = p.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
+    const insights = [];
+
+    insights.push(`Faturamento do período: <b>${formatMoedaRel(p.faturamento)}</b>, com <b>${p.pedidos}</b> pedido${p.pedidos === 1 ? '' : 's'} concluído${p.pedidos === 1 ? '' : 's'}.`);
+
+    if (cancelados.pedidos > 0) {
+      insights.push(`<b>${cancelados.pedidos}</b> pedido${cancelados.pedidos === 1 ? '' : 's'} cancelado${cancelados.pedidos === 1 ? '' : 's'}, totalizando <b>${formatMoedaRel(cancelados.valor)}</b> (${cancelados.percentual}% dos pedidos do período).`);
+    } else {
+      insights.push(`Nenhum cancelamento nesse período.`);
+    }
+
+    const formas = Object.entries(p.por_forma_pagamento || {});
+    if (formas.length > 0) {
+      const [nomeForma] = formas.sort((a, b) => Number(b[1]) - Number(a[1]))[0];
+      insights.push(`Forma de pagamento mais usada: <b>${nomeForma.charAt(0).toUpperCase() + nomeForma.slice(1)}</b>.`);
+    }
+
+    const tipos = Object.entries(p.por_tipo || {});
+    if (tipos.length > 0) {
+      const [nomeTipo] = tipos.sort((a, b) => Number(b[1]) - Number(a[1]))[0];
+      insights.push(`Canal com maior faturamento: <b>${nomeTipo.charAt(0).toUpperCase() + nomeTipo.slice(1)}</b>.`);
+    }
+
+    el.innerHTML = insights.map(txt => `<div class="rel-insight-card">${txt}</div>`).join('');
+  }
+
+  // =====================================================================
+  // AUDITORIA DE CANCELAMENTOS (clique nos cards Cancelados / Valor cancelado)
+  // =====================================================================
+  async function abrirCancelamentosPeriodo() {
+    if (!relDadosAtuais) return;
 
     document.getElementById('cancelamentosPeriodoLabel').textContent = 'Carregando...';
     document.getElementById('cancelamentosPeriodoLista').innerHTML = '';
     document.getElementById('cancelamentosPeriodoModalBg').classList.add('show');
 
     const { data, error } = await sb.rpc('relatorio_cancelamentos_v1', {
-      p_periodo: periodo,
-      p_data_inicio: dataInicio,
-      p_data_fim: dataFim
+      p_periodo: 'personalizado',
+      p_data_inicio: relDadosAtuais.data_inicio,
+      p_data_fim: relDadosAtuais.data_fim
     });
 
     if (error) {
@@ -157,11 +304,12 @@
   function renderCancelamentosPeriodo(data) {
     const labelEl = document.getElementById('cancelamentosPeriodoLabel');
     const listaEl = document.getElementById('cancelamentosPeriodoLista');
-    labelEl.textContent = `${data.data_inicio} até ${data.data_fim} · ${data.total_cancelamentos} cancelamento${data.total_cancelamentos === 1 ? '' : 's'} · ${formatMoedaRel(data.valor_total_cancelado)}`;
+    labelEl.textContent =
+      `${relFormatarPeriodoBR(data.data_inicio, data.data_fim)} · ${data.total_cancelamentos} cancelamento${data.total_cancelamentos === 1 ? '' : 's'} · ${formatMoedaRel(data.valor_total_cancelado)}`;
 
     const lista = data.cancelamentos || [];
     if (lista.length === 0) {
-      listaEl.innerHTML = `<div class="empty-state"><div class="ic">✕</div><h4>Nenhum cancelamento nesse período</h4></div>`;
+      listaEl.innerHTML = `<div class="empty-state"><div class="ic">✕</div><h4>Nenhum cancelamento nesse período.</h4></div>`;
       return;
     }
 
