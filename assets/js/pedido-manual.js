@@ -15,6 +15,8 @@
     document.getElementById('mEndNumero').value = '';
     document.getElementById('mEndBairro').value = '';
     document.getElementById('mEndComplemento').value = '';
+    document.getElementById('mEndReferencia').value = '';
+    document.getElementById('mObservacoes').value = '';
     document.getElementById('mForma').value = 'dinheiro';
     document.getElementById('mTrocoPara').value = '';
     document.getElementById('mBuscaProduto').value = '';
@@ -77,7 +79,7 @@
       document.getElementById('mCliNome').value = cliente.nome;
 
       const { data: enderecos } = await sb.from('enderecos_cliente')
-        .select('id, logradouro, numero, bairro, complemento, padrao')
+        .select('id, logradouro, numero, bairro, complemento, referencia, padrao')
         .eq('cliente_id', cliente.id)
         .order('padrao', { ascending: false })
         .limit(1);
@@ -88,6 +90,7 @@
         document.getElementById('mEndNumero').value = enderecos[0].numero || '';
         document.getElementById('mEndBairro').value = enderecos[0].bairro || '';
         document.getElementById('mEndComplemento').value = enderecos[0].complemento || '';
+        document.getElementById('mEndReferencia').value = enderecos[0].referencia || '';
       } else {
         enderecoEncontradoAtual = null;
       }
@@ -207,6 +210,7 @@
     const tipo = document.getElementById('mTipo').value;
     const forma = document.getElementById('mForma').value;
     const trocoParaRaw = document.getElementById('mTrocoPara').value;
+    const observacoes = document.getElementById('mObservacoes').value.trim();
 
     // Reutiliza o cliente encontrado pelo telefone; só cria um novo se não houve match.
     let clienteId;
@@ -266,19 +270,21 @@
       const numero = document.getElementById('mEndNumero').value.trim();
       const bairro = document.getElementById('mEndBairro').value.trim();
       const complemento = document.getElementById('mEndComplemento').value.trim();
+      const referencia = document.getElementById('mEndReferencia').value.trim();
       if (!logradouro) { showToast('Faltou o endereço', 'Informe o endereço de entrega.'); return; }
 
       const mesmoEnderecoDoLookup = enderecoEncontradoAtual
         && enderecoEncontradoAtual.logradouro === logradouro
         && (enderecoEncontradoAtual.numero || '') === numero
         && (enderecoEncontradoAtual.bairro || '') === bairro
-        && (enderecoEncontradoAtual.complemento || '') === complemento;
+        && (enderecoEncontradoAtual.complemento || '') === complemento
+        && (enderecoEncontradoAtual.referencia || '') === referencia;
 
       if (mesmoEnderecoDoLookup) {
         enderecoId = enderecoEncontradoAtual.id;
       } else {
         const { data: novoEndereco, error: endErr } = await sb.from('enderecos_cliente')
-          .insert({ cliente_id: clienteId, logradouro, numero, bairro, complemento: complemento || null })
+          .insert({ cliente_id: clienteId, logradouro, numero, bairro, complemento: complemento || null, referencia: referencia || null })
           .select().single();
         if (endErr) { showToast('Erro ao salvar endereço', endErr.message); return; }
         enderecoId = novoEndereco.id;
@@ -317,7 +323,8 @@
       .insert({
         restaurante_id: restauranteId, cliente_id: clienteId, tipo, forma_pagamento: forma,
         subtotal: total, total, status: 'recebido',
-        endereco_entrega_id: enderecoId, troco_para: trocoPara
+        endereco_entrega_id: enderecoId, troco_para: trocoPara,
+        observacoes: observacoes || null
       })
       .select().single();
     if (pedErr) { showToast('Erro ao criar pedido', pedErr.message); return; }
