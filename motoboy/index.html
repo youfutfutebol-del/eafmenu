@@ -97,6 +97,8 @@
   .switch.on::after { left:17px; }
   .logout-btn { color:#EF7A70; font-size:11.5px; font-weight:700; padding:4px 0; }
   .tema-toggle-btn { color:#D5D8DB; font-size:15px; padding:2px 0; }
+  .contato-rest-btn { display:none; margin-top:8px; align-items:center; gap:5px; font-size:11.5px; font-weight:700; color:#fff; background:rgba(255,255,255,.12); border-radius:8px; padding:7px 11px; }
+  .contato-rest-btn.show { display:inline-flex; }
 
   /* Cartões de resumo do dia */
   .stats-row { display:flex; gap:10px; padding: 16px 20px 4px; }
@@ -232,6 +234,7 @@
       <div>
         <div class="topbar__titulo" id="topNome">Olá</div>
         <div class="topbar__sub" id="topSub">—</div>
+        <button class="contato-rest-btn" id="btnContatoRestaurante" onclick="abrirWhatsappRestauranteMotoboy()">💬 Falar com o restaurante</button>
       </div>
       <div class="topbar__right">
         <button class="logout-btn" onclick="logout()">⎋ Sair</button>
@@ -287,6 +290,7 @@
 
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
+<script src="/assets/js/whatsapp.js"></script>
 <script src="/assets/js/sons.js"></script>
 <script>
   let sb = null;
@@ -536,7 +540,7 @@
 
     const { data: userRow, error: userErr } = await sb
       .from('usuarios')
-      .select('id, nome, role, restaurante_id, primeiro_acesso, ativo, restaurantes(nome)')
+      .select('id, nome, role, restaurante_id, primeiro_acesso, ativo, restaurantes(nome, whatsapp)')
       .eq('id', session.user.id)
       .single();
 
@@ -569,6 +573,7 @@
 
     document.getElementById('topNome').textContent = 'Olá, ' + userRow.nome.split(' ')[0];
     document.getElementById('topSub').textContent = userRow.restaurantes?.nome || '';
+    document.getElementById('btnContatoRestaurante').classList.toggle('show', !!userRow.restaurantes?.whatsapp);
 
     await carregarDisponibilidade();
     await carregarEntregas();
@@ -676,6 +681,10 @@
     const digitos = (telefone || '').replace(/\D/g, '');
     if (!digitos) return null;
     return digitos.length <= 11 ? '55' + digitos : digitos;
+  }
+
+  function abrirWhatsappRestauranteMotoboy() {
+    abrirWhatsapp(currentUser?.restaurantes?.whatsapp, 'Olá, sou motoboy e preciso falar com o restaurante sobre uma entrega.');
   }
 
   function copiarEnderecoMotoboy(texto) {

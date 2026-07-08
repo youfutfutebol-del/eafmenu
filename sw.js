@@ -3,10 +3,11 @@
 // sempre tentando a rede primeiro para os dados (Supabase), e caindo pro
 // cache só quando estiver offline. Isso evita mostrar pedidos desatualizados.
 
-const CACHE_NAME = 'eaf-menu-cache-v0.5.9';
+const CACHE_NAME = 'eaf-menu-cache-v0.5.10';
 const APP_SHELL = [
   '/index.html',
   '/manifest.json',
+  '/assets/js/whatsapp.js',
   '/icons/icon192.png',
   '/icons/icon512.png'
 ];

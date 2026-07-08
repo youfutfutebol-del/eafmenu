@@ -101,6 +101,8 @@
       <div class="sidebar__section-label">Acessar Apps</div>
       <button class="navitem" onclick="abrirPwaCliente()"><span class="ic">📱</span> App do Cliente</button>
       <button class="navitem" onclick="abrirPwaMotoboy()"><span class="ic">🛵</span> App do Motoboy</button>
+      <div class="sidebar__divider"></div>
+      <button class="navitem" onclick="abrirSuporteEafFlow()"><span class="ic">🎧</span> Suporte EAF Flow</button>
       <div class="sidebar__footer">
         <button class="install-btn" id="installBtnApp" onclick="installApp()">⬇ Instalar aplicativo</button>
         <div class="admin-badge">
@@ -770,6 +772,7 @@
 
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
+<script src="/assets/js/whatsapp.js"></script>
 <script src="/assets/js/utils.js"></script>
 <script src="/assets/js/sons.js"></script>
 <script src="/assets/js/auth.js"></script>
@@ -944,6 +947,10 @@
   }
 
   function emConstrucao() { showToast('Em construção', 'Essa tela ainda não foi implementada nesta versão.'); }
+
+  function abrirSuporteEafFlow() {
+    abrirWhatsapp('5541984213488', 'Olá, sou usuário do EAF Menu e preciso de suporte.');
+  }
 
   async function loadProdutos() {
     const { data, error } = await sb

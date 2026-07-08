@@ -1,8 +1,9 @@
-const CACHE_NAME = 'eaf-cliente-v0.1.7';
+const CACHE_NAME = 'eaf-cliente-v0.1.8';
 const APP_SHELL = [
   '/cliente/',
   '/cliente/index.html',
   '/cliente/manifest.json',
+  '/assets/js/whatsapp.js',
   '/icons/icon192.png',
   '/icons/icon512.png'
 ];

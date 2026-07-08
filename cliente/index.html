@@ -109,6 +109,12 @@
   }
   .btn-instalar.show { display:inline-flex; }
   .btn-instalar:hover { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+  .btn-whatsapp-rest {
+    display:none; align-items:center; gap:5px; border:1px solid color-mix(in srgb, #1FAA59 35%, var(--border));
+    background:var(--surface); color:#178A49; border-radius:11px; padding:9px 12px; font-size:11.5px; font-weight:800;
+    flex-shrink:0; white-space:nowrap; box-shadow: var(--shadow-xs);
+  }
+  .btn-whatsapp-rest.show { display:inline-flex; }
 
   /* ---------------- Banner de fechado ---------------- */
   .banner-fechado {
@@ -278,6 +284,7 @@
         <div class="topbar__status" id="topStatus"><span class="dot"></span> <span id="topStatusTxt">Aberto agora</span></div>
       </div>
       <button class="btn-instalar" id="btnInstalar" onclick="installApp()">⬇ Instalar</button>
+      <button class="btn-whatsapp-rest" id="btnWhatsappRestaurante" onclick="abrirWhatsappRestauranteCliente()">💬 Falar com o restaurante</button>
       <button class="btn-pedidos" onclick="openMeusPedidos()">📦<span class="badge-count hidden" id="pedidosBadge">0</span></button>
       <button class="btn-pedidos" id="btnTestarSomDevCliente" style="display:none;" onclick="tocarSaiuEntregaCliente()">🔔</button>
     </div>
@@ -431,6 +438,7 @@
 
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
+<script src="/assets/js/whatsapp.js"></script>
 <script src="/assets/js/sons.js"></script>
 <script>
   // =====================================================================
@@ -537,6 +545,11 @@
       const logo = document.getElementById('topLogo');
       logo.innerHTML = `<img src="${restaurante.logo_url}" alt="">`;
     }
+    document.getElementById('btnWhatsappRestaurante').classList.toggle('show', !!restaurante.whatsapp);
+  }
+
+  function abrirWhatsappRestauranteCliente() {
+    abrirWhatsapp(restaurante?.whatsapp, 'Olá, tenho uma dúvida sobre o cardápio/pedido.');
   }
 
   // Saudação com o nome do cliente no topo (puramente visual — não afeta nenhuma outra função)

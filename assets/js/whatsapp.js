@@ -1,7 +1,5 @@
 // /assets/js/whatsapp.js
-// Helper compartilhado pra montar e abrir links do WhatsApp (wa.me) com numero e mensagem seguros.
-// Usado pelo painel do restaurante, app do cliente e app do motoboy. Sem dependencias externas;
-// so precisa estar incluido antes de qualquer botao que chame abrirWhatsapp/montarLinkWhatsapp.
+// Helper compartilhado para abrir links do WhatsApp com numero e mensagem seguros.
 
 function montarLinkWhatsapp(numero, mensagem) {
   const digitos = String(numero || '').replace(/\D/g, '');
@@ -14,6 +12,6 @@ function montarLinkWhatsapp(numero, mensagem) {
 function abrirWhatsapp(numero, mensagem) {
   const link = montarLinkWhatsapp(numero, mensagem);
   if (!link) return false;
-  window.open(link, '_blank', 'noopener');
+  window.open(link, '_blank');
   return true;
 }
