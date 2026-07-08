@@ -495,7 +495,8 @@
         <div class="field"><label>Número</label><input id="mEndNumero" placeholder="123"></div>
         <div class="field"><label>Bairro</label><input id="mEndBairro" placeholder="Centro"></div>
       </div>
-      <div class="field"><label>Complemento (opcional)</label><input id="mEndComplemento" placeholder="Apto, bloco, ponto de referência..."></div>
+      <div class="field"><label>Complemento (opcional)</label><input id="mEndComplemento" placeholder="Apto, bloco..."></div>
+      <div class="field"><label>Ponto de referência (opcional)</label><input id="mEndReferencia" placeholder="Ex: portão azul, perto da farmácia, casa dos fundos..."></div>
     </div>
 
     <p class="pm-section-label">Adicionar produto</p>
@@ -510,6 +511,9 @@
 
     <p class="pm-section-label">Itens do pedido</p>
     <div id="mItens" class="pm-itens-lista"></div>
+
+    <p class="pm-section-label">Observação do pedido</p>
+    <div class="field"><label>Observação (opcional)</label><input id="mObservacoes" maxlength="300" placeholder="Ex: tirar cebola, mandar maquininha, tocar campainha..."></div>
 
     <p class="pm-section-label">Pagamento</p>
     <div class="field"><label>Forma de pagamento</label>
@@ -941,12 +945,6 @@
 
   function emConstrucao() { showToast('Em construção', 'Essa tela ainda não foi implementada nesta versão.'); }
 
-  // ---------------------------------------------------------------------
-  // Status da loja (aberta/fechada) com contagem regressiva
-  // ---------------------------------------------------------------------
-
-  // Retorna { aberto, minutosRestantes, minutosParaAbrir } com base em horariosLojaAtual
-
   async function loadProdutos() {
     const { data, error } = await sb
       .from('produtos')
@@ -977,23 +975,7 @@ const NEXT_LABEL = {
 const FLOW = ['recebido','aceito','em_preparo','saiu_para_entrega','entregue'];
 const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
 
-  // Código de exibição do pedido: usa o número diário quando disponível,
-  // com fallback pros 8 primeiros caracteres do UUID (pedidos antigos, sem numero_diario).
-
-  // ---------------------------------------------------------------------
-  // Impressão de comanda
-  // ---------------------------------------------------------------------
-
-  // Busca cliente pelo telefone dentro do restaurante atual, e pré-preenche nome/endereço se encontrar.
-
-  // ---------------------------------------------------------------------
-  // CAIXA — abertura, fechamento e histórico
-  // ---------------------------------------------------------------------
   let caixaAtual = null;
-
-  // ---------------------------------------------------------------------
-  // RELATÓRIO FINANCEIRO (só dono — a RPC bloqueia qualquer outro role por dentro)
-  // ---------------------------------------------------------------------
 
   const VEICULO_LABEL = { moto: 'Moto', bike: 'Bicicleta', carro: 'Carro', a_pe: 'A pé' };
 
@@ -1025,11 +1007,6 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
         mostrarTelaNovaSenhaRecuperacao();
         return;
       }
-      // Sessão caiu (token expirou, ou foi encerrada em outro dispositivo/aba) enquanto
-      // o painel estava aberto. Só recarrega se, alguns segundos depois, confirmarmos que
-      // realmente não há mais sessão — evita falso positivo de renovação de token que
-      // falha passageiramente (ex: ao abrir o DevTools, que dispara eventos de visibilidade
-      // e faz o Supabase tentar renovar duas vezes ao mesmo tempo).
       if (event === 'SIGNED_OUT' && document.getElementById('app').style.display === 'block') {
         setTimeout(async () => {
           const { data: { session } } = await sb.auth.getSession();
@@ -1038,9 +1015,6 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
       }
     });
 
-    // Se o link de recuperação trouxe a pessoa pra cá, NÃO chama boot() ainda —
-    // senão ele detecta a sessão já criada pelo Supabase e loga direto no painel,
-    // pulando a tela de definir nova senha. boot() só roda depois que ela salvar a senha.
     if (urlIndicaRecuperacaoSenha()) {
       mostrarTelaNovaSenhaRecuperacao();
       return;
