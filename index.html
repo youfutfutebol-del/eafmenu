@@ -223,81 +223,106 @@
         <div class="main__header">
           <div>
             <h1 class="main__title">Relatório Financeiro</h1>
-            <p class="main__subtitle">Faturamento, formas de pagamento e produtos mais vendidos — visível só para o dono</p>
+            <p class="main__subtitle">Visão financeira do período, cancelamentos e desempenho de vendas.</p>
+          </div>
+          <div class="actions">
+            <button class="btn" disabled title="Em breve" style="opacity:.55; cursor:not-allowed;">⬇ Exportar</button>
           </div>
         </div>
 
-        <div class="summary-row">
-          <div class="summary-card entrada">
-            <div class="label">Hoje</div>
-            <div class="value" id="relHojeValor">R$ 0,00</div>
-            <p class="main__subtitle" id="relHojeSub" style="margin-top:6px;">0 pedidos · ticket médio R$ 0,00</p>
-            <p class="main__subtitle cancelados-link" id="relHojeCancelados" style="margin-top:2px; font-size:11.5px;" onclick="abrirCancelamentosPeriodo('hoje')"></p>
-          </div>
-          <div class="summary-card entrada">
-            <div class="label">Últimos 7 dias</div>
-            <div class="value" id="relSemanaValor">R$ 0,00</div>
-            <p class="main__subtitle" id="relSemanaSub" style="margin-top:6px;">0 pedidos · ticket médio R$ 0,00</p>
-            <p class="main__subtitle cancelados-link" id="relSemanaCancelados" style="margin-top:2px; font-size:11.5px;" onclick="abrirCancelamentosPeriodo('semana')"></p>
-          </div>
-          <div class="summary-card entrada">
-            <div class="label">Este mês</div>
-            <div class="value" id="relMesValor">R$ 0,00</div>
-            <p class="main__subtitle" id="relMesSub" style="margin-top:6px;">0 pedidos · ticket médio R$ 0,00</p>
-            <p class="main__subtitle cancelados-link" id="relMesCancelados" style="margin-top:2px; font-size:11.5px;" onclick="abrirCancelamentosPeriodo('mes')"></p>
-          </div>
+        <!-- Filtros -->
+        <div class="rel-chips">
+          <button class="rel-chip active" data-filtro="hoje" onclick="setRelFiltro('hoje')">Hoje</button>
+          <button class="rel-chip" data-filtro="semana" onclick="setRelFiltro('semana')">Últimos 7 dias</button>
+          <button class="rel-chip" data-filtro="mes" onclick="setRelFiltro('mes')">Este mês</button>
+          <button class="rel-chip" data-filtro="personalizado" onclick="setRelFiltro('personalizado')">Personalizado</button>
         </div>
 
-        <div class="filter-row"><span class="filter-label">FORMAS DE PAGAMENTO (MÊS)</span></div>
-        <table class="data-table" style="margin-bottom:20px;">
-          <thead><tr><th>Forma</th><th>Faturamento</th></tr></thead>
-          <tbody id="relFormaPagamentoBody"></tbody>
-        </table>
-
-        <div class="filter-row"><span class="filter-label">ENTREGA X RETIRADA (MÊS)</span></div>
-        <table class="data-table" style="margin-bottom:20px;">
-          <thead><tr><th>Tipo</th><th>Faturamento</th></tr></thead>
-          <tbody id="relTipoBody"></tbody>
-        </table>
-
-        <div class="filter-row"><span class="filter-label">TOP 5 PRODUTOS (MÊS)</span></div>
-        <table class="data-table" style="margin-bottom:20px;">
-          <thead><tr><th>Produto</th><th>Quantidade</th></tr></thead>
-          <tbody id="relTopProdutosBody"></tbody>
-        </table>
-
-        <div class="filter-row" style="flex-wrap:wrap;">
-          <span class="filter-label">PERÍODO PERSONALIZADO</span>
-          <div class="field" style="margin:0; min-width:150px;"><input type="date" id="relDataInicio"></div>
-          <div class="field" style="margin:0; min-width:150px;"><input type="date" id="relDataFim"></div>
+        <div id="relPersonalizadoBox" class="rel-personalizado">
+          <div class="field" style="margin:0; min-width:150px;"><label>De</label><input type="date" id="relDataInicio"></div>
+          <div class="field" style="margin:0; min-width:150px;"><label>Até</label><input type="date" id="relDataFim"></div>
           <button class="btn primary" onclick="aplicarPeriodoRelatorio()">Aplicar período</button>
         </div>
-        <p class="main__subtitle hidden" id="relErro" style="color:var(--red); margin-bottom:14px;"></p>
+        <p class="main__subtitle hidden" id="relErro" style="color:var(--red); margin:-8px 0 4px;"></p>
 
-        <div id="relPeriodoResultado" class="hidden">
-          <div class="summary-row">
-            <div class="summary-card saldo">
-              <div class="label" id="relPeriodoLabel">Período</div>
-              <div class="value" id="relPeriodoValor">R$ 0,00</div>
-              <p class="main__subtitle" id="relPeriodoSub" style="margin-top:6px;">0 pedidos · ticket médio R$ 0,00</p>
-              <p class="main__subtitle cancelados-link" id="relPeriodoCancelados" style="margin-top:2px; font-size:11.5px;" onclick="abrirCancelamentosPeriodo('personalizado')"></p>
-            </div>
+        <!-- KPIs -->
+        <div class="rel-kpi-grid" id="relKpiGrid">
+          <div class="rel-kpi-card rel-kpi-card--hero">
+            <div class="rel-kpi-label">Faturamento</div>
+            <div class="rel-kpi-value" id="relKpiFaturamento">R$ 0,00</div>
+            <div class="rel-kpi-sub" id="relKpiFaturamentoSub">0 pedidos concluídos</div>
           </div>
-          <div class="filter-row"><span class="filter-label">FORMAS DE PAGAMENTO (PERÍODO)</span></div>
-          <table class="data-table" style="margin-bottom:20px;">
-            <thead><tr><th>Forma</th><th>Faturamento</th></tr></thead>
-            <tbody id="relPeriodoFormaPagamentoBody"></tbody>
-          </table>
-          <div class="filter-row"><span class="filter-label">ENTREGA X RETIRADA (PERÍODO)</span></div>
-          <table class="data-table" style="margin-bottom:20px;">
-            <thead><tr><th>Tipo</th><th>Faturamento</th></tr></thead>
-            <tbody id="relPeriodoTipoBody"></tbody>
-          </table>
-          <div class="filter-row"><span class="filter-label">TOP PRODUTOS (PERÍODO)</span></div>
-          <table class="data-table">
-            <thead><tr><th>Produto</th><th>Quantidade</th></tr></thead>
-            <tbody id="relPeriodoTopProdutosBody"></tbody>
-          </table>
+          <div class="rel-kpi-card rel-kpi-card--indigo">
+            <div class="rel-kpi-label">Pedidos concluídos</div>
+            <div class="rel-kpi-value" id="relKpiPedidos">0</div>
+          </div>
+          <div class="rel-kpi-card rel-kpi-card--indigo">
+            <div class="rel-kpi-label">Ticket médio</div>
+            <div class="rel-kpi-value" id="relKpiTicket">R$ 0,00</div>
+          </div>
+          <div class="rel-kpi-card rel-kpi-card--cancel rel-kpi-card--clicavel" onclick="abrirCancelamentosPeriodo()" title="Ver os cancelamentos deste período">
+            <div class="rel-kpi-label">Cancelados</div>
+            <div class="rel-kpi-value" id="relKpiCancelados">0</div>
+            <div class="rel-kpi-sub">Ver detalhes →</div>
+          </div>
+          <div class="rel-kpi-card rel-kpi-card--cancel rel-kpi-card--clicavel" onclick="abrirCancelamentosPeriodo()" title="Ver os cancelamentos deste período">
+            <div class="rel-kpi-label">Valor cancelado</div>
+            <div class="rel-kpi-value" id="relKpiValorCancelado">R$ 0,00</div>
+            <div class="rel-kpi-sub">Ver detalhes →</div>
+          </div>
+          <div class="rel-kpi-card rel-kpi-card--amber">
+            <div class="rel-kpi-label">Taxa de cancelamento</div>
+            <div class="rel-kpi-value" id="relKpiTaxa">0%</div>
+          </div>
+        </div>
+
+        <!-- Resumo do período -->
+        <div class="rel-resumo">
+          <div class="rel-resumo__periodo">
+            <span class="rel-resumo__eyebrow">Resumo do período</span>
+            <span class="rel-resumo__data" id="relResumoData">—</span>
+          </div>
+          <div class="rel-resumo__stats" id="relResumoStats"></div>
+        </div>
+
+        <!-- Formas de pagamento / Entrega x Retirada / Top produtos -->
+        <div class="rel-grid-3">
+          <div class="rel-block">
+            <h3 class="rel-block__title">Formas de pagamento</h3>
+            <div id="relFormaPagamentoBars" class="rel-bars"></div>
+          </div>
+          <div class="rel-block">
+            <h3 class="rel-block__title">Entrega x Retirada</h3>
+            <div id="relTipoBars" class="rel-bars"></div>
+          </div>
+          <div class="rel-block">
+            <h3 class="rel-block__title">Top produtos</h3>
+            <div id="relTopProdutosLista" class="rel-top-list"></div>
+          </div>
+        </div>
+
+        <!-- Detalhamento -->
+        <div class="rel-grid-2">
+          <div class="rel-block">
+            <h3 class="rel-block__title">Detalhamento · Formas de pagamento</h3>
+            <table class="data-table">
+              <thead><tr><th>Forma</th><th>Faturamento</th><th>%</th></tr></thead>
+              <tbody id="relFormaPagamentoBody"></tbody>
+            </table>
+          </div>
+          <div class="rel-block">
+            <h3 class="rel-block__title">Detalhamento · Entrega x Retirada</h3>
+            <table class="data-table">
+              <thead><tr><th>Tipo</th><th>Faturamento</th><th>%</th></tr></thead>
+              <tbody id="relTipoBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Insights -->
+        <div class="rel-block" style="margin-top:20px;">
+          <h3 class="rel-block__title">Leitura rápida</h3>
+          <div class="rel-insights" id="relInsights"></div>
         </div>
       </div>
 
