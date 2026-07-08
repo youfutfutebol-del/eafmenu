@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>EAF Menu — Motoboy</title>
+<link rel="manifest" href="/motoboy/manifest.json">
+<meta name="theme-color" content="#14181C">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EAF Motoboy">
+<link rel="apple-touch-icon" href="/icons/icon192.png">
+<link rel="icon" href="/icons/icon192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root {
+    --ink: #14181C;
+    --paper: #F6F3ED;
+    --surface: #FFFFFF;
+    --route: #E5342A;
+    --route-dark: #C22A21;
+    --done: #1FAA59;
+    --pending: #F2A93B;
+    --muted: #6B7280;
+    --muted-soft: #9AA1AA;
+    --line: #E7E2D9;
+    --chrome-escuro: #14181C;
+    --shadow: 0 2px 10px rgba(20,24,28,.06);
+    --shadow-lg: 0 16px 40px rgba(20,24,28,.16);
+    --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: var(--font-body);
+  }
+  body.dark {
+    --ink: #EDEFF2;
+    --paper: #14181C;
+    --surface: #1E2328;
+    --line: #2C333A;
+    --muted: #9AA1AA;
+    --muted-soft: #6B7280;
+    --shadow: 0 2px 10px rgba(0,0,0,.35);
+    --shadow-lg: 0 16px 40px rgba(0,0,0,.55);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; background: var(--paper); color: var(--ink); -webkit-font-smoothing:antialiased; }
+  button { font-family: inherit; cursor: pointer; border:none; background:none; }
+  button:active { transform: scale(.97); }
+  input { font-family: inherit; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+  /* ---------- Login / telas cheias ---------- */
+  #loginScreen, #primeiroAcessoScreen {
+    min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--chrome-escuro); padding:24px;
+  }
+  #primeiroAcessoScreen { display:none; }
+  .login-card { background: var(--surface); border-radius:20px; padding: 36px 28px; width: 340px; max-width:100%; text-align:center; box-shadow: var(--shadow-lg); }
+  .login-card .badge { width:58px; height:58px; border-radius:16px; margin: 0 auto 16px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .login-card .badge img { width:100%; height:100%; object-fit:contain; }
+  .login-card h2 { margin: 0 0 4px; font-family: var(--font-display); font-weight:700; font-size:18px; letter-spacing:-.2px; }
+  .login-card p { margin:0 0 22px; font-size:12.5px; color:var(--muted); line-height:1.5; }
+  .login-card input {
+    width:100%; padding:13px 14px; border:1.5px solid var(--line); border-radius:12px; font-size:14px; margin-bottom:10px;
+    background: var(--paper); transition: border-color .15s ease;
+  }
+  .login-card input:focus { outline:none; border-color: var(--route); background: var(--surface); }
+  .login-card button.primary {
+    width:100%; background: var(--route); color:#fff; border:none; padding:14px; border-radius:12px; font-weight:700; font-size:14px;
+    box-shadow: 0 8px 20px rgba(229,52,42,.3);
+  }
+  .login-card button.primary:disabled { opacity:.5; box-shadow:none; }
+  .login-msg { font-size:12px; margin-top:14px; color: var(--muted); min-height:16px; }
+  .login-msg.error { color: var(--route); }
+  .install-btn {
+    display:none; align-items:center; gap:6px; background:var(--paper); color:var(--route); border:1.5px solid var(--route);
+    border-radius:10px; padding:10px 13px; font-size:12.5px; font-weight:700; margin: 0 0 16px; width:100%; justify-content:center;
+  }
+  .install-btn.show { display:inline-flex; }
+
+  /* ---------- App ---------- */
+  #app { display:none; min-height:100vh; padding-bottom: 40px; }
+
+  .topbar {
+    background: var(--chrome-escuro); color:#fff; padding: max(18px, env(safe-area-inset-top)) 20px 18px;
+  }
+  .topbar__row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .topbar__titulo { font-family: var(--font-display); font-weight:700; font-size:19px; letter-spacing:-.3px; }
+  .topbar__sub { font-size:12px; color:#9AA1AA; margin-top:2px; }
+  .topbar__right { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+  .disp-toggle { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:700; color:#D5D8DB; }
+  .switch { width:34px; height:19px; background:#33383E; border-radius:20px; position:relative; flex-shrink:0; }
+  .switch.on { background: var(--done); }
+  .switch::after { content:''; position:absolute; top:2px; left:2px; width:15px; height:15px; background:#fff; border-radius:50%; transition:.15s; }
+  .switch.on::after { left:17px; }
+  .logout-btn { color:#EF7A70; font-size:11.5px; font-weight:700; padding:4px 0; }
+  .tema-toggle-btn { color:#D5D8DB; font-size:15px; padding:2px 0; }
+  .contato-rest-btn { display:none; margin-top:8px; align-items:center; gap:5px; font-size:11.5px; font-weight:700; color:#fff; background:rgba(255,255,255,.12); border-radius:8px; padding:7px 11px; }
+  .contato-rest-btn.show { display:inline-flex; }
+
+  /* Cartões de resumo do dia */
+  .stats-row { display:flex; gap:10px; padding: 16px 20px 4px; }
+  .stat-card { flex:1; background: var(--surface); border-radius:14px; padding:14px 12px; text-align:center; box-shadow: var(--shadow); }
+  .stat-card .num { font-family: var(--font-display); font-weight:800; font-size:24px; line-height:1; }
+  .stat-card .label { font-size:10.5px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.4px; margin-top:5px; }
+
+  /* Segmented control */
+  .tabs-seg { display:flex; gap:4px; margin: 16px 20px 6px; background:#EAE5DC; border-radius:12px; padding:4px; }
+  .tabs-seg button { flex:1; padding:10px; border-radius:9px; font-size:12.5px; font-weight:700; color:var(--muted); }
+  .tabs-seg button.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+
+  .main { padding: 6px 20px 20px; max-width:560px; margin:0 auto; }
+  .view-pane { display:none; }
+  .view-pane.active { display:block; }
+
+  .empty-state { padding: 60px 16px; text-align:center; color: var(--muted); }
+  .empty-state .ic { font-size:32px; margin-bottom:12px; }
+  .empty-state h4 { margin:0 0 4px; color: var(--ink); font-size:14.5px; font-family: var(--font-display); }
+  .empty-state p { margin:0; font-size:12.5px; line-height:1.5; }
+
+  /* ---------- Timeline da rota ---------- */
+  .rota-timeline { position:relative; padding-left: 34px; margin-top:8px; }
+  .rota-item { position:relative; padding-bottom: 18px; }
+  .rota-item:last-child .rota-linha { display:none; }
+  .rota-linha { position:absolute; left:-22px; top:26px; bottom:-18px; width:2px; background: var(--line); }
+  .rota-node {
+    position:absolute; left:-34px; top:0; width:24px; height:24px; border-radius:50%; background: var(--route); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-family: var(--font-display); font-weight:800; font-size:11px;
+    box-shadow: 0 0 0 4px var(--paper);
+  }
+  .rota-node.pronta { background: var(--pending); }
+
+  .entrega-card { background: var(--surface); border-radius:16px; padding:16px; box-shadow: var(--shadow); }
+  .entrega-card__top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:8px; }
+  .entrega-card__codigo { font-family: 'SF Mono', ui-monospace, Menlo, monospace; font-weight:700; font-size:12px; color: var(--muted); }
+  .entrega-card__status { font-size:10px; font-weight:800; padding:4px 10px; border-radius:20px; background:#F4F4F5; color:#3F3F46; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; }
+  .entrega-card__status.saiu { background: color-mix(in srgb, var(--pending) 18%, #fff); color:#92600E; }
+  .entrega-card__cliente { font-family: var(--font-display); font-weight:700; font-size:15.5px; margin: 2px 0 8px; }
+  .entrega-card__endereco { font-size:13px; color: var(--ink); margin-bottom:8px; line-height:1.45; display:flex; gap:6px; }
+  .entrega-card__itens { font-size:12px; color:var(--muted); margin-bottom:12px; line-height:1.5; padding-bottom:12px; border-bottom:1px dashed var(--line); }
+  .entrega-card__footer { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .entrega-card__total { font-family: var(--font-display); font-weight:800; font-size:16px; }
+  .entrega-card__actions { display:flex; gap:8px; }
+  .entrega-card__contato { display:flex; gap:8px; margin-bottom:10px; }
+  .entrega-card__retirada { font-weight:700; font-size:13px; background:#EFE4FF; color:#5B2A9E; padding:8px 10px; border-radius:8px; margin-bottom:10px; }
+  .entrega-card__sem-endereco { font-weight:700; font-size:12.5px; background:#FEE2E2; color:#B91C1C; padding:8px 10px; border-radius:8px; margin-bottom:10px; }
+  .entrega-card__detalhe-endereco { font-size:12.5px; color:#3F3F46; background:#F6F3ED; padding:6px 10px; border-radius:8px; margin-bottom:6px; }
+  .entrega-card__item-linha { font-size:12.5px; color:var(--ink); padding:2px 0; }
+  .entrega-card__item-obs { font-size:11.5px; color:var(--muted); font-style:italic; padding:0 0 6px 12px; }
+  .entrega-card__obs-pedido { font-size:12.5px; color:#7A5B00; background:#FFF7E0; padding:8px 10px; border-radius:8px; margin: 4px 0 12px; }
+  .btn { flex:1; text-align:center; border-radius:11px; padding:12px; font-size:12.5px; font-weight:700; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .btn.primary { background: var(--route); border-color: var(--route); color:#fff; }
+  .btn.primary:disabled { opacity:.45; }
+
+  /* ---------- Histórico ---------- */
+  .hist-busca { display:flex; gap:8px; margin-bottom:16px; }
+  .hist-busca input[type="date"] {
+    flex:1; padding:12px 13px; border:1.5px solid var(--line); border-radius:12px; font-size:13.5px; background: var(--surface); color: var(--ink);
+  }
+  .hist-busca button { background: var(--chrome-escuro); color:#fff; border-radius:12px; padding:0 18px; font-weight:700; font-size:12.5px; }
+
+  .hist-resumo { background: var(--surface); border-radius:14px; padding:14px 16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; box-shadow: var(--shadow); }
+  .hist-resumo .txt { font-size:12.5px; color:var(--muted); font-weight:600; }
+  .hist-resumo .num { font-family: var(--font-display); font-weight:800; font-size:22px; }
+
+  .hist-item { background: var(--surface); border-radius:14px; padding:14px 16px; margin-bottom:10px; box-shadow: var(--shadow); }
+  .hist-item__top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .hist-item__codigo { font-family: 'SF Mono', ui-monospace, Menlo, monospace; font-size:11.5px; color:var(--muted); font-weight:700; }
+  .hist-item__hora { font-size:11.5px; color:var(--muted); }
+  .hist-item__cliente { font-weight:700; font-size:13.5px; margin-bottom:3px; }
+  .hist-item__endereco { font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .hist-item__total { font-family: var(--font-display); font-weight:800; font-size:14px; color: var(--done); }
+
+  .toast {
+    position:fixed; top:16px; right:16px; left:16px; z-index:100; background: var(--surface); border-left:3px solid var(--route);
+    padding:13px 16px; border-radius:12px; font-size:12.5px; box-shadow: var(--shadow-lg); max-width:400px; margin:0 auto;
+    transform: translateY(-140%); transition: transform .3s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .toast.show { transform: translateY(0); }
+  .toast b { display:block; font-size:12px; color: var(--route); margin-bottom:2px; font-family: var(--font-display); }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="badge"><img src="/icons/icon512.png" alt="EAF Menu"></div>
+    <h2>EAF Menu — Motoboy</h2>
+    <p>Entre com o telefone ou e-mail cadastrado</p>
+
+    <button class="install-btn" id="installBtnLogin" onclick="installApp()">⬇ Instalar aplicativo</button>
+
+    <div id="stepLogin">
+      <input type="text" id="identInput" placeholder="Telefone ou e-mail" autocomplete="username">
+      <input type="password" id="senhaInput" placeholder="Sua senha" autocomplete="current-password">
+      <button class="primary" id="loginBtn" onclick="fazerLogin()">Entrar</button>
+      <a href="#" onclick="abrirEsqueciSenha(); return false;" style="display:block; text-align:center; margin-top:12px; font-size:12px; color:var(--muted);">Esqueci minha senha</a>
+    </div>
+
+    <div id="stepEsqueciSenha" style="display:none;">
+      <input type="text" id="recIdentInput" placeholder="Telefone ou e-mail cadastrado">
+      <button class="primary" id="recBtn" onclick="enviarRecuperacaoSenha()">Enviar link de recuperação</button>
+      <a href="#" onclick="fecharEsqueciSenha(); return false;" style="display:block; text-align:center; margin-top:12px; font-size:12px; color:var(--muted);">Voltar para o login</a>
+    </div>
+
+    <div id="stepNovaSenha" style="display:none;">
+      <p style="margin:0 0 14px; font-size:12.5px; color:var(--muted);">Crie sua nova senha de acesso.</p>
+      <input type="password" id="novaSenhaRecInput" placeholder="Nova senha">
+      <input type="password" id="novaSenhaRecConfirm" placeholder="Confirmar nova senha">
+      <button class="primary" id="novaSenhaRecBtn" onclick="salvarNovaSenhaRecuperacao()">Salvar nova senha</button>
+    </div>
+
+    <div class="login-msg" id="loginMsg"></div>
+  </div>
+</div>
+
+<div id="primeiroAcessoScreen">
+  <div class="login-card">
+    <div class="badge"><img src="/icons/icon512.png" alt="EAF Menu"></div>
+    <h2>Defina sua senha</h2>
+    <p>Por segurança, crie uma nova senha de acesso antes de continuar</p>
+    <input type="password" id="paNovaSenha" placeholder="Nova senha">
+    <input type="password" id="paNovaSenhaConfirm" placeholder="Confirmar nova senha">
+    <button class="primary" id="paBtn" onclick="salvarSenhaPrimeiroAcesso()">Salvar e continuar</button>
+    <div class="login-msg" id="paMsg"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="topbar__row">
+      <div>
+        <div class="topbar__titulo" id="topNome">Olá</div>
+        <div class="topbar__sub" id="topSub">—</div>
+        <button class="contato-rest-btn" id="btnContatoRestaurante" onclick="abrirWhatsappRestauranteMotoboy()">💬 Falar com o restaurante</button>
+      </div>
+      <div class="topbar__right">
+        <button class="logout-btn" onclick="logout()">⎋ Sair</button>
+        <button class="tema-toggle-btn" id="temaToggleBtn" onclick="toggleModoNoturno()" title="Alternar tema">🌙</button>
+        <button class="tema-toggle-btn" id="btnTestarSomDevMotoboy" style="display:none;" onclick="tocarNovaEntregaMotoboy()" title="Testar som (dev)">🔔</button>
+        <div class="disp-toggle">
+          Disponível
+          <button class="switch on" id="dispSwitch" onclick="toggleDisponivel()"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="num" id="statHoje">0</div><div class="label">Hoje</div></div>
+    <div class="stat-card"><div class="num" id="statTotal">0</div><div class="label">Total</div></div>
+  </div>
+
+  <div class="tabs-seg">
+    <button class="active" id="tabRotaBtn" onclick="mostrarAba('rota')">Rota de hoje</button>
+    <button id="tabHistBtn" onclick="mostrarAba('historico')">Histórico</button>
+  </div>
+
+  <div class="main">
+    <div class="view-pane active" id="paneRota">
+      <div id="entregasList">
+        <div class="empty-state">
+          <div class="ic">🛵</div>
+          <h4>Nenhuma entrega no momento</h4>
+          <p>Assim que o restaurante atribuir uma entrega a você, ela aparece aqui.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="view-pane" id="paneHistorico">
+      <div class="hist-busca">
+        <input type="date" id="histData">
+        <button onclick="buscarHistorico()">Buscar</button>
+      </div>
+      <div id="histResumo"></div>
+      <div id="histLista">
+        <div class="empty-state">
+          <div class="ic">📖</div>
+          <h4>Escolha um dia</h4>
+          <p>Selecione uma data pra ver as entregas concluídas naquele dia.</p>
+        </div>
+      </div>
+    </div>
+
+    <button class="install-btn" id="installBtnApp" onclick="installApp()">⬇ Instalar aplicativo</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
+
+<script src="/assets/js/whatsapp.js"></script>
+<script src="/assets/js/sons.js"></script>
+<script>
+  let sb = null;
+
+  // =====================================================================
+  // MODO NOTURNO (só visual — nada de Supabase/login/entregas aqui)
+  // =====================================================================
+  const TEMA_STORAGE_KEY = 'eaf-motoboy-dark-mode';
+
+  function aplicarModoNoturno() {
+    const ativo = localStorage.getItem(TEMA_STORAGE_KEY) === '1';
+    document.body.classList.toggle('dark', ativo);
+    const btn = document.getElementById('temaToggleBtn');
+    if (btn) btn.textContent = ativo ? '☀️' : '🌙';
+  }
+
+  function toggleModoNoturno() {
+    const ativo = !document.body.classList.contains('dark');
+    localStorage.setItem(TEMA_STORAGE_KEY, ativo ? '1' : '0');
+    aplicarModoNoturno();
+  }
+
+  aplicarModoNoturno();
+
+  // Botão temporário de teste de som real — só em ambiente local, remover depois de validar em produção.
+  if (location.hostname === 'localhost') {
+    const btnTestarSomMotoboy = document.getElementById('btnTestarSomDevMotoboy');
+    if (btnTestarSomMotoboy) btnTestarSomMotoboy.style.display = 'inline-flex';
+  }
+
+  async function initSupabase() {
+    const res = await fetch('/api/config');
+    if (!res.ok) throw new Error('Falha ao buscar /api/config');
+    const { url, anonKey } = await res.json();
+    if (!url || !anonKey) throw new Error('Config incompleta');
+    sb = supabase.createClient(url, anonKey, { auth: { storageKey: 'eaf-motoboy-auth' } });
+  }
+
+  let currentUser = null;
+  let entregas = [];
+  let disponivel = true;
+  const STATUS_LABEL = {
+    recebido: 'Recebido', aceito: 'Aceito', em_preparo: 'Em preparo',
+    saiu_para_entrega: 'Saiu p/ entrega', entregue: 'Entregue', retirado: 'Retirado', cancelado: 'Cancelado'
+  };
+
+  let trackingChannel = null;
+  let abaAtual = 'rota';
+  let entregasRefreshInterval = null;
+  let visibilityListenerRegistrado = false;
+  const SESSION_GUARD_MOTOBOY_KEY = 'eaf_motoboy_session_guard';
+  const SESSION_MAX_MS = 12 * 60 * 60 * 1000;
+  const SESSION_IDLE_MS = 2 * 60 * 60 * 1000;
+  const SESSION_CHECK_MS = 60 * 1000;
+  let sessionGuardStarted = false;
+  let sessionGuardExpiring = false;
+  let sessionGuardLastPersist = 0;
+
+  function lerSessionGuardMotoboy() {
+    try { return JSON.parse(localStorage.getItem(SESSION_GUARD_MOTOBOY_KEY) || '{}'); }
+    catch (e) { return {}; }
+  }
+
+  function salvarSessionGuardMotoboy(meta) {
+    localStorage.setItem(SESSION_GUARD_MOTOBOY_KEY, JSON.stringify(meta));
+  }
+
+  function prepararSessionGuardMotoboy(forcarNovoLogin) {
+    const agora = Date.now();
+    const meta = forcarNovoLogin ? {} : lerSessionGuardMotoboy();
+    salvarSessionGuardMotoboy({
+      loginAt: meta.loginAt || agora,
+      lastActivityAt: meta.lastActivityAt || agora
+    });
+  }
+
+  function registrarAtividadeMotoboy() {
+    if (!sessionGuardStarted || sessionGuardExpiring) return;
+    const agora = Date.now();
+    const meta = lerSessionGuardMotoboy();
+    meta.loginAt = meta.loginAt || agora;
+    meta.lastActivityAt = agora;
+    if (agora - sessionGuardLastPersist > 15000) {
+      salvarSessionGuardMotoboy(meta);
+      sessionGuardLastPersist = agora;
+    }
+  }
+
+  async function expirarSessaoMotoboy() {
+    if (sessionGuardExpiring) return;
+    sessionGuardExpiring = true;
+    try {
+      localStorage.removeItem(SESSION_GUARD_MOTOBOY_KEY);
+      if (trackingChannel) sb.removeChannel(trackingChannel);
+      if (entregasRefreshInterval) clearInterval(entregasRefreshInterval);
+      await sb.auth.signOut();
+    } catch (e) {}
+    location.reload();
+  }
+
+  async function avaliarSessaoMotoboy() {
+    if (!sessionGuardStarted || sessionGuardExpiring || !sb) return;
+    const agora = Date.now();
+    const meta = lerSessionGuardMotoboy();
+    if (!meta.loginAt || !meta.lastActivityAt) {
+      prepararSessionGuardMotoboy(false);
+      return;
+    }
+
+    if (agora - meta.loginAt >= SESSION_MAX_MS) {
+      await expirarSessaoMotoboy();
+      return;
+    }
+
+    if (agora - meta.lastActivityAt >= SESSION_IDLE_MS) {
+      const continuar = confirm('Sua sessão vai expirar por segurança. Deseja continuar?');
+      if (continuar) registrarAtividadeMotoboy();
+      else await expirarSessaoMotoboy();
+    }
+  }
+
+  function iniciarControleSessaoMotoboy() {
+    if (sessionGuardStarted) return;
+    const appAberto = document.getElementById('app')?.style.display === 'block';
+    if (!appAberto || !currentUser) return;
+
+    prepararSessionGuardMotoboy(false);
+    sessionGuardStarted = true;
+
+    ['click', 'touchstart', 'keydown', 'mousemove'].forEach(evt => {
+      window.addEventListener(evt, registrarAtividadeMotoboy, { passive: true });
+    });
+    window.addEventListener('focus', async () => {
+      await avaliarSessaoMotoboy();
+      if (sessionGuardExpiring) return;
+      registrarAtividadeMotoboy();
+    });
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible') {
+        await avaliarSessaoMotoboy();
+        if (sessionGuardExpiring) return;
+        registrarAtividadeMotoboy();
+      }
+    });
+    setInterval(avaliarSessaoMotoboy, SESSION_CHECK_MS);
+  }
+
+  // =====================================================================
+  // LOGIN
+  // =====================================================================
+  async function fazerLogin() {
+    if (!sb) { setLoginMsg('Ainda carregando configuração, aguarde...', false); return; }
+    const identificador = document.getElementById('identInput').value.trim();
+    const senha = document.getElementById('senhaInput').value;
+    if (!identificador || !senha) { setLoginMsg('Preencha telefone/e-mail e senha.', true); return; }
+
+    setLoginMsg('Entrando...', false);
+    document.getElementById('loginBtn').disabled = true;
+
+    const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
+    if (resolveErr || !emailResolvido) {
+      document.getElementById('loginBtn').disabled = false;
+      setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
+      return;
+    }
+
+    const { error } = await sb.auth.signInWithPassword({ email: emailResolvido, password: senha });
+    document.getElementById('loginBtn').disabled = false;
+    if (error) { setLoginMsg('Telefone/e-mail ou senha incorretos.', true); return; }
+
+    prepararSessionGuardMotoboy(true);
+    await boot();
+  }
+
+  function setLoginMsg(msg, isError) {
+    const el = document.getElementById('loginMsg');
+    el.textContent = msg;
+    el.className = 'login-msg' + (isError ? ' error' : '');
+  }
+
+  function abrirEsqueciSenha() {
+    document.getElementById('stepLogin').style.display = 'none';
+    document.getElementById('stepEsqueciSenha').style.display = 'block';
+    document.getElementById('loginMsg').textContent = '';
+  }
+  function fecharEsqueciSenha() {
+    document.getElementById('stepEsqueciSenha').style.display = 'none';
+    document.getElementById('stepLogin').style.display = 'block';
+    document.getElementById('loginMsg').textContent = '';
+  }
+
+  async function enviarRecuperacaoSenha() {
+    const identificador = document.getElementById('recIdentInput').value.trim();
+    if (!identificador) { setLoginMsg('Informe seu telefone ou e-mail cadastrado.', true); return; }
+
+    document.getElementById('recBtn').disabled = true;
+    const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
+    if (resolveErr || !emailResolvido) {
+      document.getElementById('recBtn').disabled = false;
+      setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
+      return;
+    }
+
+    const { error } = await sb.auth.resetPasswordForEmail(emailResolvido, { redirectTo: location.origin + location.pathname });
+    document.getElementById('recBtn').disabled = false;
+    if (error) { setLoginMsg('Erro ao enviar o link: ' + error.message, true); return; }
+    setLoginMsg('Se o telefone/e-mail estiver cadastrado, um link de redefinição foi enviado por e-mail.', false);
+  }
+
+  function mostrarTelaNovaSenhaRecuperacao() {
+    document.getElementById('stepLogin').style.display = 'none';
+    document.getElementById('stepEsqueciSenha').style.display = 'none';
+    document.getElementById('stepNovaSenha').style.display = 'block';
+    document.getElementById('loginMsg').textContent = '';
+  }
+
+  async function salvarNovaSenhaRecuperacao() {
+    const nova = document.getElementById('novaSenhaRecInput').value;
+    const conf = document.getElementById('novaSenhaRecConfirm').value;
+    if (!nova || nova.length < 8) { setLoginMsg('A senha precisa ter pelo menos 8 caracteres.', true); return; }
+    if (nova !== conf) { setLoginMsg('As senhas não coincidem.', true); return; }
+
+    document.getElementById('novaSenhaRecBtn').disabled = true;
+    const { error } = await sb.auth.updateUser({ password: nova });
+    document.getElementById('novaSenhaRecBtn').disabled = false;
+    if (error) { setLoginMsg('Erro ao salvar a senha: ' + error.message, true); return; }
+
+    history.replaceState(null, '', location.pathname);
+    setLoginMsg('Senha redefinida! Entrando...', false);
+    await boot();
+  }
+
+  async function logout() {
+    if (trackingChannel) sb.removeChannel(trackingChannel);
+    if (entregasRefreshInterval) clearInterval(entregasRefreshInterval);
+    localStorage.removeItem(SESSION_GUARD_MOTOBOY_KEY);
+    await sb.auth.signOut();
+    location.reload();
+  }
+
+  // =====================================================================
+  // BOOT
+  // =====================================================================
+  async function boot() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+
+    const { data: userRow, error: userErr } = await sb
+      .from('usuarios')
+      .select('id, nome, role, restaurante_id, primeiro_acesso, ativo, restaurantes(nome, whatsapp)')
+      .eq('id', session.user.id)
+      .single();
+
+    if (userErr || !userRow) {
+      setLoginMsg('Esta conta não está cadastrada.', true);
+      await sb.auth.signOut();
+      return;
+    }
+    if (userRow.role !== 'motoboy') {
+      setLoginMsg('Esta conta não é de um motoboy. Use o painel da equipe.', true);
+      await sb.auth.signOut();
+      return;
+    }
+    if (!userRow.ativo) {
+      setLoginMsg('Sua conta está inativa. Fale com o restaurante.', true);
+      await sb.auth.signOut();
+      return;
+    }
+
+    currentUser = userRow;
+
+    if (userRow.primeiro_acesso) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('primeiroAcessoScreen').style.display = 'flex';
+      return;
+    }
+    document.getElementById('primeiroAcessoScreen').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+
+    document.getElementById('topNome').textContent = 'Olá, ' + userRow.nome.split(' ')[0];
+    document.getElementById('topSub').textContent = userRow.restaurantes?.nome || '';
+    document.getElementById('btnContatoRestaurante').classList.toggle('show', !!userRow.restaurantes?.whatsapp);
+
+    await carregarDisponibilidade();
+    await carregarEntregas();
+    await carregarStatsEntregas();
+    subscribeTrackingEntregas();
+    iniciarRefreshEntregasMotoboy();
+    iniciarControleSessaoMotoboy();
+  }
+
+  async function salvarSenhaPrimeiroAcesso() {
+    const nova = document.getElementById('paNovaSenha').value;
+    const conf = document.getElementById('paNovaSenhaConfirm').value;
+    const msgEl = document.getElementById('paMsg');
+    if (!nova || nova.length < 8) { msgEl.textContent = 'A senha precisa ter pelo menos 8 caracteres.'; msgEl.className = 'login-msg error'; return; }
+    if (nova !== conf) { msgEl.textContent = 'As senhas não coincidem.'; msgEl.className = 'login-msg error'; return; }
+
+    document.getElementById('paBtn').disabled = true;
+    const { error: authErr } = await sb.auth.updateUser({ password: nova });
+    if (authErr) {
+      document.getElementById('paBtn').disabled = false;
+      msgEl.textContent = 'Erro ao salvar: ' + authErr.message;
+      msgEl.className = 'login-msg error';
+      return;
+    }
+    await sb.from('usuarios').update({ primeiro_acesso: false }).eq('id', currentUser.id);
+    document.getElementById('paBtn').disabled = false;
+    await boot();
+  }
+
+  // =====================================================================
+  // ABAS
+  // =====================================================================
+  function mostrarAba(aba) {
+    abaAtual = aba;
+    document.getElementById('tabRotaBtn').classList.toggle('active', aba === 'rota');
+    document.getElementById('tabHistBtn').classList.toggle('active', aba === 'historico');
+    document.getElementById('paneRota').classList.toggle('active', aba === 'rota');
+    document.getElementById('paneHistorico').classList.toggle('active', aba === 'historico');
+    if (aba === 'historico' && !document.getElementById('histData').value) {
+      document.getElementById('histData').value = dataDiaComercialAtual();
+      buscarHistorico();
+    }
+  }
+
+  // =====================================================================
+  // DISPONIBILIDADE
+  // =====================================================================
+  async function carregarDisponibilidade() {
+    const { data } = await sb.from('motoboys').select('disponivel').eq('id', currentUser.id).maybeSingle();
+    disponivel = data?.disponivel ?? true;
+    document.getElementById('dispSwitch').classList.toggle('on', disponivel);
+  }
+
+  async function toggleDisponivel() {
+    disponivel = !disponivel;
+    document.getElementById('dispSwitch').classList.toggle('on', disponivel);
+    const { error } = await sb.from('motoboys').update({ disponivel }).eq('id', currentUser.id);
+    if (error) { showToast('Erro', 'Não foi possível atualizar sua disponibilidade.'); }
+  }
+
+  // =====================================================================
+  // ROTA DE HOJE (entregas ativas)
+  // =====================================================================
+  let motoboyJaCarregouEntregasUmaVez = false;
+
+  async function carregarEntregas() {
+    const idsAntes = new Set(entregas.map(e => e.id));
+
+    const { data, error } = await sb.from('pedidos')
+      .select(`
+        id, numero_diario, tipo, status, total, criado_em, forma_pagamento, troco_para, observacoes,
+        clientes ( nome, telefone ),
+        enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento, referencia ),
+        itens_pedido ( quantidade, observacoes, produtos ( nome ), itens_pedido_sabores ( produtos ( nome ) ) )
+      `)
+      .eq('motoboy_id', currentUser.id)
+      .not('status', 'in', '(entregue,retirado,cancelado)')
+      .order('criado_em', { ascending: true });
+
+    if (error) { console.error(error); return; }
+    entregas = data || [];
+
+    // Só toca som se já tinha carregado antes (nunca ao abrir o app com entregas já existentes)
+    // e se apareceu um pedido novo que não estava na lista anterior.
+    if (motoboyJaCarregouEntregasUmaVez) {
+      const apareceuEntregaNova = entregas.some(e => !idsAntes.has(e.id));
+      if (apareceuEntregaNova) tocarNovaEntregaMotoboy();
+    }
+    motoboyJaCarregouEntregasUmaVez = true;
+
+    renderEntregas();
+  }
+
+  function codigoEntrega(o) {
+    return o.numero_diario != null ? ('#' + o.numero_diario) : ('#' + o.id.slice(0, 8).toUpperCase());
+  }
+
+  function enderecoTexto(end) {
+    if (!end) return '';
+    return `${end.logradouro}${end.numero ? ', ' + end.numero : ''}${end.bairro ? ' - ' + end.bairro : ''}${end.cidade ? ', ' + end.cidade : ''}`;
+  }
+
+  // Formata telefone pra link tel:/WhatsApp — aceita com ou sem formatação, com ou sem 55 na frente.
+  function telefoneParaLink(telefone) {
+    const digitos = (telefone || '').replace(/\D/g, '');
+    if (!digitos) return null;
+    return digitos.length <= 11 ? '55' + digitos : digitos;
+  }
+
+  function abrirWhatsappRestauranteMotoboy() {
+    abrirWhatsapp(currentUser?.restaurantes?.whatsapp, 'Olá, sou motoboy e preciso falar com o restaurante sobre uma entrega.');
+  }
+
+  function copiarEnderecoMotoboy(texto) {
+    if (!texto) return;
+    navigator.clipboard.writeText(texto).then(() => showToast('Endereço copiado', texto));
+  }
+
+  function renderEntregas() {
+    const wrap = document.getElementById('entregasList');
+    if (entregas.length === 0) {
+      wrap.innerHTML = `<div class="empty-state"><div class="ic">🛵</div><h4>Nenhuma entrega no momento</h4><p>Assim que o restaurante atribuir uma entrega a você, ela aparece aqui.</p></div>`;
+      return;
+    }
+
+    wrap.innerHTML = `<div class="rota-timeline">` + entregas.map((o, i) => {
+      const end = o.enderecos_cliente;
+      const enderecoStr = enderecoTexto(end);
+      const mapaUrl = enderecoStr ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoStr)}` : null;
+      const podeEntregar = o.status === 'saiu_para_entrega' || o.tipo === 'retirada';
+      const statusClasse = o.status === 'saiu_para_entrega' ? 'saiu' : '';
+
+      const cliente = o.clientes?.nome || 'Cliente';
+      const telLink = telefoneParaLink(o.clientes?.telefone);
+      const contatoHtml = telLink
+        ? `<div class="entrega-card__contato">
+             <a class="btn" href="tel:${telLink}">📞 Ligar</a>
+             <a class="btn" href="https://wa.me/${telLink}" target="_blank" rel="noopener">💬 WhatsApp</a>
+           </div>`
+        : '';
+
+      let enderecoBlocoHtml = '';
+      if (o.tipo === 'retirada') {
+        enderecoBlocoHtml = `<div class="entrega-card__retirada">🏠 Retirada no balcão</div>`;
+      } else if (enderecoStr) {
+        enderecoBlocoHtml = `
+          <div class="entrega-card__endereco">📍 <span>${enderecoStr}</span></div>
+          ${end.complemento ? `<div class="entrega-card__detalhe-endereco"><b>Complemento:</b> ${end.complemento}</div>` : ''}
+          ${end.referencia ? `<div class="entrega-card__detalhe-endereco"><b>Referência:</b> ${end.referencia}</div>` : ''}
+          <div class="entrega-card__contato">
+            <a class="btn" href="${mapaUrl}" target="_blank" rel="noopener">🧭 Iniciar navegação</a>
+            <button type="button" class="btn" onclick="copiarEnderecoMotoboy('${enderecoStr.replace(/'/g, "\\'")}')">📋 Copiar endereço</button>
+          </div>`;
+      } else {
+        enderecoBlocoHtml = `<div class="entrega-card__sem-endereco">⚠️ Sem endereço cadastrado — confirme com o restaurante</div>`;
+      }
+
+      const itensHtml = (o.itens_pedido || []).map(item => {
+        const sabores = (item.itens_pedido_sabores || []).map(s => s.produtos?.nome).filter(Boolean);
+        const nomeItem = sabores.length > 1 ? sabores.join(' + ') : (item.produtos?.nome || 'item');
+        const obsItem = item.observacoes ? `<div class="entrega-card__item-obs">Obs: ${item.observacoes}</div>` : '';
+        return `<div class="entrega-card__item-linha"><span>${item.quantidade}x ${nomeItem}</span></div>${obsItem}`;
+      }).join('');
+
+      const obsPedidoHtml = o.observacoes ? `<div class="entrega-card__obs-pedido">📝 ${o.observacoes}</div>` : '';
+
+      return `
+        <div class="rota-item">
+          <div class="rota-node ${podeEntregar ? '' : 'pronta'}">${i + 1}</div>
+          <div class="rota-linha"></div>
+          <div class="entrega-card">
+            <div class="entrega-card__top">
+              <span class="entrega-card__codigo">${codigoEntrega(o)}</span>
+              <span class="entrega-card__status ${statusClasse}">${STATUS_LABEL[o.status] || o.status}</span>
+            </div>
+            <div class="entrega-card__cliente">${cliente}</div>
+            ${contatoHtml}
+            ${enderecoBlocoHtml}
+            <div class="entrega-card__itens">${itensHtml || 'sem itens'}</div>
+            ${obsPedidoHtml}
+            ${(o.forma_pagamento === 'dinheiro' && o.troco_para) ? `<div style="background:#FEF3C7; color:#92400E; font-weight:700; font-size:12px; padding:8px 10px; border-radius:8px; margin-bottom:10px;">💵 Troco: R$ ${(Number(o.troco_para) - Number(o.total)).toFixed(2).replace('.', ',')} (cliente paga com R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')})</div>` : ''}
+            <div class="entrega-card__footer">
+              <span class="entrega-card__total">R$ ${Number(o.total).toFixed(2).replace('.', ',')}</span>
+            </div>
+            <div class="entrega-card__actions">
+              <button class="btn primary" ${podeEntregar ? '' : 'disabled'} onclick="marcarEntregue('${o.id}', '${o.tipo}')">✓ Entregar</button>
+            </div>
+          </div>
+        </div>`;
+    }).join('') + `</div>`;
+  }
+
+  async function marcarEntregue(pedidoId, tipo) {
+    const novoStatus = tipo === 'retirada' ? 'retirado' : 'entregue';
+    const { error } = await sb.from('pedidos').update({ status: novoStatus }).eq('id', pedidoId);
+    if (error) { showToast('Erro', error.message); return; }
+    showToast('Entrega concluída', 'Bom trabalho! 🎉');
+    await carregarEntregas();
+    await carregarStatsEntregas();
+  }
+
+  function subscribeTrackingEntregas() {
+    if (trackingChannel) sb.removeChannel(trackingChannel);
+    trackingChannel = sb.channel('motoboy-entregas-restaurante-' + currentUser.restaurante_id)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'pedidos', filter: `restaurante_id=eq.${currentUser.restaurante_id}` },
+        async () => {
+          await refreshEntregasMotoboy();
+        }
+      )
+      .subscribe();
+  }
+
+  async function refreshEntregasMotoboy() {
+    if (!currentUser) return;
+    try {
+      await carregarEntregas();
+      await carregarStatsEntregas();
+    } catch (e) {
+      console.error('Falha ao atualizar entregas do motoboy:', e);
+    }
+  }
+
+  function iniciarRefreshEntregasMotoboy() {
+    if (entregasRefreshInterval) clearInterval(entregasRefreshInterval);
+    entregasRefreshInterval = setInterval(refreshEntregasMotoboy, 30000);
+
+    if (!visibilityListenerRegistrado) {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') refreshEntregasMotoboy();
+      });
+      visibilityListenerRegistrado = true;
+    }
+  }
+
+  // Mesmo corte de 7h usado no resto do sistema, calculado em Brasília
+  // independente do fuso horário configurado no celular do motoboy.
+  const HORA_RESET_PEDIDOS_MOTOBOY = 7;
+  function dataDiaComercialAtual() {
+    const partes = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false
+    }).formatToParts(new Date());
+    const mapa = {};
+    partes.forEach(p => mapa[p.type] = p.value);
+    let ano = parseInt(mapa.year, 10), mes = parseInt(mapa.month, 10), dia = parseInt(mapa.day, 10);
+    let hora = parseInt(mapa.hour, 10);
+    if (hora === 24) hora = 0;
+    if (hora < HORA_RESET_PEDIDOS_MOTOBOY) {
+      const d = new Date(Date.UTC(ano, mes - 1, dia));
+      d.setUTCDate(d.getUTCDate() - 1);
+      ano = d.getUTCFullYear(); mes = d.getUTCMonth() + 1; dia = d.getUTCDate();
+    }
+    return `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+  }
+
+  async function carregarStatsEntregas() {
+    const dataHoje = dataDiaComercialAtual();
+    const [{ count: hoje }, { count: total }] = await Promise.all([
+      sb.from('pedidos').select('id', { count: 'exact', head: true }).eq('motoboy_id', currentUser.id).eq('status', 'entregue').eq('data_pedido', dataHoje),
+      sb.from('pedidos').select('id', { count: 'exact', head: true }).eq('motoboy_id', currentUser.id).eq('status', 'entregue')
+    ]);
+    document.getElementById('statHoje').textContent = hoje || 0;
+    document.getElementById('statTotal').textContent = total || 0;
+  }
+
+  // =====================================================================
+  // HISTÓRICO (busca por data)
+  // =====================================================================
+  async function buscarHistorico() {
+    const data = document.getElementById('histData').value;
+    const resumoEl = document.getElementById('histResumo');
+    const listaEl = document.getElementById('histLista');
+    if (!data) { showToast('Escolha uma data', 'Selecione o dia que quer consultar.'); return; }
+
+    listaEl.innerHTML = `<div class="empty-state"><div class="ic">⏳</div><h4>Buscando...</h4></div>`;
+    resumoEl.innerHTML = '';
+
+    const { data: pedidos, error } = await sb.from('pedidos')
+      .select(`
+        id, numero_diario, tipo, status, total, criado_em,
+        clientes ( nome ),
+        enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento )
+      `)
+      .eq('motoboy_id', currentUser.id)
+      .eq('status', 'entregue')
+      .eq('data_pedido', data)
+      .order('criado_em', { ascending: true });
+
+    if (error) { listaEl.innerHTML = `<div class="empty-state"><div class="ic">⚠️</div><h4>Erro ao buscar</h4><p>${error.message}</p></div>`; return; }
+
+    const lista = pedidos || [];
+    const totalDia = lista.reduce((s, p) => s + Number(p.total), 0);
+
+    if (lista.length === 0) {
+      resumoEl.innerHTML = '';
+      listaEl.innerHTML = `<div class="empty-state"><div class="ic">📭</div><h4>Nenhuma entrega nesse dia</h4><p>Não encontramos entregas concluídas na data selecionada.</p></div>`;
+      return;
+    }
+
+    resumoEl.innerHTML = `
+      <div class="hist-resumo">
+        <span class="txt">${lista.length} entrega${lista.length > 1 ? 's' : ''} nesse dia</span>
+        <span class="num">R$ ${totalDia.toFixed(2).replace('.', ',')}</span>
+      </div>`;
+
+    listaEl.innerHTML = lista.map(o => {
+      const end = o.enderecos_cliente;
+      const enderecoStr = enderecoTexto(end);
+      const hora = new Date(o.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      return `
+        <div class="hist-item">
+          <div class="hist-item__top">
+            <span class="hist-item__codigo">${codigoEntrega(o)}</span>
+            <span class="hist-item__hora">${hora}</span>
+          </div>
+          <div class="hist-item__cliente">${o.clientes?.nome || 'Cliente'}</div>
+          ${enderecoStr ? `<div class="hist-item__endereco">📍 ${enderecoStr}</div>` : ''}
+          <div class="hist-item__total">R$ ${Number(o.total).toFixed(2).replace('.', ',')}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function beep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      osc.type = 'sine'; osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + 0.25);
+    } catch (e) {}
+  }
+
+  function showToast(title, body) {
+    const t = document.getElementById('toast');
+    document.getElementById('toastTitle').textContent = title;
+    document.getElementById('toastBody').textContent = body;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 3600);
+  }
+
+  // =====================================================================
+  // APP — INSTALAÇÃO
+  // =====================================================================
+  let deferredInstallPrompt = null;
+
+  function jaEstaInstalado() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+  function ehIOS() {
+    return /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase()) && !window.MSStream;
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+  });
+
+  async function installApp() {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      document.getElementById('installBtnLogin')?.classList.remove('show');
+      document.getElementById('installBtnApp')?.classList.remove('show');
+      if (outcome === 'accepted') showToast('App instalado', 'O EAF Motoboy já está na sua tela inicial.');
+      return;
+    }
+
+    if (ehIOS()) {
+      alert('Pra instalar no iPhone:\n\n1. Toque no ícone de Compartilhar (o quadrado com uma seta ↑) na barra do Safari\n2. Escolha "Adicionar à Tela de Início"\n3. Toque em "Adicionar"');
+    } else {
+      alert('Toque no menu do navegador (⋮ ou similar) e escolha "Adicionar à tela inicial" ou "Instalar app".');
+    }
+  }
+
+  window.addEventListener('appinstalled', () => {
+    document.getElementById('installBtnLogin')?.classList.remove('show');
+    document.getElementById('installBtnApp')?.classList.remove('show');
+  });
+
+  if (!jaEstaInstalado()) {
+    document.getElementById('installBtnLogin')?.classList.add('show');
+    document.getElementById('installBtnApp')?.classList.add('show');
+  }
+
+  // =====================================================================
+  // BOOT INICIAL
+  // =====================================================================
+  function urlIndicaRecuperacaoSenha() {
+    const hash = location.hash || '';
+    const search = location.search || '';
+    return hash.includes('type=recovery') || search.includes('type=recovery');
+  }
+
+  (async function start() {
+    try {
+      await initSupabase();
+    } catch (e) {
+      console.error(e);
+      return;
+    }
+
+    sb.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') { mostrarTelaNovaSenhaRecuperacao(); return; }
+      if (event === 'SIGNED_OUT' && document.getElementById('app').style.display === 'block') {
+        setTimeout(async () => {
+          const { data: { session } } = await sb.auth.getSession();
+          if (!session) location.reload();
+        }, 2500);
+      }
+    });
+
+    if (urlIndicaRecuperacaoSenha()) {
+      mostrarTelaNovaSenhaRecuperacao();
+      return;
+    }
+
+    await boot();
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/motoboy/sw.js').catch(() => {});
+    }
+  })();
+</script>
+</body>
+</html>
