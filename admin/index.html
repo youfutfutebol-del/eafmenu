@@ -128,7 +128,7 @@
     <div class="field"><label>Nome</label><input id="nrDonoNome" placeholder="Nome completo"></div>
     <div class="field"><label>Telefone</label><input id="nrDonoTelefone" placeholder="(41) 9...."></div>
     <div class="field"><label>E-mail (opcional)</label><input id="nrDonoEmail" type="email" placeholder="email@exemplo.com"></div>
-    <div class="field"><label>Senha</label><input id="nrDonoSenha" placeholder="Defina a senha (mín. 4 caracteres)"></div>
+    <div class="field"><label>Senha</label><input id="nrDonoSenha" placeholder="Defina a senha (mín. 8 caracteres)"></div>
 
     <div class="modal-actions">
       <button class="btn" onclick="fecharNovoRestaurante()">Cancelar</button>
@@ -181,6 +181,15 @@
     el.className = 'login-msg' + (isError ? ' error' : '');
   }
 
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   async function logout() {
     await sb.auth.signOut();
     location.reload();
@@ -205,28 +214,36 @@
   async function carregarRestaurantes() {
     const wrap = document.getElementById('restList');
     const { data, error } = await sb.rpc('listar_restaurantes_plataforma');
-    if (error) { wrap.innerHTML = `<div class="empty-state">Erro ao carregar: ${error.message}</div>`; return; }
+    if (error) { wrap.innerHTML = `<div class="empty-state">Erro ao carregar: ${escapeHtml(error.message)}</div>`; return; }
 
     if (!data || data.length === 0) {
       wrap.innerHTML = `<div class="empty-state">Nenhum restaurante cadastrado ainda.</div>`;
       return;
     }
 
-    wrap.innerHTML = data.map(r => `
+    wrap.innerHTML = data.map(r => {
+      const restauranteJson = escapeHtml(JSON.stringify({ id: r.id, nome: r.nome, slug: r.slug }));
+      const donoIdJson = escapeHtml(JSON.stringify(r.dono_id));
+      const donoNomeJson = escapeHtml(JSON.stringify(r.dono_nome || ''));
+      const restauranteIdJson = escapeHtml(JSON.stringify(r.id));
+      const restauranteNomeJson = escapeHtml(JSON.stringify(r.nome || ''));
+
+      return `
       <div class="rest-card">
         <div>
-          <div class="rest-card__nome">${r.nome}</div>
-          <div class="rest-card__slug">${r.slug ? '/cliente/?r=' + r.slug : 'sem link ainda'}</div>
-          ${r.dono_nome ? `<div class="rest-card__slug" style="margin-top:2px;">Dono: ${r.dono_nome}${r.dono_telefone ? ' · ' + r.dono_telefone : ''}</div>` : ''}
+          <div class="rest-card__nome">${escapeHtml(r.nome)}</div>
+          <div class="rest-card__slug">${r.slug ? '/cliente/?r=' + escapeHtml(r.slug) : 'sem link ainda'}</div>
+          ${r.dono_nome ? `<div class="rest-card__slug" style="margin-top:2px;">Dono: ${escapeHtml(r.dono_nome)}${r.dono_telefone ? ' · ' + escapeHtml(r.dono_telefone) : ''}</div>` : ''}
         </div>
         <div class="rest-card__meta">
-          <div class="rest-card__stat"><div class="num">${r.total_usuarios}</div><div class="label">Usuários</div></div>
-          <button class="btn" onclick='abrirEditarRestaurante(${JSON.stringify({ id: r.id, nome: r.nome, slug: r.slug })})'>Editar</button>
-          ${r.dono_id ? `<button class="btn" onclick="abrirResetSenhaDono('${r.dono_id}', '${r.dono_nome.replace(/'/g, "\\'")}')">Redefinir senha do dono</button>` : ''}
-          <button class="btn" style="color:var(--accent); border-color:#FCA5A5;" onclick="removerRestaurante('${r.id}', '${r.nome.replace(/'/g, "\\'")}')">Remover</button>
+          <div class="rest-card__stat"><div class="num">${escapeHtml(r.total_usuarios)}</div><div class="label">Usuários</div></div>
+          <button class="btn" onclick='abrirEditarRestaurante(${restauranteJson})'>Editar</button>
+          ${r.dono_id ? `<button class="btn" onclick="abrirResetSenhaDono(${donoIdJson}, ${donoNomeJson})">Redefinir senha do dono</button>` : ''}
+          <button class="btn" style="color:var(--accent); border-color:#FCA5A5;" onclick="removerRestaurante(${restauranteIdJson}, ${restauranteNomeJson})">Remover</button>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 
   function abrirEditarRestaurante(r) {
@@ -253,9 +270,9 @@
   }
 
   function abrirResetSenhaDono(donoId, donoNome) {
-    const novaSenha = prompt(`Nova senha de acesso para ${donoNome} (mín. 4 caracteres):`);
+    const novaSenha = prompt(`Nova senha de acesso para ${donoNome} (mín. 8 caracteres):`);
     if (novaSenha === null) return;
-    if (novaSenha.trim().length < 4) { showToast('Senha muito curta', 'Use pelo menos 4 caracteres.'); return; }
+    if (novaSenha.trim().length < 8) { showToast('Senha muito curta', 'Use pelo menos 8 caracteres.'); return; }
     redefinirSenhaDono(donoId, novaSenha.trim(), donoNome);
   }
 
@@ -298,7 +315,7 @@
     if (!nomeRestaurante) { showToast('Faltou o nome', 'Informe o nome do restaurante.'); return; }
     if (!donoNome) { showToast('Faltou o nome do dono', 'Informe o nome do primeiro usuário.'); return; }
     if (!donoTelefone) { showToast('Faltou o telefone', 'Informe o telefone de login do dono.'); return; }
-    if (!donoSenha || donoSenha.length < 4) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 4 caracteres.'); return; }
+    if (!donoSenha || donoSenha.length < 8) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 8 caracteres.'); return; }
 
     const { error } = await sb.rpc('criar_restaurante_com_dono', {
       p_nome_restaurante: nomeRestaurante,

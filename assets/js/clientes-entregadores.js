@@ -163,7 +163,7 @@
     }
 
     const senha = document.getElementById('entSenha').value;
-    if (!senha || senha.length < 4) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 4 caracteres.'); return; }
+    if (!senha || senha.length < 8) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 8 caracteres.'); return; }
 
     const { error } = await sb.rpc('criar_usuario_equipe', {
       p_nome: nome,
@@ -195,9 +195,9 @@
     await loadEntregadores();
   }
 
-  function abrirResetSenhaEntregador(id, nome) {    const novaSenha = prompt(`Nova senha de acesso para ${nome} (mín. 4 caracteres):`);
+  function abrirResetSenhaEntregador(id, nome) {    const novaSenha = prompt(`Nova senha de acesso para ${nome} (mín. 8 caracteres):`);
     if (novaSenha === null) return;
-    if (novaSenha.trim().length < 4) { showToast('Senha muito curta', 'Use pelo menos 4 caracteres.'); return; }
+    if (novaSenha.trim().length < 8) { showToast('Senha muito curta', 'Use pelo menos 8 caracteres.'); return; }
     redefinirSenhaEntregador(id, novaSenha.trim(), nome);
   }
 

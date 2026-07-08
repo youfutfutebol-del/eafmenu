@@ -506,7 +506,7 @@
   async function salvarNovaSenhaRecuperacao() {
     const nova = document.getElementById('novaSenhaRecInput').value;
     const conf = document.getElementById('novaSenhaRecConfirm').value;
-    if (!nova || nova.length < 4) { setLoginMsg('A senha precisa ter pelo menos 4 caracteres.', true); return; }
+    if (!nova || nova.length < 8) { setLoginMsg('A senha precisa ter pelo menos 8 caracteres.', true); return; }
     if (nova !== conf) { setLoginMsg('As senhas não coincidem.', true); return; }
 
     document.getElementById('novaSenhaRecBtn').disabled = true;
@@ -582,7 +582,7 @@
     const nova = document.getElementById('paNovaSenha').value;
     const conf = document.getElementById('paNovaSenhaConfirm').value;
     const msgEl = document.getElementById('paMsg');
-    if (!nova || nova.length < 4) { msgEl.textContent = 'A senha precisa ter pelo menos 4 caracteres.'; msgEl.className = 'login-msg error'; return; }
+    if (!nova || nova.length < 8) { msgEl.textContent = 'A senha precisa ter pelo menos 8 caracteres.'; msgEl.className = 'login-msg error'; return; }
     if (nova !== conf) { msgEl.textContent = 'As senhas não coincidem.'; msgEl.className = 'login-msg error'; return; }
 
     document.getElementById('paBtn').disabled = true;

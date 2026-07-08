@@ -177,7 +177,7 @@ function mostrarTelaNovaSenhaRecuperacao() {
 async function salvarNovaSenhaRecuperacao() {
   const nova = document.getElementById('novaSenhaRecInput').value;
   const conf = document.getElementById('novaSenhaRecConfirm').value;
-  if (!nova || nova.length < 6) { setLoginMsg('A senha precisa ter pelo menos 6 caracteres.', true); return; }
+  if (!nova || nova.length < 8) { setLoginMsg('A senha precisa ter pelo menos 8 caracteres.', true); return; }
   if (nova !== conf) { setLoginMsg('As senhas não coincidem.', true); return; }
 
   document.getElementById('novaSenhaRecBtn').disabled = true;
@@ -204,7 +204,7 @@ async function salvarNovaSenhaRecuperacao() {
   async function submitTrocarMinhaSenha() {
     const nova = document.getElementById('msNovaSenha').value;
     const conf = document.getElementById('msNovaSenhaConfirm').value;
-    if (!nova || nova.length < 4) { showToast('Senha muito curta', 'Use pelo menos 4 caracteres.'); return; }
+    if (!nova || nova.length < 8) { showToast('Senha muito curta', 'Use pelo menos 8 caracteres.'); return; }
     if (nova !== conf) { showToast('Senhas diferentes', 'A confirmação não bateu com a nova senha.'); return; }
 
     const { error } = await sb.auth.updateUser({ password: nova });
@@ -223,7 +223,7 @@ async function salvarNovaSenhaRecuperacao() {
     const nova = document.getElementById('paNovaSenha').value;
     const conf = document.getElementById('paNovaSenhaConfirm').value;
     const msgEl = document.getElementById('paMsg');
-    if (!nova || nova.length < 6) { msgEl.textContent = 'A senha precisa ter pelo menos 6 caracteres.'; msgEl.className = 'login-msg error'; return; }
+    if (!nova || nova.length < 8) { msgEl.textContent = 'A senha precisa ter pelo menos 8 caracteres.'; msgEl.className = 'login-msg error'; return; }
     if (nova !== conf) { msgEl.textContent = 'As senhas não coincidem.'; msgEl.className = 'login-msg error'; return; }
 
     document.getElementById('paBtn').disabled = true;

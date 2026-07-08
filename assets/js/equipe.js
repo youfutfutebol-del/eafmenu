@@ -64,9 +64,9 @@
   }
 
   function abrirResetSenhaEquipe(id, nome) {
-    const novaSenha = prompt(`Nova senha de acesso para ${nome} (mín. 4 caracteres):`);
+    const novaSenha = prompt(`Nova senha de acesso para ${nome} (mín. 8 caracteres):`);
     if (novaSenha === null) return;
-    if (novaSenha.trim().length < 4) { showToast('Senha muito curta', 'Use pelo menos 4 caracteres.'); return; }
+    if (novaSenha.trim().length < 8) { showToast('Senha muito curta', 'Use pelo menos 8 caracteres.'); return; }
     redefinirSenhaEquipe(id, novaSenha.trim(), nome);
   }
 
@@ -107,7 +107,7 @@
     const role = document.getElementById('mbRole').value;
     if (!nome) { showToast('Faltou o nome', 'Informe o nome da pessoa.'); return; }
     if (!telefone) { showToast('Faltou o telefone', 'Informe o telefone da pessoa (usado para o login).'); return; }
-    if (!senha || senha.length < 4) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 4 caracteres.'); return; }
+    if (!senha || senha.length < 8) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 8 caracteres.'); return; }
 
     const { data, error } = await sb.rpc('criar_usuario_equipe', {
       p_nome: nome,
