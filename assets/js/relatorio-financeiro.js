@@ -111,15 +111,37 @@ function taxaCancelamentoRel(bloco) {
   return total > 0 ? Number(((qtdCancelados / total) * 100).toFixed(1)) : 0;
 }
 
-function tituloPeriodoRelatorio(bloco) {
-  if (relatorioPeriodoAtual === 'personalizado') {
-    const inicio = bloco.data_inicio || relatorioPeriodoAtualDatas?.inicio || '';
-    const fim = bloco.data_fim || relatorioPeriodoAtualDatas?.fim || '';
-    return inicio && fim ? `Periodo: ${inicio} ate ${fim}` : REL_PERIODO_LABELS.personalizado;
+function formatarDataBRRel(valor) {
+  if (!valor) return '';
+
+  const data = String(valor).slice(0, 10);
+  const partes = data.split('-');
+
+  if (partes.length === 3) {
+    const [ano, mes, dia] = partes;
+    return `${dia}/${mes}/${ano}`;
   }
-  return REL_PERIODO_LABELS[relatorioPeriodoAtual] || 'Periodo';
+
+  return String(valor);
 }
 
+function tituloPeriodoRelatorio(bloco) {
+  const inicio = bloco.data_inicio || relatorioPeriodoAtualDatas?.inicio || '';
+  const fim = bloco.data_fim || relatorioPeriodoAtualDatas?.fim || '';
+
+  if (inicio && fim) {
+    const inicioFormatado = formatarDataBRRel(inicio);
+    const fimFormatado = formatarDataBRRel(fim);
+
+    if (String(inicio).slice(0, 10) === String(fim).slice(0, 10)) {
+      return `Período: ${inicioFormatado}`;
+    }
+
+    return `Período: ${inicioFormatado} até ${fimFormatado}`;
+  }
+
+  return REL_PERIODO_LABELS[relatorioPeriodoAtual] || 'Período';
+}
 function renderTabelaChaveValorRel(tbodyId, obj) {
   const tbody = document.getElementById(tbodyId);
   const chaves = Object.keys(obj || {});
