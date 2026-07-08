@@ -19,6 +19,15 @@
     return 'R$ ' + Number(v).toFixed(2).replace('.', ',');
   }
 
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   function formatMoedaRel(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ','); }
 
   function formatData(iso) {

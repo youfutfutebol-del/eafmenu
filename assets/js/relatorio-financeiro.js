@@ -190,7 +190,7 @@
       .sort((a, b) => Number(b[1]) - Number(a[1]))
       .map(([chave, valor]) => {
         const pct = total > 0 ? (Number(valor) / total) * 100 : 0;
-        const nome = chave.charAt(0).toUpperCase() + chave.slice(1);
+        const nome = escapeHtml(chave.charAt(0).toUpperCase() + chave.slice(1));
         return `
           <div class="rel-bar-row">
             <div class="rel-bar-row__top">
@@ -214,7 +214,7 @@
       .sort((a, b) => Number(b[1]) - Number(a[1]))
       .map(([chave, valor]) => {
         const pct = total > 0 ? (Number(valor) / total) * 100 : 0;
-        const nome = chave.charAt(0).toUpperCase() + chave.slice(1);
+        const nome = escapeHtml(chave.charAt(0).toUpperCase() + chave.slice(1));
         return `
           <tr>
             <td data-label="Item">${nome}</td>
@@ -236,8 +236,8 @@
       return `
         <div class="rel-top-item">
           <span class="rel-top-item__pos">${i + 1}</span>
-          <span class="rel-top-item__nome">${p.nome}</span>
-          <span class="rel-top-item__qtd">${p.quantidade}x</span>
+          <span class="rel-top-item__nome">${escapeHtml(p.nome)}</span>
+          <span class="rel-top-item__qtd">${Number(p.quantidade || 0)}x</span>
           <div class="rel-top-item__barra"><div class="rel-top-item__barra-fill" style="width:${pct.toFixed(1)}%"></div></div>
         </div>`;
     }).join('');
@@ -259,13 +259,13 @@
     const formas = Object.entries(p.por_forma_pagamento || {});
     if (formas.length > 0) {
       const [nomeForma] = formas.sort((a, b) => Number(b[1]) - Number(a[1]))[0];
-      insights.push(`Forma de pagamento mais usada: <b>${nomeForma.charAt(0).toUpperCase() + nomeForma.slice(1)}</b>.`);
+      insights.push(`Forma de pagamento mais usada: <b>${escapeHtml(nomeForma.charAt(0).toUpperCase() + nomeForma.slice(1))}</b>.`);
     }
 
     const tipos = Object.entries(p.por_tipo || {});
     if (tipos.length > 0) {
       const [nomeTipo] = tipos.sort((a, b) => Number(b[1]) - Number(a[1]))[0];
-      insights.push(`Canal com maior faturamento: <b>${nomeTipo.charAt(0).toUpperCase() + nomeTipo.slice(1)}</b>.`);
+      insights.push(`Canal com maior faturamento: <b>${escapeHtml(nomeTipo.charAt(0).toUpperCase() + nomeTipo.slice(1))}</b>.`);
     }
 
     el.innerHTML = insights.map(txt => `<div class="rel-insight-card">${txt}</div>`).join('');
@@ -290,7 +290,7 @@
     if (error) {
       document.getElementById('cancelamentosPeriodoLabel').textContent = 'Erro ao carregar';
       document.getElementById('cancelamentosPeriodoLista').innerHTML =
-        `<p class="main__subtitle" style="color:var(--red);">${error.message}</p>`;
+        `<p class="main__subtitle" style="color:var(--red);">${escapeHtml(error.message)}</p>`;
       return;
     }
 
@@ -317,17 +317,17 @@
       const codigo = c.numero_diario != null ? ('#' + c.numero_diario) : ('#' + c.pedido_id.slice(0, 8).toUpperCase());
       const dataCancel = c.cancelado_em ? new Date(c.cancelado_em).toLocaleString('pt-BR') : '—';
       const autorizadoLinha = (c.autorizado_por_nome && c.autorizado_por_nome !== c.cancelado_por_nome)
-        ? ` · autorizado por ${c.autorizado_por_nome}`
+        ? ` · autorizado por ${escapeHtml(c.autorizado_por_nome)}`
         : '';
       return `
         <div class="cancel-item-row">
           <div class="cancel-item-top">
-            <span class="cancel-item-codigo">${codigo} · ${c.cliente_nome || 'Cliente'}</span>
+            <span class="cancel-item-codigo">${escapeHtml(codigo)} · ${escapeHtml(c.cliente_nome || 'Cliente')}</span>
             <span class="cancel-item-valor">${formatMoedaRel(c.total)}</span>
           </div>
-          <div class="cancel-item-meta">Estava: ${c.status_anterior || '—'} · ${c.tipo || '—'} · cancelado em ${dataCancel}</div>
-          <div class="cancel-item-meta">Por ${c.cancelado_por_nome || '—'}${autorizadoLinha}</div>
-          <div class="cancel-item-motivo">${c.motivo_cancelamento || 'Sem motivo informado'}</div>
+          <div class="cancel-item-meta">Estava: ${escapeHtml(c.status_anterior || '—')} · ${escapeHtml(c.tipo || '—')} · cancelado em ${escapeHtml(dataCancel)}</div>
+          <div class="cancel-item-meta">Por ${escapeHtml(c.cancelado_por_nome || '—')}${autorizadoLinha}</div>
+          <div class="cancel-item-motivo">${escapeHtml(c.motivo_cancelamento || 'Sem motivo informado')}</div>
         </div>`;
     }).join('');
   }

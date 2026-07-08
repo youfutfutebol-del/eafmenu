@@ -34,28 +34,31 @@
     list.innerHTML = filtered.map(o => {
       const itens = (o.itens_pedido || []).map(i => {
         const nomeSabores = i.produtos?.nome || (i.itens_pedido_sabores || []).map(s => s.produtos?.nome).filter(Boolean).join(' + ') || 'item';
-        return `${i.quantidade}x ${nomeSabores}`;
+        return `${Number(i.quantidade || 0)}x ${escapeHtml(nomeSabores)}`;
       }).join(' · ');
-      const cliente = o.clientes?.nome || 'Cliente balcão';
+      const cliente = escapeHtml(o.clientes?.nome || 'Cliente balcão');
       const tipoBadge = o.tipo === 'entrega' ? `<span class="badge entrega">🛵 entrega</span>` : `<span class="badge retirada">🏠 retirada</span>`;
       const pagoBadge = o.pago ? `<span class="badge pago">pago</span>` : `<span class="badge pendente">pendente</span>`;
-      const statusBadge = `<span class="badge status">${STATUS_LABEL[o.status] || o.status}</span>`;
+      const statusBadge = `<span class="badge status">${escapeHtml(STATUS_LABEL[o.status] || o.status)}</span>`;
 
       const end = o.enderecos_cliente;
       const enderecoLinha = (o.tipo === 'entrega' && end?.logradouro)
-        ? `<div class="order-itens" style="margin-top:2px;">📍 ${end.logradouro}${end.numero ? ', ' + end.numero : ''}${end.bairro ? ' - ' + end.bairro : ''}${end.referencia ? ' · Ref: ' + end.referencia : ''}</div>`
+        ? `<div class="order-itens" style="margin-top:2px;">📍 ${escapeHtml(end.logradouro)}${end.numero ? ', ' + escapeHtml(end.numero) : ''}${end.bairro ? ' - ' + escapeHtml(end.bairro) : ''}${end.referencia ? ' · Ref: ' + escapeHtml(end.referencia) : ''}</div>`
         : '';
       const obsLinha = o.observacoes
-        ? `<div class="order-itens" style="margin-top:4px; background:#FEF9C3; color:#854D0E; padding:4px 8px; border-radius:6px; font-weight:600;">📝 ${o.observacoes}</div>`
+        ? `<div class="order-itens" style="margin-top:4px; background:#FEF9C3; color:#854D0E; padding:4px 8px; border-radius:6px; font-weight:600;">📝 ${escapeHtml(o.observacoes)}</div>`
         : '';
       const trocoLinha = (o.forma_pagamento === 'dinheiro' && o.troco_para)
         ? `<div class="order-itens" style="margin-top:2px; color:var(--amber); font-weight:700;">💵 Troco: R$ ${(Number(o.troco_para) - Number(o.total)).toFixed(2).replace('.', ',')} (paga com R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')})</div>`
         : '';
 
+      const pedidoIdArg = escapeHtml(JSON.stringify(o.id));
+      const statusArg = escapeHtml(JSON.stringify(o.status));
+      const tipoArg = escapeHtml(JSON.stringify(o.tipo));
       const motoboySelect = (o.tipo === 'entrega' && !STATUS_FINAIS.includes(o.status))
-        ? `<select onchange="atribuirMotoboy('${o.id}', this.value)" style="margin-top:6px; font-size:11.5px; padding:5px 8px; border:1px solid var(--border); border-radius:7px; max-width:170px;">
+        ? `<select onchange="atribuirMotoboy(${pedidoIdArg}, this.value)" style="margin-top:6px; font-size:11.5px; padding:5px 8px; border:1px solid var(--border); border-radius:7px; max-width:170px;">
              <option value="">🛵 Sem motoboy</option>
-             ${motoboysAtivosCache.map(m => `<option value="${m.id}" ${o.motoboy_id === m.id ? 'selected' : ''}>${m.nome}</option>`).join('')}
+             ${motoboysAtivosCache.map(m => `<option value="${escapeHtml(m.id)}" ${o.motoboy_id === m.id ? 'selected' : ''}>${escapeHtml(m.nome)}</option>`).join('')}
            </select>`
         : '';
 
@@ -67,20 +70,20 @@
           actionHtml = `<div class="done">✓ ${STATUS_LABEL[o.status] || 'Concluído'}</div>`;
         }
       } else {
-        actionHtml = `<button onclick="advanceStatus('${o.id}','${o.status}','${o.tipo}')">${NEXT_LABEL[o.status] || 'Avançar'}</button>`;
+        actionHtml = `<button onclick="advanceStatus(${pedidoIdArg}, ${statusArg}, ${tipoArg})">${escapeHtml(NEXT_LABEL[o.status] || 'Avançar')}</button>`;
       }
       if (!o.pago) {
-        actionHtml += `<button class="pago-btn" onclick="marcarPago('${o.id}')">Marcar pago</button>`;
+        actionHtml += `<button class="pago-btn" onclick="marcarPago(${pedidoIdArg})">Marcar pago</button>`;
       }
-      actionHtml += `<button class="pago-btn" onclick="imprimirComanda('${o.id}')">🖨️ Imprimir</button>`;
+      actionHtml += `<button class="pago-btn" onclick="imprimirComanda(${pedidoIdArg})">🖨️ Imprimir</button>`;
       if (o.status !== 'cancelado') {
-        actionHtml += `<button class="pago-btn" style="color:var(--red);" onclick="abrirCancelarPedido('${o.id}')">✕ Cancelar</button>`;
+        actionHtml += `<button class="pago-btn" style="color:var(--red);" onclick="abrirCancelarPedido(${pedidoIdArg})">✕ Cancelar</button>`;
       }
 
       return `
         <div class="order-row">
           <div class="order-main">
-            <div class="order-code">${codigoPedido(o)} · ${timeAgo(o.criado_em)}</div>
+            <div class="order-code">${escapeHtml(codigoPedido(o))} · ${timeAgo(o.criado_em)}</div>
             <div class="order-cliente">${cliente}</div>
             <div class="order-itens">${itens || 'sem itens'}</div>
             ${enderecoLinha}
