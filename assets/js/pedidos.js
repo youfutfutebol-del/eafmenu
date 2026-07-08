@@ -16,9 +16,9 @@
     const { data, error } = await sb
       .from('pedidos')
       .select(`
-        id, numero_diario, tipo, status, pago, forma_pagamento, total, criado_em, motoboy_id, troco_para,
+        id, numero_diario, tipo, status, pago, forma_pagamento, total, criado_em, motoboy_id, troco_para, observacoes,
         clientes ( nome ),
-        enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento ),
+        enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento, referencia ),
         itens_pedido ( quantidade, produtos ( nome ), itens_pedido_sabores ( produtos ( nome ) ) )
       `)
       .eq('restaurante_id', restauranteId)
@@ -144,8 +144,10 @@
       cliente,
       telefoneCliente ? 'Telefone: ' + telefoneCliente : null,
       `Status: ${o.pago ? 'PAGO' : 'PENDENTE'}`,
+      o.observacoes ? 'OBS: ' + o.observacoes : null,
       linhaTracejada,
       enderecoLinhas ? 'ENTREGAR EM:\n' + enderecoLinhas : null,
+      end?.referencia ? 'REFERÊNCIA: ' + end.referencia : null,
       enderecoLinhas ? linhaTracejada : null,
       linhaDireita('Qt. Descrição', 'Valor'),
       linhaTracejada,
