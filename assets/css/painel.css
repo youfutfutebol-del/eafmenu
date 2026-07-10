@@ -204,6 +204,9 @@
     .sidebar.open { transform: translateX(0); }
     .main { padding: 16px; }
     .order-row, .mov-row { flex-wrap: wrap; }
+    .order-action { width:100%; min-width:0; display:flex; flex-wrap:wrap; gap:6px; }
+    .order-action button, .order-action select { max-width:100%; }
+    .order-action select { flex:1 1 170px; min-width:0; }
     .summary-row { grid-template-columns: 1fr; }
     .main__header { gap:10px; }
     .main__title { font-size:18px; }
