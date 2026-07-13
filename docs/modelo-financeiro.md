@@ -7,7 +7,7 @@
 - F02.03 — Desconto de combo: aprovado conceitualmente
 - F02.04 — Desconto manual: aprovado
 - F02.05 — Desconto total: aprovado
-- Receita líquida: ainda não definida
+- F02.06 — Receita líquida: aprovada
 - Taxa de entrega: regra atual existente, definição formal ainda pendente
 - Custo dos produtos: ainda não definido
 - Lucro bruto estimado: ainda não definido
@@ -654,7 +654,225 @@ Nunca utilizar truncamento.
 
 ---
 
-## 7. Decisões ainda pendentes
+## 7. Receita líquida
+
+### Definição
+
+Receita líquida é o valor dos produtos efetivamente cobrado do cliente depois de todos os descontos comerciais válidos e antes da taxa de entrega.
+
+Ela representa a receita de venda dos produtos depois de:
+
+- desconto promocional;
+- desconto de combo;
+- desconto manual.
+
+Ela não representa:
+
+- total final do pedido;
+- valor recebido em caixa;
+- lucro;
+- custo;
+- margem;
+- taxa de entrega;
+- troco;
+- movimentação financeira.
+
+### Natureza derivada
+
+Receita líquida é um valor derivado.
+
+Não pode ser digitada ou editada diretamente.
+
+Fórmulas oficiais:
+
+receita_liquida =
+subtotal_bruto - desconto_total
+
+receita_liquida =
+arredondar(subtotal_bruto - desconto_total, 2)
+
+Equivalência obrigatória:
+
+receita_liquida =
+valor_produtos_apos_descontos
+
+`receita_liquida` e `valor_produtos_apos_descontos` são a mesma grandeza e não podem apresentar valores diferentes.
+
+### Posição na ordem financeira
+
+A receita líquida é determinada:
+
+- depois do desconto promocional;
+- depois do desconto de combo;
+- depois do desconto manual;
+- antes da taxa de entrega;
+- antes do total final.
+
+Ordem consolidada:
+
+subtotal bruto
+→ descontos
+→ receita líquida
+→ taxa de entrega
+→ total final
+
+### Relação com taxa de entrega
+
+A receita líquida não inclui taxa de entrega.
+
+A taxa de entrega será adicionada posteriormente:
+
+total_final =
+receita_liquida + taxa_entrega
+
+Uma eventual gratuidade ou redução de frete deverá ser tratada como regra separada.
+
+### Relação com o total final
+
+Receita líquida e total final são grandezas diferentes.
+
+Exemplo:
+
+Subtotal bruto: R$ 100,00
+Desconto total: R$ 20,00
+Receita líquida: R$ 80,00
+Taxa de entrega: R$ 8,00
+Total final: R$ 88,00
+
+Nesse exemplo, a receita líquida permanece R$ 80,00.
+
+### Relação com pagamento
+
+A receita líquida é calculada independentemente do estado de pagamento do pedido.
+
+Portanto:
+
+- pedido não pago pode possuir receita líquida calculada;
+- marcar o pedido como pago não altera a receita líquida;
+- desmarcar o pedido como pago não recalcula a receita líquida;
+- forma de pagamento não altera a receita líquida;
+- troco não altera a receita líquida.
+
+Receita líquida calculada e entrada de caixa recebida são conceitos distintos.
+
+### Relação com cancelamento
+
+O pedido confirmado conserva sua receita líquida histórica mesmo após cancelamento.
+
+Porém, um pedido cancelado não deve ser incluído nos consolidados de receitas válidas.
+
+O cancelamento:
+
+- não apaga a receita líquida registrada;
+- não recalcula os valores históricos;
+- deve ser considerado nos relatórios por meio do status do pedido.
+
+A relação entre cancelamento, pagamento, estorno e movimentações financeiras será definida posteriormente.
+
+### Limites obrigatórios
+
+A receita líquida:
+
+- não pode ser negativa;
+- não pode ser maior que o subtotal bruto;
+- deve corresponder ao subtotal bruto menos o desconto total;
+- deve possuir duas casas decimais;
+- pode ser igual a zero;
+- não inclui taxa de entrega;
+- não pode ser editada diretamente;
+- deve ser derivada de valores financeiros válidos.
+
+Regra:
+
+0 ≤ receita_liquida ≤ subtotal_bruto
+
+### Receita líquida igual a zero
+
+A receita líquida pode ser igual a zero quando os descontos válidos atingirem 100% do subtotal bruto.
+
+Exemplo:
+
+Subtotal bruto: R$ 80,00
+Desconto total: R$ 80,00
+Receita líquida: R$ 0,00
+Taxa de entrega: R$ 8,00
+Total final: R$ 8,00
+
+Isso não significa:
+
+- preço original zero;
+- pedido sem itens;
+- custo zero;
+- ausência de venda;
+- taxa de entrega gratuita.
+
+### Ausência de descontos
+
+Quando:
+
+desconto_total = R$ 0,00
+
+então:
+
+receita_liquida = subtotal_bruto
+
+### Inconsistências financeiras
+
+Existe inconsistência quando:
+
+receita_liquida
+≠
+subtotal_bruto - desconto_total
+
+ou quando:
+
+receita_liquida
+≠
+valor_produtos_apos_descontos
+
+Uma divergência deve bloquear a confirmação do pedido até a correção do cálculo.
+
+O sistema não deve escolher silenciosamente um dos valores divergentes.
+
+### Preservação histórica
+
+Depois da confirmação do pedido, devem permanecer preservados:
+
+- subtotal bruto;
+- desconto total;
+- componentes do desconto;
+- receita líquida;
+- valores utilizados no momento da confirmação.
+
+Mudanças futuras em preços, promoções, combos, desconto manual, permissões ou taxa de entrega não recalculam a receita líquida de pedidos antigos.
+
+### Relação com custo e lucro bruto estimado
+
+A receita líquida será usada posteriormente na fórmula:
+
+lucro_bruto_estimado =
+receita_liquida - custo_dos_produtos
+
+Receita líquida não é lucro.
+
+Esta seção não define custo dos produtos, lucro bruto estimado ou margem bruta.
+
+Nunca utilizar a expressão “lucro líquido” para esse cálculo.
+
+### Arredondamento
+
+1. Receber o subtotal bruto já arredondado.
+2. Receber o desconto total já arredondado.
+3. Subtrair o desconto total do subtotal bruto.
+4. Arredondar a receita líquida para duas casas.
+5. Conferir a equivalência com `valor_produtos_apos_descontos`.
+6. Validar os limites financeiros.
+
+Nunca utilizar truncamento.
+
+---
+
+## 8. Decisões ainda pendentes
 
 Ainda não estão definidas:
 
@@ -669,9 +887,12 @@ Ainda não estão definidas:
 - implementação técnica do desconto total;
 - estrutura de armazenamento dos componentes do desconto total;
 - mecanismo de detecção de inconsistências financeiras;
-- receita líquida;
+- implementação técnica da receita líquida;
+- estrutura de armazenamento da receita líquida;
+- validação das equivalências financeiras;
 - taxa de entrega dentro do novo modelo;
 - total final;
+- cancelamento, pagamento, estorno e movimentações financeiras;
 - custo dos produtos;
 - lucro bruto estimado;
 - margem bruta;
