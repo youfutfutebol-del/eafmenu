@@ -11,7 +11,7 @@
 - F02.07 — Taxa de entrega: aprovada
 - F02.08 — Custo dos produtos: aprovado
 - F02.09 — Lucro bruto estimado: aprovado
-- Margem bruta: ainda não definida
+- F02.10 — Margem bruta estimada: aprovada
 
 ---
 
@@ -1869,7 +1869,350 @@ O valor histórico permanece preservado para auditoria, mas o pedido não entra 
 
 ---
 
-## 11. Decisões ainda pendentes
+## 11. Margem bruta estimada
+
+### Definição
+
+Margem bruta estimada é o percentual que o lucro bruto estimado representa sobre a receita líquida dos produtos.
+
+Fórmula oficial:
+
+margem_bruta_estimada =
+(lucro_bruto_estimado ÷ receita_liquida) × 100
+
+Com arredondamento:
+
+margem_bruta_estimada =
+arredondar(
+  (lucro_bruto_estimado ÷ receita_liquida) × 100,
+  2
+)
+
+A margem deve ser armazenada e apresentada como percentual.
+
+### Natureza estimada
+
+O termo oficial é:
+
+margem bruta estimada
+
+Ela considera somente:
+
+- receita líquida dos produtos;
+- custo completo dos produtos;
+- lucro bruto estimado.
+
+Não considera automaticamente:
+
+- taxa de entrega;
+- embalagem;
+- comissão de plataforma;
+- taxa de cartão;
+- impostos;
+- salários;
+- aluguel;
+- energia;
+- gás;
+- desperdício;
+- custo do motoboy;
+- despesas administrativas;
+- despesas operacionais;
+- estornos;
+- perdas financeiras.
+
+Nunca chamar esse indicador de margem líquida.
+
+Também não apresentar como rentabilidade final real do restaurante.
+
+### Condições obrigatórias
+
+A margem somente pode ser calculada quando:
+
+estado_lucro_bruto = calculado
+
+e:
+
+receita_liquida > 0
+
+Quando o custo estiver parcial ou desconhecido, o lucro bruto estimado e a margem permanecem indisponíveis.
+
+Quando:
+
+receita_liquida = 0
+
+não realizar divisão por zero.
+
+Nesse caso:
+
+estado_margem_bruta = indisponivel
+
+Não apresentar:
+
+- 0%;
+- 100%;
+- infinito;
+- valor arbitrário.
+
+### Estados oficiais
+
+A representação oficial é:
+
+estado_margem_bruta =
+calculada | indisponivel
+
+#### Calculada
+
+A margem será calculada quando:
+
+- `estado_lucro_bruto = calculado`;
+- `receita_liquida > 0`;
+- os valores da fórmula forem válidos;
+- não existir inconsistência.
+
+estado_margem_bruta = calculada
+
+#### Indisponível
+
+A margem será indisponível quando:
+
+- o custo estiver parcial ou desconhecido;
+- o lucro bruto estimado estiver indisponível;
+- a receita líquida for igual a zero;
+- a receita líquida for inválida;
+- existir inconsistência na fórmula.
+
+estado_margem_bruta = indisponivel
+
+Não existe estado de margem parcialmente calculada.
+
+### Resultado positivo, zero ou negativo
+
+A margem pode ser positiva quando o lucro bruto estimado for positivo.
+
+Pode ser igual a zero quando:
+
+lucro_bruto_estimado = 0
+
+Pode ser negativa quando:
+
+lucro_bruto_estimado < 0
+
+O sistema não deve converter margem negativa em zero.
+
+Exemplo positivo:
+
+Receita líquida: R$ 80,00
+Custo dos produtos: R$ 50,00
+Lucro bruto estimado: R$ 30,00
+Margem bruta estimada: 37,50%
+
+Exemplo negativo:
+
+Receita líquida: R$ 50,00
+Custo dos produtos: R$ 60,00
+Lucro bruto estimado: -R$ 10,00
+Margem bruta estimada: -20,00%
+
+### Limites conceituais
+
+Como o custo dos produtos conhecido não pode ser negativo:
+
+margem_bruta_estimada ≤ 100%
+
+A margem pode ser negativa.
+
+Não existe limite mínimo igual a zero.
+
+Uma margem superior a 100% indica inconsistência nos valores ou na fórmula.
+
+### Relação com taxa de entrega
+
+A taxa de entrega não entra no numerador nem no denominador.
+
+Utilizar:
+
+receita_liquida
+
+Não utilizar:
+
+total_final
+
+A fórmula não pode ser:
+
+margem_bruta_estimada =
+lucro_bruto_estimado ÷ total_final
+
+O resultado financeiro da entrega será tratado separadamente.
+
+### Relação com descontos
+
+Os descontos:
+
+- reduzem a receita líquida;
+- não reduzem o custo dos produtos;
+- podem reduzir a margem;
+- podem zerar a margem;
+- podem tornar a margem negativa;
+- podem deixar a margem indisponível quando zerarem a receita líquida.
+
+Quando:
+
+receita_liquida = 0
+
+a margem fica indisponível por impossibilidade de divisão.
+
+### Relação com pagamento
+
+A margem é independente do estado de pagamento.
+
+Portanto:
+
+- pedido não pago pode possuir margem calculada;
+- marcar como pago não altera a margem;
+- desmarcar como pago não recalcula a margem;
+- forma de pagamento não altera a margem nesta definição;
+- troco não altera a margem.
+
+Margem estimada e entrada financeira recebida são conceitos diferentes.
+
+### Relação com cancelamento
+
+Depois da confirmação:
+
+- a margem calculada permanece preservada historicamente;
+- o cancelamento não apaga nem recalcula o valor;
+- pedidos cancelados não entram nos consolidados de vendas válidas;
+- o resultado permanece disponível para auditoria.
+
+### Momento de fixação
+
+A margem deve ser determinada no momento da confirmação quando todos os requisitos forem válidos.
+
+Depois da confirmação, alterações futuras em:
+
+- preço;
+- custo;
+- desconto;
+- promoção;
+- combo;
+- taxa de entrega;
+
+não recalculam pedidos antigos.
+
+Quando a margem estiver indisponível no momento da confirmação, cadastrar custos posteriormente não recalcula automaticamente o pedido antigo.
+
+### Inconsistências
+
+Existe inconsistência quando:
+
+margem_bruta_estimada
+≠
+(lucro_bruto_estimado ÷ receita_liquida) × 100
+
+Também existe inconsistência quando:
+
+- existe cálculo com receita líquida igual a zero;
+- é utilizado `total_final` no denominador;
+- a taxa de entrega é incluída;
+- é utilizado lucro parcial;
+- margem indisponível é apresentada como calculada;
+- margem superior a 100% é apresentada com custos não negativos.
+
+Quando a inconsistência estiver restrita ao indicador de margem:
+
+- não altera o valor cobrado;
+- não bloqueia automaticamente a venda;
+- impede apresentar a margem como confiável;
+- deve gerar indicação interna ao restaurante.
+
+Esta regra não elimina bloqueios já definidos em etapas anteriores.
+
+### Preservação histórica
+
+Depois da confirmação, devem permanecer preservados:
+
+- receita líquida utilizada;
+- estado do custo;
+- custo dos produtos utilizado;
+- lucro bruto estimado utilizado;
+- estado da margem bruta;
+- margem bruta estimada, quando calculada;
+- valores utilizados no momento da confirmação.
+
+### Arredondamento
+
+1. Receber a receita líquida já arredondada.
+2. Confirmar que `estado_lucro_bruto = calculado`.
+3. Confirmar que `receita_liquida > 0`.
+4. Receber o lucro bruto estimado já arredondado.
+5. Dividir o lucro bruto estimado pela receita líquida.
+6. Multiplicar o resultado por 100.
+7. Arredondar para duas casas decimais.
+8. Validar a fórmula.
+9. Definir `estado_margem_bruta = calculada`.
+
+Quando os requisitos não forem atendidos:
+
+estado_margem_bruta = indisponivel
+
+Nunca utilizar truncamento.
+
+### Casos validados
+
+#### Margem positiva
+
+Receita líquida: R$ 100,00
+Custo dos produtos: R$ 60,00
+Lucro bruto estimado: R$ 40,00
+Margem bruta estimada: 40,00%
+Estado: calculada
+
+#### Margem zero
+
+Receita líquida: R$ 100,00
+Custo dos produtos: R$ 100,00
+Lucro bruto estimado: R$ 0,00
+Margem bruta estimada: 0,00%
+Estado: calculada
+
+#### Margem negativa
+
+Receita líquida: R$ 100,00
+Custo dos produtos: R$ 120,00
+Lucro bruto estimado: -R$ 20,00
+Margem bruta estimada: -20,00%
+Estado: calculada
+
+#### Receita líquida igual a zero
+
+Receita líquida: R$ 0,00
+Custo dos produtos: R$ 40,00
+Lucro bruto estimado: -R$ 40,00
+Margem bruta estimada: indisponível
+Estado: indisponível
+
+#### Custo parcial
+
+Receita líquida: R$ 100,00
+Estado do custo: parcial
+Lucro bruto estimado: indisponível
+Margem bruta estimada: indisponível
+Estado: indisponível
+
+#### Taxa de entrega
+
+Receita líquida: R$ 100,00
+Custo dos produtos: R$ 60,00
+Taxa de entrega: R$ 10,00
+Total final: R$ 110,00
+Lucro bruto estimado: R$ 40,00
+Margem bruta estimada: 40,00%
+
+A taxa de entrega não altera a margem dos produtos.
+
+---
+
+## 12. Decisões ainda pendentes
 
 Ainda não estão definidas:
 
@@ -1912,7 +2255,10 @@ Ainda não estão definidas:
 - tratamento financeiro separado da entrega;
 - taxas de meios de pagamento;
 - despesas e outros custos diretos;
-- margem bruta;
+- implementação técnica da margem bruta estimada;
+- armazenamento de `estado_margem_bruta`;
+- armazenamento do percentual histórico;
+- alertas de margem baixa ou negativa;
 - preço original versus preço efetivamente cobrado no schema;
 - implementação técnica da ordem de cálculo;
 - políticas de brinde ou gratuidade;
