@@ -8,7 +8,7 @@
 - F02.04 — Desconto manual: aprovado
 - F02.05 — Desconto total: aprovado
 - F02.06 — Receita líquida: aprovada
-- Taxa de entrega: regra atual existente, definição formal ainda pendente
+- F02.07 — Taxa de entrega: aprovada
 - Custo dos produtos: ainda não definido
 - Lucro bruto estimado: ainda não definido
 - Margem bruta: ainda não definida
@@ -872,7 +872,245 @@ Nunca utilizar truncamento.
 
 ---
 
-## 8. Decisões ainda pendentes
+## 8. Taxa de entrega
+
+### Definição
+
+Taxa de entrega é o valor cobrado pelo serviço de levar o pedido ao endereço do cliente.
+
+É uma grandeza separada do valor dos produtos e é adicionada somente depois que a receita líquida foi determinada.
+
+Ela não representa:
+
+- preço de produto;
+- desconto;
+- custo dos produtos;
+- troco;
+- pagamento recebido;
+- lucro;
+- movimentação financeira;
+- valor de retirada.
+
+### Posição na ordem financeira
+
+A ordem financeira é:
+
+subtotal bruto
+→ desconto promocional
+→ desconto de combo
+→ desconto manual
+→ receita líquida
+→ taxa de entrega
+→ total final
+
+A taxa de entrega não participa do subtotal bruto, do desconto total ou da receita líquida.
+
+### Fórmulas oficiais
+
+total_final =
+receita_liquida + taxa_entrega
+
+Com arredondamento:
+
+total_final =
+arredondar(receita_liquida + taxa_entrega, 2)
+
+Fórmula de conferência:
+
+taxa_entrega =
+total_final - receita_liquida
+
+### Pedido para entrega
+
+Em pedido para entrega:
+
+- a taxa deve ser obtida da regra válida do restaurante;
+- deve ser determinada no momento da confirmação;
+- deve possuir valor financeiro válido;
+- deve permanecer registrada historicamente;
+- mudanças futuras na configuração não devem alterar pedidos antigos.
+
+O modelo atual utiliza a taxa padrão configurada pelo restaurante.
+
+Não existe atualmente cálculo por distância, CEP, bairro ou zona.
+
+### Pedido para retirada
+
+Em pedido para retirada:
+
+taxa_entrega = R$ 0,00
+
+A taxa zero é uma regra válida e obrigatória para retirada.
+
+O total final será:
+
+total_final = receita_liquida
+
+### Entrega gratuita
+
+Uma entrega pode possuir taxa igual a zero somente quando existir regra explícita de gratuidade ou frete grátis.
+
+Devem ser diferenciadas:
+
+- taxa zero explicitamente válida;
+- taxa ausente;
+- taxa inválida.
+
+Taxa zero válida não deve ser tratada como erro.
+
+A gratuidade de frete é separada dos descontos aplicados aos produtos.
+
+### Taxa ausente ou inválida
+
+São exemplos de taxa inválida:
+
+- valor negativo;
+- valor não numérico;
+- valor nulo ou ausente em uma entrega sem gratuidade explícita;
+- configuração incompatível com o restaurante;
+- taxa não determinável no momento da confirmação.
+
+Para pedido de entrega, taxa ausente ou inválida bloqueia a confirmação até que exista uma taxa válida ou uma gratuidade explicitamente definida.
+
+O sistema não deve:
+
+- converter silenciosamente taxa ausente em zero;
+- concluir o pedido com valor indefinido;
+- confiar no valor enviado pelo navegador sem validação;
+- escolher uma taxa arbitrária.
+
+Para retirada, taxa zero é válida e obrigatória.
+
+### Relação com descontos
+
+- desconto promocional não reduz a taxa de entrega;
+- desconto de combo não reduz a taxa de entrega;
+- desconto manual não reduz a taxa de entrega;
+- desconto total não inclui a taxa de entrega.
+
+Mesmo quando:
+
+receita_liquida = R$ 0,00
+
+a taxa continua sendo cobrada, salvo gratuidade explícita.
+
+### Desconto de 100% nos produtos
+
+Exemplo:
+
+Subtotal bruto: R$ 80,00
+Desconto total: R$ 80,00
+Receita líquida: R$ 0,00
+Taxa de entrega: R$ 8,00
+Total final: R$ 8,00
+
+Desconto integral nos produtos não transforma automaticamente a entrega em gratuita.
+
+### Relação com pagamento
+
+A taxa e o total final são calculados independentemente do pagamento.
+
+Portanto:
+
+- pedido não pago já possui taxa calculada;
+- marcar como pago não altera a taxa;
+- desmarcar como pago não recalcula a taxa;
+- forma de pagamento não altera a taxa;
+- troco não altera a taxa.
+
+Taxa calculada e entrada financeira recebida são conceitos distintos.
+
+### Relação com cancelamento
+
+Depois da confirmação:
+
+- a taxa histórica permanece registrada;
+- o cancelamento não apaga nem recalcula a taxa;
+- pedidos cancelados não entram nos consolidados de vendas válidas;
+- estorno ou devolução da taxa serão tratados posteriormente.
+
+### Momento de fixação
+
+A taxa deve ser fixada no momento da confirmação do pedido.
+
+Depois disso:
+
+- mudanças na taxa do restaurante não alteram pedidos antigos;
+- mudanças na modalidade de entrega não recalculam pedidos antigos;
+- o valor deve permanecer auditável.
+
+### Limites obrigatórios
+
+A taxa de entrega:
+
+- não pode ser negativa;
+- pode ser zero quando explicitamente válida;
+- deve possuir duas casas decimais;
+- não pode ser editada diretamente pelo cliente;
+- deve ser validada pela regra do restaurante;
+- não pode ser reduzida por descontos dos produtos;
+- deve ser determinada antes da confirmação;
+- deve permanecer preservada historicamente.
+
+Regra:
+
+taxa_entrega ≥ R$ 0,00
+
+### Inconsistências financeiras
+
+Existe inconsistência quando:
+
+total_final
+≠
+receita_liquida + taxa_entrega
+
+Também existe inconsistência quando um pedido de retirada possui taxa de entrega diferente de zero.
+
+Uma divergência deve bloquear a confirmação até a correção.
+
+O sistema não deve corrigir silenciosamente um total divergente.
+
+### Preservação histórica
+
+Depois da confirmação, devem permanecer preservados:
+
+- tipo do pedido;
+- receita líquida;
+- taxa de entrega;
+- total final;
+- regra usada para determinar a taxa;
+- valores utilizados no momento da confirmação.
+
+Mudanças futuras na configuração do restaurante não recalculam pedidos antigos.
+
+### Arredondamento
+
+1. Receber a receita líquida já arredondada.
+2. Determinar uma taxa de entrega válida.
+3. Arredondar a taxa para duas casas.
+4. Somar receita líquida e taxa.
+5. Arredondar o total final para duas casas.
+6. Validar a fórmula de conferência.
+
+Nunca utilizar truncamento.
+
+### Divergência com o comportamento atual
+
+A auditoria da Fase 01 identificou que o banco atual utiliza comportamento equivalente a:
+
+coalesce(taxa_entrega_padrao, 0)
+
+Isso significa que, atualmente, uma taxa ausente pode ser transformada silenciosamente em zero.
+
+Esse comportamento diverge da regra aprovada nesta F02.07, segundo a qual uma entrega sem taxa válida ou gratuidade explícita deve ser bloqueada.
+
+Esta divergência deve permanecer registrada como pendência de implementação.
+
+Não alterar o banco nesta missão.
+
+---
+
+## 9. Decisões ainda pendentes
 
 Ainda não estão definidas:
 
@@ -890,8 +1128,13 @@ Ainda não estão definidas:
 - implementação técnica da receita líquida;
 - estrutura de armazenamento da receita líquida;
 - validação das equivalências financeiras;
-- taxa de entrega dentro do novo modelo;
-- total final;
+- implementação técnica da taxa de entrega;
+- substituição futura do comportamento `coalesce(..., 0)` para entregas;
+- validação da taxa no servidor;
+- estrutura para gratuidade de frete;
+- cálculo por distância, CEP, bairro ou zona;
+- regras de estorno ou devolução da taxa;
+- definição e implementação completa do total final;
 - cancelamento, pagamento, estorno e movimentações financeiras;
 - custo dos produtos;
 - lucro bruto estimado;
