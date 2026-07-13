@@ -132,6 +132,7 @@
             <button class="btn" id="btnTestarSomDev" style="display:none;" onclick="tocarNovoPedido()">🔔 Testar Som (dev)</button>
             <div class="pill-status on" id="lojaStatusPill"><span class="dot"></span> <span id="lojaStatusTxt">Carregando horário...</span></div>
             <div class="pill-status on" id="connPill"><span class="dot"></span> <span id="connLabel">Conectado</span></div>
+            <button class="btn pedido-prazo-btn" id="btnPrazoEntregaPedidos" type="button" onclick="abrirPrazoEntregaPedidos()">⏱ Definir prazo</button>
           </div>
         </div>
         <div class="filter-row">
@@ -481,6 +482,27 @@
         </div>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="pedidoPrazoModalBg">
+  <div class="modal pedido-prazo-modal">
+    <h3>Prazo estimado de entrega</h3>
+    <p class="pedido-prazo-ajuda">Este prazo aparece no cardápio do cliente.</p>
+    <div class="pedido-prazo-fields">
+      <div class="field">
+        <label for="pedidoPrazoEntregaMin">Prazo mínimo (minutos)</label>
+        <input id="pedidoPrazoEntregaMin" type="number" min="0" max="120" step="1" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="pedidoPrazoEntregaMax">Prazo máximo (minutos)</label>
+        <input id="pedidoPrazoEntregaMax" type="number" min="0" max="120" step="1" inputmode="numeric">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" type="button" onclick="fecharPrazoEntregaPedidos()">Cancelar</button>
+      <button class="btn primary" type="button" onclick="salvarPrazoEntregaPedidos()">Salvar prazo</button>
     </div>
   </div>
 </div>
@@ -870,7 +892,7 @@
 
     let { data: userRow, error: userErr } = await sb
       .from('usuarios')
-      .select('id, nome, email, role, restaurante_id, primeiro_acesso, restaurantes(nome, slug, horarios_semana, endereco, whatsapp)')
+      .select('id, nome, email, role, restaurante_id, primeiro_acesso, restaurantes(nome, slug, horarios_semana, endereco, whatsapp, prazo_entrega_min_minutos, prazo_entrega_max_minutos)')
       .eq('id', session.user.id)
       .single();
 
@@ -907,6 +929,7 @@
     document.getElementById('userRole').textContent = userRow.role.toUpperCase();
     document.getElementById('restauranteNome').textContent = userRow.restaurantes?.nome || 'EAF Menu';
     document.getElementById('mobileRestauranteNome').textContent = userRow.restaurantes?.nome || 'EAF Menu';
+    atualizarBotaoPrazoEntrega();
 
     if (userRow.role === 'dono' || userRow.role === 'gerente') {
       document.getElementById('navFinanceiro').style.display = 'flex';

@@ -90,9 +90,9 @@
     atualizarLinkCardapioPreview();
   }
 
-  function validarPrazosEntrega() {
-    const minimoDigitado = document.getElementById('mkPrazoEntregaMin').value.trim();
-    const maximoDigitado = document.getElementById('mkPrazoEntregaMax').value.trim();
+  function validarPrazosEntrega(minimoId = 'mkPrazoEntregaMin', maximoId = 'mkPrazoEntregaMax') {
+    const minimoDigitado = document.getElementById(minimoId).value.trim();
+    const maximoDigitado = document.getElementById(maximoId).value.trim();
 
     if (!minimoDigitado && !maximoDigitado) {
       return { valido: true, minimo: null, maximo: null };
@@ -114,6 +114,65 @@
     }
 
     return { valido: true, minimo, maximo };
+  }
+
+  function formatarPrazoEntregaBotao(minimo, maximo) {
+    if (minimo == null || maximo == null) return '⏱ Definir prazo';
+    if (minimo === 0 && maximo === 0) return '⏱ Imediata';
+    if (minimo === maximo) return `⏱ ${minimo} min`;
+    return `⏱ ${minimo}–${maximo} min`;
+  }
+
+  function atualizarBotaoPrazoEntrega() {
+    const botao = document.getElementById('btnPrazoEntregaPedidos');
+    if (!botao) return;
+    botao.textContent = formatarPrazoEntregaBotao(
+      restauranteInfo?.prazo_entrega_min_minutos,
+      restauranteInfo?.prazo_entrega_max_minutos
+    );
+  }
+
+  function abrirPrazoEntregaPedidos() {
+    if (currentUser?.role !== 'dono') {
+      showToast('Acesso restrito', 'Somente o dono pode alterar o prazo de entrega.');
+      return;
+    }
+    document.getElementById('pedidoPrazoEntregaMin').value = restauranteInfo?.prazo_entrega_min_minutos == null
+      ? ''
+      : String(restauranteInfo.prazo_entrega_min_minutos);
+    document.getElementById('pedidoPrazoEntregaMax').value = restauranteInfo?.prazo_entrega_max_minutos == null
+      ? ''
+      : String(restauranteInfo.prazo_entrega_max_minutos);
+    document.getElementById('pedidoPrazoModalBg').classList.add('show');
+  }
+
+  function fecharPrazoEntregaPedidos() {
+    document.getElementById('pedidoPrazoModalBg').classList.remove('show');
+  }
+
+  async function salvarPrazoEntregaPedidos() {
+    const prazosEntrega = validarPrazosEntrega('pedidoPrazoEntregaMin', 'pedidoPrazoEntregaMax');
+    if (!prazosEntrega.valido) {
+      showToast('Prazo de entrega inválido', prazosEntrega.mensagem);
+      return;
+    }
+
+    const payload = {
+      prazo_entrega_min_minutos: prazosEntrega.minimo,
+      prazo_entrega_max_minutos: prazosEntrega.maximo
+    };
+    const { error } = await sb.from('restaurantes').update(payload).eq('id', restauranteId);
+    if (error) {
+      showToast('Erro ao salvar prazo', error.message);
+      return;
+    }
+
+    restauranteInfo = { ...(restauranteInfo || {}), ...payload };
+    atualizarBotaoPrazoEntrega();
+    document.getElementById('mkPrazoEntregaMin').value = prazosEntrega.minimo == null ? '' : String(prazosEntrega.minimo);
+    document.getElementById('mkPrazoEntregaMax').value = prazosEntrega.maximo == null ? '' : String(prazosEntrega.maximo);
+    fecharPrazoEntregaPedidos();
+    showToast('Prazo de entrega atualizado.', 'O novo prazo já aparece no cardápio do cliente.');
   }
 
   async function submitMarca() {
@@ -152,6 +211,12 @@
     document.getElementById('restauranteNome').textContent = nome;
     document.getElementById('mkSlug').value = slugFinal || '';
     restauranteSlugAtual = slugFinal;
+    restauranteInfo = {
+      ...(restauranteInfo || {}),
+      prazo_entrega_min_minutos: prazosEntrega.minimo,
+      prazo_entrega_max_minutos: prazosEntrega.maximo
+    };
+    atualizarBotaoPrazoEntrega();
     horariosLojaAtual = horariosSemanaState;
     atualizarStatusLoja();
     atualizarLinkCardapioPreview();

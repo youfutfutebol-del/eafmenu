@@ -59,6 +59,7 @@
   .main__subtitle { font-size:13px; color: var(--muted); margin:0; }
   .actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .btn { border-radius:9px; padding:9px 15px; font-size:12.5px; font-weight:700; border:1px solid var(--border); background:#fff; color:var(--ink); }
+  .pedido-prazo-btn { white-space:nowrap; padding:8px 12px; color:var(--muted); }
   .btn.primary { background: var(--red); border-color: var(--red); color:#fff; }
   .btn.primary:hover { background: var(--red-dark); }
   .pill-status { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:8px 12px; border-radius:9px; background:#fff; border:1px solid var(--border); }
@@ -169,6 +170,9 @@
   .field { margin-bottom:12px; }
   .field label { display:block; font-size:11.5px; font-weight:700; color: var(--muted); margin-bottom:5px; }
   .field input, .field select { width:100%; padding:9px 10px; border:1px solid var(--border); border-radius:8px; font-size:13px; }
+  .pedido-prazo-modal { width:400px; }
+  .pedido-prazo-ajuda { font-size:12.5px; color:var(--muted); margin:-6px 0 16px; }
+  .pedido-prazo-fields { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; }
   .marca-prazo-row { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; }
   .item-line { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
   .item-line select { flex:1; }
@@ -191,6 +195,7 @@
   .drawer-overlay { display:none; }
   .hidden { display:none; }
   @media (max-width: 800px) {
+    .pedido-prazo-fields { grid-template-columns:1fr; gap:0; }
     .marca-prazo-row { grid-template-columns:1fr; gap:0; }
     .layout { flex-direction: column; }
     .mobile-topbar { display:flex; align-items:center; justify-content:space-between; gap:10px; background: var(--sidebar); color:#fff; padding: 12px 14px; position: sticky; top:0; z-index:60; padding-top: max(12px, env(safe-area-inset-top)); }
