@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eaf-cliente-v0.1.8';
+const CACHE_NAME = 'eaf-cliente-v0.1.9';
 const APP_SHELL = [
   '/cliente/',
   '/cliente/index.html',
