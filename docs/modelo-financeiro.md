@@ -5,7 +5,7 @@
 - F02.01 — Subtotal bruto: aprovado
 - F02.02 — Desconto promocional: aprovado
 - F02.03 — Desconto de combo: aprovado conceitualmente
-- Desconto manual: ainda não definido
+- F02.04 — Desconto manual: aprovado
 - Desconto total: ainda não definido
 - Receita líquida: ainda não definida
 - Taxa de entrega: regra atual existente, definição formal ainda pendente
@@ -264,14 +264,220 @@ Mudanças futuras no combo não recalculam pedidos antigos.
 
 ---
 
-## 5. Decisões ainda pendentes
+## 5. Desconto manual
+
+### Definição
+
+Desconto manual é a redução deliberada aplicada por um usuário autorizado do restaurante sobre o valor dos produtos do pedido depois dos descontos promocionais e de combo e antes da taxa de entrega.
+
+Diferentemente dos descontos automáticos, depende de ação humana consciente, motivo obrigatório e identificação de quem aplicou e, quando necessário, de quem autorizou.
+
+### Posição na ordem financeira
+
+O desconto manual é aplicado:
+
+- depois do desconto promocional;
+- depois do desconto de combo;
+- antes da taxa de entrega;
+- antes do total final.
+
+### Base de cálculo
+
+base_desconto_manual =
+subtotal_bruto
+- desconto_promocional_total
+- desconto_combo_total
+
+O desconto manual não incide sobre:
+
+- taxa de entrega;
+- troco;
+- custo dos produtos;
+- valores de caixa;
+- movimentações financeiras.
+
+### Modalidades conceituais
+
+O desconto manual pode ser:
+
+- valor fixo em reais;
+- percentual sobre a base do desconto manual.
+
+Uma mesma aplicação utiliza apenas uma modalidade.
+
+A interface futura decidirá se ambas serão oferecidas.
+
+### Escopo
+
+O desconto manual é aplicado sobre o pedido como um todo, considerando somente o valor dos produtos depois de promoção e combo.
+
+O rateio entre os itens será definido posteriormente.
+
+Existe no máximo um desconto manual consolidado por pedido.
+
+Antes da confirmação, a edição substitui a configuração anterior; descontos manuais independentes não são acumulados.
+
+### Fórmulas
+
+Para percentual:
+
+desconto_manual =
+arredondar(base_desconto_manual × percentual_manual, 2)
+
+Para valor fixo:
+
+desconto_manual =
+valor informado, validado e arredondado para duas casas
+
+Valor dos produtos depois do desconto manual:
+
+valor_produtos_apos_manual =
+base_desconto_manual - desconto_manual
+
+Total final:
+
+total_final =
+valor_produtos_apos_manual + taxa_entrega
+
+Fórmula de conferência:
+
+desconto_manual =
+base_desconto_manual - valor_produtos_apos_manual
+
+### Limites
+
+O desconto manual:
+
+- não pode ser negativo;
+- não pode ser nulo quando declarado como aplicado;
+- não pode ser maior que a base disponível;
+- não pode gerar valor dos produtos negativo;
+- não pode alterar o preço original;
+- não pode apagar descontos anteriores;
+- não pode alterar o custo dos produtos;
+- não pode reduzir a taxa de entrega;
+- deve possuir no máximo duas casas decimais.
+
+### Desconto de até 100%
+
+O restaurante pode aplicar desconto manual de até 100% sobre o valor dos produtos, desde que a operação esteja autorizada.
+
+Isso pode resultar em:
+
+valor_produtos_apos_manual = R$ 0,00
+
+A taxa de entrega continua sendo cobrada normalmente quando existir.
+
+Preço original zero continua sendo inválido. O que pode chegar a zero é o valor efetivamente cobrado pelos produtos depois do desconto.
+
+### Tentativa inválida
+
+Uma tentativa de desconto manual inválida não deve ser ignorada silenciosamente.
+
+Enquanto a tentativa permanecer ativa:
+
+- o desconto não é aplicado;
+- os produtos permanecem no valor depois de promoção e combo;
+- a confirmação do pedido fica bloqueada.
+
+O operador deve:
+
+- corrigir o desconto;
+- remover a tentativa;
+- ou obter a autorização necessária.
+
+São exemplos de tentativa inválida:
+
+- valor negativo;
+- percentual negativo;
+- percentual superior a 100%;
+- valor superior à base;
+- valor fixo e percentual simultâneos;
+- modalidade não identificada;
+- valor não numérico;
+- motivo ausente;
+- autorização obrigatória ausente.
+
+### Motivo obrigatório
+
+Todo desconto manual confirmado deve possuir motivo:
+
+- não vazio;
+- não formado somente por espaços;
+- suficiente para auditoria;
+- preservado historicamente.
+
+O formato do campo será definido posteriormente.
+
+### Autoria e autorização
+
+O modelo distingue:
+
+aplicado_por =
+usuário que inseriu o desconto
+
+autorizado_por =
+usuário que aprovou o desconto quando houver autorização adicional
+
+Os dois podem ser a mesma pessoa quando o perfil possuir autorização direta.
+
+As permissões e o PIN serão definidos na Fase 08.
+
+### Preservação histórica
+
+Depois da confirmação, devem permanecer preservados:
+
+- modalidade utilizada;
+- valor ou percentual informado;
+- valor final do desconto;
+- motivo;
+- usuário que aplicou;
+- usuário que autorizou;
+- valor dos produtos antes do desconto;
+- valor dos produtos depois do desconto.
+
+Mudanças futuras de usuário, perfil, PIN ou permissões não alteram pedidos antigos.
+
+### Taxa de entrega
+
+O desconto manual não reduz a taxa de entrega.
+
+Uma futura cortesia ou isenção de frete deverá ser tratada como regra separada.
+
+### Margem e prejuízo
+
+A decisão financeira pertence ao restaurante.
+
+O sistema poderá alertar sobre margem baixa ou prejuízo, mas não deve impedir um desconto manual matematicamente válido e devidamente autorizado somente por causa do resultado financeiro.
+
+Nunca utilizar a expressão “lucro líquido” para receita menos custo dos produtos.
+
+### Arredondamento
+
+1. Utilizar a base após promoção e combo já arredondada.
+2. Calcular o desconto manual.
+3. Arredondar o desconto para duas casas.
+4. Subtrair o desconto da base.
+5. Arredondar o valor dos produtos após o desconto.
+6. Adicionar posteriormente a taxa de entrega.
+7. Arredondar o total final para duas casas.
+
+Nunca utilizar truncamento.
+
+---
+
+## 6. Decisões ainda pendentes
 
 Ainda não estão definidas:
 
 - modalidades de promoção que serão disponibilizadas na interface;
 - modalidades de combo que serão disponibilizadas;
 - estrutura técnica das promoções e combos;
-- desconto manual;
+- modalidades de desconto manual que serão disponibilizadas na interface;
+- estrutura técnica do desconto manual;
+- rateio do desconto manual entre itens;
+- PIN e autorização por perfil para desconto manual;
+- formato do campo de motivo do desconto manual;
 - desconto total;
 - receita líquida;
 - taxa de entrega dentro do novo modelo;
