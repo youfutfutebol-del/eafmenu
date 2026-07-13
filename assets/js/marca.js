@@ -59,7 +59,7 @@
 
   async function loadMarca() {
     const { data, error } = await sb.from('restaurantes')
-      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horarios_semana')
+      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horarios_semana, prazo_entrega_min_minutos, prazo_entrega_max_minutos')
       .eq('id', restauranteId)
       .single();
     if (error) { showToast('Erro ao carregar dados da marca', error.message); return; }
@@ -81,6 +81,8 @@
     document.getElementById('mkWhatsapp').value = data.whatsapp || '';
     document.getElementById('mkEndereco').value = data.endereco || '';
     document.getElementById('mkInstagram').value = data.instagram || '';
+    document.getElementById('mkPrazoEntregaMin').value = data.prazo_entrega_min_minutos == null ? '' : String(data.prazo_entrega_min_minutos);
+    document.getElementById('mkPrazoEntregaMax').value = data.prazo_entrega_max_minutos == null ? '' : String(data.prazo_entrega_max_minutos);
 
     horariosSemanaState = normalizarHorariosSemana(data.horarios_semana);
     renderHorariosGrid();
@@ -88,11 +90,42 @@
     atualizarLinkCardapioPreview();
   }
 
+  function validarPrazosEntrega() {
+    const minimoDigitado = document.getElementById('mkPrazoEntregaMin').value.trim();
+    const maximoDigitado = document.getElementById('mkPrazoEntregaMax').value.trim();
+
+    if (!minimoDigitado && !maximoDigitado) {
+      return { valido: true, minimo: null, maximo: null };
+    }
+    if (!minimoDigitado || !maximoDigitado) {
+      return { valido: false, mensagem: 'Preencha os dois prazos de entrega ou deixe os dois campos vazios.' };
+    }
+    if (!/^\d+$/.test(minimoDigitado) || !/^\d+$/.test(maximoDigitado)) {
+      return { valido: false, mensagem: 'Informe os prazos em minutos usando somente números inteiros.' };
+    }
+
+    const minimo = Number(minimoDigitado);
+    const maximo = Number(maximoDigitado);
+    if (!Number.isInteger(minimo) || !Number.isInteger(maximo) || minimo < 0 || maximo < 0 || minimo > 120 || maximo > 120) {
+      return { valido: false, mensagem: 'Os prazos devem ser números inteiros entre 0 e 120 minutos.' };
+    }
+    if (minimo > maximo) {
+      return { valido: false, mensagem: 'O prazo mínimo não pode ser maior que o prazo máximo.' };
+    }
+
+    return { valido: true, minimo, maximo };
+  }
+
   async function submitMarca() {
     const nome = document.getElementById('mkNome').value.trim();
     if (!nome) { showToast('Faltou o nome', 'Informe o nome do restaurante.'); return; }
     const slugDigitado = document.getElementById('mkSlug').value.trim();
     const slugFinal = slugDigitado ? slugify(slugDigitado) : null;
+    const prazosEntrega = validarPrazosEntrega();
+    if (!prazosEntrega.valido) {
+      showToast('Prazo de entrega inválido', prazosEntrega.mensagem);
+      return;
+    }
 
     const payload = {
       nome,
@@ -102,6 +135,8 @@
       whatsapp: document.getElementById('mkWhatsapp').value.trim() || null,
       endereco: document.getElementById('mkEndereco').value.trim() || null,
       instagram: document.getElementById('mkInstagram').value.trim() || null,
+      prazo_entrega_min_minutos: prazosEntrega.minimo,
+      prazo_entrega_max_minutos: prazosEntrega.maximo,
       horarios_semana: horariosSemanaState
     };
 

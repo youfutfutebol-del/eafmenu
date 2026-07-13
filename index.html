@@ -455,6 +455,16 @@
           <div class="field"><label>WhatsApp de contato</label><input id="mkWhatsapp" placeholder="(41) 9...."></div>
           <div class="field"><label>Endereço</label><input id="mkEndereco" placeholder="Rua, número, bairro, cidade"></div>
           <div class="field"><label>Instagram</label><input id="mkInstagram" placeholder="@seurestaurante"></div>
+          <div class="marca-prazo-row">
+            <div class="field">
+              <label for="mkPrazoEntregaMin">Prazo mínimo de entrega (minutos)</label>
+              <input id="mkPrazoEntregaMin" type="number" min="0" max="120" step="1" inputmode="numeric" placeholder="Ex: 35">
+            </div>
+            <div class="field">
+              <label for="mkPrazoEntregaMax">Prazo máximo de entrega (minutos)</label>
+              <input id="mkPrazoEntregaMax" type="number" min="0" max="120" step="1" inputmode="numeric" placeholder="Ex: 45">
+            </div>
+          </div>
           <div class="field">
             <label>Horário de funcionamento</label>
             <div class="horarios-grid" id="horariosGrid"></div>
