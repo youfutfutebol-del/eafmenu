@@ -12,6 +12,7 @@
 - F02.08 — Custo dos produtos: aprovado
 - F02.09 — Lucro bruto estimado: aprovado
 - F02.10 — Margem bruta estimada: aprovada
+- F02.11 — Preço original x preço efetivamente cobrado: aprovado
 
 ---
 
@@ -2212,7 +2213,451 @@ A taxa de entrega não altera a margem dos produtos.
 
 ---
 
-## 12. Decisões ainda pendentes
+## 12. Preço original x preço efetivamente cobrado
+
+### Objetivo da distinção
+
+O modelo financeiro deve preservar separadamente:
+
+- o preço original do item antes dos descontos;
+- o valor efetivamente cobrado pelos produtos depois dos descontos.
+
+Essas grandezas não podem ser substituídas uma pela outra.
+
+O preço original demonstra o valor normal da venda.
+
+O preço efetivamente cobrado demonstra o resultado comercial depois da aplicação das regras de desconto.
+
+### Preço unitário original histórico
+
+Preço unitário original histórico é o preço normal de venda da unidade selecionada no momento da confirmação do pedido, antes de:
+
+- desconto promocional;
+- desconto de combo;
+- desconto manual;
+- desconto total.
+
+Nome conceitual:
+
+preco_unitario_original_historico
+
+Esse preço deve considerar a opção realmente selecionada pelo cliente, conforme as regras já aprovadas para:
+
+- produto simples;
+- tamanho ou variação;
+- produto com múltiplos sabores;
+- demais composições válidas.
+
+Não utilizar automaticamente o preço atual do cadastro para consultar pedidos antigos.
+
+### Valor original da linha
+
+Para cada linha do pedido:
+
+valor_original_linha =
+preco_unitario_original_historico × quantidade
+
+Com arredondamento:
+
+valor_original_linha =
+arredondar(
+  preco_unitario_original_historico × quantidade,
+  2
+)
+
+A soma dos valores originais das linhas deve corresponder ao subtotal bruto:
+
+subtotal_bruto =
+Σ valor_original_linha
+
+### Valor original dos produtos
+
+No nível do pedido:
+
+valor_original_produtos =
+subtotal_bruto
+
+Essas duas expressões representam a mesma grandeza consolidada:
+
+- valor original dos produtos;
+- subtotal bruto.
+
+O valor original não inclui taxa de entrega.
+
+### Valor efetivamente cobrado pelos produtos
+
+Valor efetivamente cobrado pelos produtos é o valor restante depois de todos os descontos válidos aplicados aos produtos.
+
+No nível do pedido:
+
+valor_produtos_efetivamente_cobrado =
+receita_liquida
+
+Fórmula:
+
+valor_produtos_efetivamente_cobrado =
+subtotal_bruto - desconto_total
+
+Portanto:
+
+valor_produtos_efetivamente_cobrado =
+receita_liquida
+
+Essas grandezas devem apresentar o mesmo valor.
+
+### Diferença entre as grandezas
+
+Preço original e valor efetivamente cobrado possuem funções diferentes.
+
+O preço original:
+
+- demonstra o valor normal do item;
+- é calculado antes dos descontos;
+- compõe o subtotal bruto;
+- deve permanecer preservado historicamente;
+- não é alterado pelas regras de desconto.
+
+O valor efetivamente cobrado:
+
+- representa o valor dos produtos depois dos descontos;
+- corresponde à receita líquida;
+- pode ser menor que o valor original;
+- pode ser igual a zero;
+- não inclui a taxa de entrega;
+- não representa necessariamente dinheiro já recebido.
+
+### Relação com desconto total
+
+A diferença consolidada entre o valor original dos produtos e o valor efetivamente cobrado é o desconto total.
+
+desconto_total =
+subtotal_bruto - receita_liquida
+
+Equivalência:
+
+desconto_total =
+valor_original_produtos - valor_produtos_efetivamente_cobrado
+
+O sistema não deve alterar o preço original para simular a aplicação de desconto.
+
+O correto é preservar:
+
+- preço original;
+- desconto aplicado;
+- valor efetivamente cobrado.
+
+### Ausência de descontos
+
+Quando:
+
+desconto_total = R$ 0,00
+
+então:
+
+valor_produtos_efetivamente_cobrado =
+subtotal_bruto
+
+Nesse caso, o valor original e o valor efetivamente cobrado são iguais.
+
+Essa igualdade não significa que as duas grandezas possam ser armazenadas ou interpretadas como um único conceito.
+
+### Desconto promocional
+
+O desconto promocional reduz o valor efetivamente cobrado, mas não altera o preço original histórico.
+
+Exemplo:
+
+Preço original unitário: R$ 30,00
+Quantidade: 1
+Valor original da linha: R$ 30,00
+Desconto promocional: R$ 5,00
+Valor efetivamente cobrado pelos produtos: R$ 25,00
+
+O preço original continua sendo R$ 30,00.
+
+### Desconto de combo
+
+O desconto ou preço comercial do combo não altera o preço original dos produtos participantes.
+
+Devem permanecer preservados:
+
+- preços originais dos itens;
+- valor original das unidades consumidas pelo combo;
+- desconto de combo;
+- valor dos produtos depois do combo.
+
+O preço efetivamente cobrado resulta da aplicação da regra comercial, sem apagar o valor original.
+
+### Desconto manual
+
+O desconto manual reduz o valor efetivamente cobrado pelos produtos, mas não altera os preços originais históricos.
+
+Devem permanecer separados:
+
+- subtotal bruto;
+- desconto promocional;
+- desconto de combo;
+- desconto manual;
+- desconto total;
+- receita líquida.
+
+### Desconto de 100%
+
+Quando os descontos válidos atingirem todo o valor dos produtos:
+
+subtotal_bruto: R$ 80,00
+desconto_total: R$ 80,00
+receita_liquida: R$ 0,00
+
+O valor original continua sendo R$ 80,00.
+
+O valor efetivamente cobrado pelos produtos passa a ser R$ 0,00.
+
+Isso não transforma o preço original em zero.
+
+Também não torna automaticamente a taxa de entrega gratuita.
+
+### Relação com taxa de entrega
+
+A taxa de entrega não participa:
+
+- do preço original do item;
+- do valor original dos produtos;
+- do desconto total dos produtos;
+- do valor efetivamente cobrado pelos produtos;
+- da receita líquida.
+
+A fórmula do total final permanece:
+
+total_final =
+valor_produtos_efetivamente_cobrado + taxa_entrega
+
+Equivalência:
+
+total_final =
+receita_liquida + taxa_entrega
+
+### Preço efetivamente cobrado por linha
+
+O valor efetivamente cobrado de cada linha deverá representar a parcela real daquela linha depois dos descontos aplicáveis.
+
+Nome conceitual:
+
+valor_efetivamente_cobrado_linha
+
+Quando todas as linhas forem consolidadas:
+
+Σ valor_efetivamente_cobrado_linha =
+receita_liquida
+
+Porém, descontos que atingem mais de uma linha ou o pedido inteiro exigem uma regra formal de rateio.
+
+Esta etapa define o significado da grandeza, mas não define a fórmula completa de rateio entre linhas.
+
+A fórmula de rateio de:
+
+- desconto promocional;
+- desconto de combo;
+- desconto manual;
+- resíduos de centavos;
+
+deverá ser formalizada na etapa específica de rateio.
+
+O sistema não deve inventar ou distribuir descontos arbitrariamente entre linhas.
+
+### Preço unitário efetivamente cobrado
+
+Quando necessário para apresentação, um preço unitário efetivamente cobrado poderá ser derivado do valor efetivamente cobrado da linha:
+
+preco_unitario_efetivamente_cobrado =
+valor_efetivamente_cobrado_linha ÷ quantidade
+
+Porém:
+
+- o valor total da linha é a referência financeira principal;
+- divisões podem produzir mais de duas casas decimais;
+- o preço unitário derivado não pode gerar divergência no total da linha;
+- a regra definitiva de arredondamento e distribuição de centavos depende do rateio futuro.
+
+Não utilizar um preço unitário arredondado repetidamente quando isso fizer a soma divergir da receita líquida.
+
+### Limites obrigatórios
+
+Para descontos válidos sobre produtos:
+
+0 ≤ valor_produtos_efetivamente_cobrado ≤ subtotal_bruto
+
+No nível da linha, depois que o rateio estiver formalizado:
+
+0 ≤ valor_efetivamente_cobrado_linha ≤ valor_original_linha
+
+O preço ou valor original não pode ser negativo.
+
+O valor efetivamente cobrado pode ser zero.
+
+### Relação com pagamento
+
+Preço original e valor efetivamente cobrado são definidos independentemente do status de pagamento.
+
+Portanto:
+
+- pedido não pago já possui valores calculados;
+- marcar como pago não altera o preço original;
+- marcar como pago não altera o valor efetivamente cobrado;
+- desmarcar como pago não recalcula esses valores;
+- forma de pagamento não altera essas grandezas;
+- troco não altera essas grandezas.
+
+Valor efetivamente cobrado e valor efetivamente recebido em caixa são conceitos diferentes.
+
+### Relação com cancelamento
+
+Depois da confirmação:
+
+- o preço original histórico permanece preservado;
+- o valor efetivamente cobrado permanece preservado;
+- os descontos permanecem preservados;
+- cancelar não apaga nem recalcula esses valores;
+- pedidos cancelados não entram nos consolidados de vendas válidas;
+- os dados continuam disponíveis para auditoria.
+
+### Momento de fixação
+
+O preço original e o valor efetivamente cobrado devem ser fixados no momento da confirmação do pedido.
+
+Depois da confirmação:
+
+- alterações futuras no preço do cadastro não modificam o pedido;
+- alterações futuras em promoções não modificam o pedido;
+- alterações futuras em combos não modificam o pedido;
+- alterações futuras em permissões de desconto não modificam o pedido;
+- o pedido antigo não deve consultar novamente o preço atual para reconstruir seu histórico.
+
+### Inconsistências
+
+Existe inconsistência quando:
+
+subtotal_bruto
+≠
+Σ valor_original_linha
+
+Também existe inconsistência quando:
+
+receita_liquida
+≠
+subtotal_bruto - desconto_total
+
+Depois que o rateio por linha estiver implementado, também existirá inconsistência quando:
+
+receita_liquida
+≠
+Σ valor_efetivamente_cobrado_linha
+
+O sistema não deve corrigir silenciosamente essas divergências.
+
+As inconsistências envolvendo subtotal, descontos ou receita líquida continuam sujeitas às regras de bloqueio já aprovadas.
+
+### Preservação histórica
+
+Depois da confirmação, devem permanecer preservados:
+
+- produto e opção selecionada;
+- quantidade;
+- preço unitário original histórico;
+- valor original de cada linha;
+- subtotal bruto;
+- componentes do desconto;
+- desconto total;
+- valor efetivamente cobrado de cada linha, quando o rateio estiver implementado;
+- receita líquida;
+- valores utilizados no momento da confirmação.
+
+### Arredondamento
+
+1. Determinar o preço unitário original da opção selecionada.
+2. Arredondar o preço unitário original conforme a regra monetária.
+3. Multiplicar pela quantidade.
+4. Arredondar o valor original da linha para duas casas.
+5. Somar os valores originais das linhas.
+6. Validar o subtotal bruto.
+7. Aplicar os descontos na ordem formal aprovada.
+8. Determinar a receita líquida.
+9. Arredondar a receita líquida para duas casas.
+10. Futuramente, ratear os descontos por linha com regra determinística.
+11. Garantir que a soma das linhas efetivamente cobradas corresponda exatamente à receita líquida.
+
+Nunca utilizar truncamento.
+
+### Casos validados
+
+#### Sem desconto
+
+Preço original unitário: R$ 20,00
+Quantidade: 2
+Valor original da linha: R$ 40,00
+Desconto total: R$ 0,00
+Valor efetivamente cobrado pelos produtos: R$ 40,00
+
+#### Com desconto
+
+Subtotal bruto: R$ 100,00
+Desconto total: R$ 25,00
+Valor efetivamente cobrado pelos produtos: R$ 75,00
+Receita líquida: R$ 75,00
+
+O valor original permanece R$ 100,00.
+
+#### Desconto integral
+
+Subtotal bruto: R$ 80,00
+Desconto total: R$ 80,00
+Valor efetivamente cobrado pelos produtos: R$ 0,00
+Taxa de entrega: R$ 8,00
+Total final: R$ 8,00
+
+#### Alteração futura de preço
+
+Preço original no momento da confirmação: R$ 30,00
+Preço atual do cadastro após alteração: R$ 35,00
+
+O pedido histórico permanece com preço original de R$ 30,00.
+
+#### Pagamento posterior
+
+Pedido confirmado com receita líquida de R$ 70,00.
+Pedido ainda não pago.
+
+O valor efetivamente cobrado pelos produtos continua sendo R$ 70,00, embora ainda não exista entrada de caixa confirmada.
+
+### Decisões travadas
+
+- preço original e valor efetivamente cobrado são grandezas diferentes;
+- preço original é determinado antes dos descontos;
+- o preço original nunca é sobrescrito para representar promoção, combo ou desconto manual;
+- o valor efetivamente cobrado consolidado pelos produtos é igual à receita líquida;
+- a taxa de entrega não participa dessas grandezas;
+- mudanças futuras de cadastro não recalculam pedidos antigos;
+- pagamento não altera os valores calculados;
+- cancelamento preserva o histórico;
+- a soma futura dos valores efetivamente cobrados por linha deve ser exatamente igual à receita líquida;
+- rateio entre linhas não é inventado nesta etapa.
+
+### Decisões pendentes para implementação
+
+Permanecem pendentes:
+
+- estrutura de armazenamento do preço original por item;
+- estrutura de armazenamento do valor efetivamente cobrado por item;
+- fórmula formal de rateio dos descontos entre linhas;
+- tratamento determinístico dos resíduos de centavos;
+- exibição visual de preço original e preço com desconto;
+- implementação do snapshot histórico;
+- validações no banco;
+- integração com o motor centralizado de cálculo.
+
+---
+
+## 13. Decisões ainda pendentes
 
 Ainda não estão definidas:
 
@@ -2259,7 +2704,13 @@ Ainda não estão definidas:
 - armazenamento de `estado_margem_bruta`;
 - armazenamento do percentual histórico;
 - alertas de margem baixa ou negativa;
-- preço original versus preço efetivamente cobrado no schema;
+- armazenamento do preço original por item;
+- armazenamento do valor efetivamente cobrado por item;
+- snapshot histórico dos preços;
+- rateio dos descontos entre linhas;
+- tratamento dos resíduos de centavos;
+- validação da soma dos valores cobrados por linha;
+- exibição de preço original e preço com desconto;
 - implementação técnica da ordem de cálculo;
 - políticas de brinde ou gratuidade;
 - alterações necessárias no banco e frontend.
