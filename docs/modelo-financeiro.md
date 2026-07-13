@@ -6,7 +6,7 @@
 - F02.02 — Desconto promocional: aprovado
 - F02.03 — Desconto de combo: aprovado conceitualmente
 - F02.04 — Desconto manual: aprovado
-- Desconto total: ainda não definido
+- F02.05 — Desconto total: aprovado
 - Receita líquida: ainda não definida
 - Taxa de entrega: regra atual existente, definição formal ainda pendente
 - Custo dos produtos: ainda não definido
@@ -466,7 +466,195 @@ Nunca utilizar truncamento.
 
 ---
 
-## 6. Decisões ainda pendentes
+## 6. Desconto total
+
+### Definição
+
+Desconto total é o valor agregado e auditável de todas as reduções comerciais efetivamente aplicadas aos produtos do pedido.
+
+É um valor derivado da soma de:
+
+- desconto promocional total;
+- desconto de combo total;
+- desconto manual.
+
+Não é uma nova modalidade de desconto e não pode ser digitado ou editado diretamente.
+
+### Fórmula oficial
+
+desconto_total =
+desconto_promocional_total
++ desconto_combo_total
++ desconto_manual
+
+Com arredondamento:
+
+desconto_total =
+arredondar(
+  desconto_promocional_total
+  + desconto_combo_total
+  + desconto_manual,
+  2
+)
+
+Cada componente já deve chegar válido e arredondado conforme sua própria etapa.
+
+### Valor dos produtos após descontos
+
+valor_produtos_apos_descontos =
+arredondar(subtotal_bruto - desconto_total, 2)
+
+Esse valor é equivalente ao valor dos produtos após desconto manual definido na F02.04.
+
+Fórmula de conferência:
+
+desconto_total =
+subtotal_bruto - valor_produtos_apos_descontos
+
+### Componentes separados
+
+O pedido deve preservar separadamente:
+
+- subtotal bruto;
+- desconto promocional total;
+- desconto de combo total;
+- desconto manual;
+- desconto total;
+- valor dos produtos após todos os descontos.
+
+O desconto total não substitui, apaga ou oculta seus componentes.
+
+### Ausência de descontos
+
+Quando nenhum desconto for aplicado:
+
+desconto_promocional_total = R$ 0,00
+desconto_combo_total = R$ 0,00
+desconto_manual = R$ 0,00
+
+Resultado:
+
+desconto_total = R$ 0,00
+valor_produtos_apos_descontos = subtotal_bruto
+
+A ausência de desconto deve ser representada por zero explícito, nunca por valor nulo ou indefinido no cálculo consolidado.
+
+### Limites obrigatórios
+
+O desconto total:
+
+- não pode ser negativo;
+- não pode ser maior que o subtotal bruto;
+- não pode produzir valor dos produtos negativo;
+- não inclui taxa de entrega;
+- não pode ser informado diretamente pelo usuário;
+- deve corresponder exatamente à soma dos componentes válidos;
+- deve possuir duas casas decimais;
+- não pode esconder divergências financeiras.
+
+Regras:
+
+0 ≤ desconto_total ≤ subtotal_bruto
+
+valor_produtos_apos_descontos ≥ R$ 0,00
+
+### Desconto total de até 100%
+
+O desconto total pode atingir 100% do subtotal bruto quando a combinação válida dos descontos resultar em gratuidade integral dos produtos.
+
+Isso pode resultar em:
+
+valor_produtos_apos_descontos = R$ 0,00
+
+A taxa de entrega continua fora do desconto total e pode ser adicionada posteriormente.
+
+O desconto total nunca pode superar o subtotal bruto.
+
+### Componentes inválidos
+
+Promoção inválida:
+
+desconto_promocional_total = R$ 0,00
+
+Não bloqueia o pedido, desde que os itens sejam financeiramente válidos.
+
+Combo inválido:
+
+desconto_combo_total = R$ 0,00
+
+Não bloqueia o pedido, desde que os itens sejam financeiramente válidos.
+
+Desconto manual inválido:
+
+- não entra no desconto total definitivo;
+- bloqueia a confirmação enquanto a tentativa inválida permanecer ativa;
+- deve ser corrigido, removido ou autorizado.
+
+O sistema não deve aceitar um desconto total definitivo ignorando silenciosamente uma tentativa manual inválida.
+
+### Inconsistências financeiras
+
+Existe inconsistência quando:
+
+desconto_total
+≠
+desconto_promocional_total
++ desconto_combo_total
++ desconto_manual
+
+ou quando:
+
+valor_produtos_apos_descontos
+≠
+subtotal_bruto - desconto_total
+
+Uma inconsistência deve bloquear a confirmação do pedido até que o cálculo seja corrigido.
+
+O sistema não deve escolher silenciosamente um dos valores divergentes.
+
+### Relação com taxa de entrega
+
+O desconto total não inclui e não reduz a taxa de entrega.
+
+A fórmula futura do total final será:
+
+total_final =
+valor_produtos_apos_descontos + taxa_entrega
+
+Uma eventual gratuidade de frete será uma regra separada.
+
+### Preservação histórica
+
+Depois da confirmação, devem permanecer preservados:
+
+- subtotal bruto;
+- desconto promocional total;
+- desconto de combo total;
+- desconto manual;
+- desconto total;
+- valor dos produtos após descontos;
+- promoções e combos aplicados;
+- motivo e autoria do desconto manual;
+- valores utilizados no momento da confirmação.
+
+Mudanças futuras de preços, promoções, combos, usuários ou permissões não recalculam pedidos antigos.
+
+### Arredondamento
+
+1. Receber o desconto promocional total já arredondado.
+2. Receber o desconto de combo total já arredondado.
+3. Receber o desconto manual já arredondado.
+4. Somar os três componentes.
+5. Arredondar o desconto total para duas casas.
+6. Subtrair o desconto total do subtotal bruto.
+7. Arredondar o valor dos produtos após descontos.
+8. Validar as fórmulas de conferência.
+
+Nunca utilizar truncamento.
+
+---
+
+## 7. Decisões ainda pendentes
 
 Ainda não estão definidas:
 
@@ -478,9 +666,12 @@ Ainda não estão definidas:
 - rateio do desconto manual entre itens;
 - PIN e autorização por perfil para desconto manual;
 - formato do campo de motivo do desconto manual;
-- desconto total;
+- implementação técnica do desconto total;
+- estrutura de armazenamento dos componentes do desconto total;
+- mecanismo de detecção de inconsistências financeiras;
 - receita líquida;
 - taxa de entrega dentro do novo modelo;
+- total final;
 - custo dos produtos;
 - lucro bruto estimado;
 - margem bruta;
