@@ -9,7 +9,7 @@
 - F02.05 — Desconto total: aprovado
 - F02.06 — Receita líquida: aprovada
 - F02.07 — Taxa de entrega: aprovada
-- Custo dos produtos: ainda não definido
+- F02.08 — Custo dos produtos: aprovado
 - Lucro bruto estimado: ainda não definido
 - Margem bruta: ainda não definida
 
@@ -1110,7 +1110,345 @@ Não alterar o banco nesta missão.
 
 ---
 
-## 9. Decisões ainda pendentes
+## 9. Custo dos produtos
+
+### Definição
+
+Custo dos produtos é a soma dos custos unitários internos dos itens utilizados em um pedido, multiplicados pelas respectivas quantidades.
+
+Representa uma estimativa interna do restaurante e será usado futuramente no cálculo de lucro bruto estimado.
+
+Não representa:
+
+- preço original de venda;
+- preço efetivamente cobrado;
+- desconto;
+- taxa de entrega;
+- total final;
+- valor recebido;
+- movimentação de caixa;
+- despesas gerais;
+- impostos;
+- salários;
+- aluguel;
+- comissão de plataforma;
+- lucro.
+
+### Natureza interna
+
+O custo dos produtos:
+
+- é informação interna do restaurante;
+- não deve ser exibido ao cliente;
+- não altera o valor cobrado;
+- não interfere na confirmação do pedido;
+- não limita promoções, combos ou descontos;
+- será utilizado em relatórios, simuladores e alertas financeiros.
+
+Mesmo quando uma venda resultar em margem baixa ou prejuízo estimado, o sistema pode alertar, mas não deve bloquear a venda.
+
+### Fórmulas oficiais
+
+Para uma linha com custo conhecido:
+
+custo_total_linha =
+custo_unitario_historico × quantidade
+
+Com arredondamento:
+
+custo_total_linha =
+arredondar(custo_unitario_historico × quantidade, 2)
+
+Quando todos os custos forem conhecidos:
+
+custo_dos_produtos =
+arredondar(Σ custo_total_linha, 2)
+
+### Custo unitário
+
+Custo unitário é o valor interno estimado para produzir ou adquirir uma unidade do item.
+
+Deve ser:
+
+- numérico;
+- maior ou igual a zero;
+- armazenado com duas casas decimais;
+- definido pelo restaurante;
+- separado do preço de venda.
+
+Custo zero explicitamente cadastrado é válido.
+
+Custo ausente ou inválido não deve ser convertido em zero.
+
+### Estados oficiais do custo
+
+A representação oficial é:
+
+estado_custo =
+conhecido | parcial | desconhecido
+
+#### Conhecido
+
+Todos os itens e composições possuem custos válidos e determináveis.
+
+estado_custo = conhecido
+
+custo_dos_produtos =
+soma completa dos custos totais das linhas
+
+Somente neste estado `custo_dos_produtos` representa um total completo e confiável.
+
+#### Parcial
+
+Algumas linhas possuem custo conhecido e outras possuem custo ausente ou inválido.
+
+estado_custo = parcial
+
+custo_conhecido_parcial =
+soma somente das linhas com custo conhecido
+
+Nesse estado:
+
+- `custo_conhecido_parcial` pode ser exibido como informação auxiliar;
+- nunca deve ser apresentado como `custo_dos_produtos`;
+- deve ser indicada a quantidade de itens ou unidades sem custo;
+- lucro bruto estimado e margem bruta não podem ser apresentados como completos e confiáveis.
+
+#### Desconhecido
+
+Nenhuma linha possui custo válido e determinável.
+
+estado_custo = desconhecido
+
+Nesse estado:
+
+- o custo total não pode ser calculado;
+- não deve ser apresentado R$ 0,00 como custo dos produtos;
+- lucro bruto estimado e margem bruta não podem ser apresentados como valores confiáveis.
+
+Não existe um quarto estado.
+
+### Custo ausente ou inválido
+
+Quando o custo não estiver cadastrado:
+
+- deve ser tratado como desconhecido;
+- não bloqueia a venda;
+- não invalida o pedido;
+- não altera o valor cobrado;
+- torna incompleto o cálculo de custo e rentabilidade;
+- deve gerar indicação de informação incompleta ao restaurante.
+
+São exemplos de custo inválido:
+
+- valor negativo;
+- valor não numérico;
+- valor infinito;
+- configuração incompatível com o produto ou variação;
+- custo não determinável.
+
+Custo inválido também deve ser tratado como desconhecido, nunca como zero.
+
+### Produto sem variação
+
+Para produto sem tamanho ou variação:
+
+custo_unitario_historico =
+custo cadastrado para o produto
+
+O custo é multiplicado pela quantidade do item.
+
+### Produto com tamanho ou variação
+
+Para produto com tamanho ou variação:
+
+custo_unitario_historico =
+custo específico da opção selecionada
+
+Não utilizar automaticamente o custo de outro tamanho.
+
+Se não existir custo específico para a opção selecionada, o custo deve ser tratado como desconhecido.
+
+Uma futura regra de custo compartilhado entre variações dependerá de decisão explícita.
+
+### Produtos com múltiplos sabores
+
+O custo de um item com múltiplos sabores não utiliza a média dos preços de venda.
+
+Preço de venda e custo são grandezas diferentes.
+
+Regra conceitual:
+
+custo_da_composicao =
+soma dos custos proporcionais às partes efetivamente utilizadas
+
+Divisões como 50% para cada sabor ou 1/3 para cada sabor somente são válidas quando representam a composição real do item.
+
+Não presumir divisão igual quando:
+
+- as porções forem diferentes;
+- existir sabor predominante;
+- o restaurante configurar outra proporção;
+- ingredientes compartilhados possuírem regra própria.
+
+Enquanto as proporções reais e todos os custos necessários não forem determináveis:
+
+custo_da_composicao = desconhecido
+
+### Produtos participantes de combo
+
+O preço ou desconto do combo não altera o custo dos produtos participantes.
+
+custo_combo =
+soma dos custos históricos dos itens utilizados na aplicação
+
+Unidades excedentes fora do combo mantêm seus próprios custos históricos.
+
+Quando algum item necessário ao combo possuir custo desconhecido:
+
+- o custo consolidado do combo fica parcial ou desconhecido;
+- o combo continua podendo ser vendido;
+- nenhum custo deve ser inventado ou convertido em zero.
+
+### Adicionais futuros
+
+Quando adicionais forem implementados:
+
+- cada adicional poderá possuir custo próprio;
+- esse custo deverá entrar no custo do item;
+- o custo histórico deverá ser preservado.
+
+O sistema atual não possui essa estrutura formalmente implementada.
+
+### Embalagens e outros custos diretos
+
+Devem ser diferenciados:
+
+- custo dos produtos;
+- outros custos diretos do pedido.
+
+Outros custos diretos podem incluir embalagem, recipiente, talher, molho, insumo adicional ou material descartável.
+
+Esses custos não devem ser misturados automaticamente ao custo dos produtos sem regra específica.
+
+### Momento de fixação
+
+O custo deve ser fixado como snapshot no momento da confirmação do pedido.
+
+Depois da confirmação:
+
+- alterações futuras no cadastro de custo não modificam pedidos antigos;
+- o pedido preserva o custo utilizado no momento da venda;
+- relatórios históricos utilizam o valor preservado;
+- o cadastro atual não deve recalcular pedidos antigos.
+
+Se o custo estiver ausente ou inválido na confirmação, o estado parcial ou desconhecido também deve ser preservado historicamente.
+
+Cadastrar o custo posteriormente não deve completar ou recalcular automaticamente pedidos antigos.
+
+### Relação com descontos
+
+Promoções, combos e descontos manuais:
+
+- reduzem a receita líquida;
+- não reduzem o custo dos produtos;
+- não alteram o custo unitário histórico;
+- não recalculam o custo do item.
+
+### Relação com quantidade
+
+Quantidade válida continua sendo número inteiro maior ou igual a 1.
+
+custo_total_linha =
+custo_unitario_historico × quantidade
+
+Quantidade inválida continua sendo tratada conforme as regras da F02.01.
+
+### Relação com pagamento e cancelamento
+
+O custo é independente do pagamento.
+
+Marcar ou desmarcar um pedido como pago não altera ou recalcula o custo.
+
+Depois da confirmação, mesmo que o pedido seja cancelado:
+
+- o custo histórico permanece registrado;
+- o cancelamento não apaga ou recalcula o custo;
+- pedidos cancelados não entram nos consolidados de vendas válidas;
+- o custo preservado continua disponível para auditoria.
+
+Baixa de estoque, desperdício e estorno de custo não são definidos nesta etapa.
+
+### Relação futura com lucro bruto estimado e margem
+
+Lucro bruto estimado e margem bruta somente podem ser apresentados como valores completos quando:
+
+estado_custo = conhecido
+
+Quando o estado for parcial ou desconhecido:
+
+- o pedido continua válido;
+- a venda não é bloqueada;
+- a receita líquida continua válida;
+- o sistema deve indicar que a informação de custo e rentabilidade está incompleta;
+- não deve apresentar lucro parcial como se fosse lucro bruto estimado total.
+
+Não utilizar a expressão “lucro líquido” para receita menos custo dos produtos.
+
+### Inconsistências
+
+Quando `estado_custo = conhecido`:
+
+custo_dos_produtos =
+soma completa dos custos totais das linhas
+
+Quando `estado_custo = parcial`:
+
+custo_conhecido_parcial =
+soma dos custos totais somente das linhas conhecidas
+
+`custo_dos_produtos` e `custo_conhecido_parcial` são grandezas diferentes e não podem ser substituídas uma pela outra.
+
+Também existe inconsistência quando:
+
+custo_total_linha
+≠
+custo_unitario_historico × quantidade
+
+A inconsistência de custo:
+
+- não altera o valor cobrado do cliente;
+- não bloqueia a venda;
+- impede apresentar custo, lucro bruto estimado ou margem como resultados confiáveis.
+
+### Preservação histórica
+
+Depois da confirmação, devem permanecer preservados:
+
+- estado do custo;
+- custo unitário histórico de cada item conhecido;
+- quantidade;
+- custo total de cada linha conhecida;
+- custo dos produtos, quando completo;
+- custo conhecido parcial, quando aplicável;
+- quantidade de itens ou unidades sem custo;
+- valores utilizados no momento da confirmação.
+
+### Arredondamento
+
+1. Receber o custo unitário válido.
+2. Arredondar o custo unitário para duas casas.
+3. Multiplicar pela quantidade.
+4. Arredondar o custo total da linha.
+5. Somar os custos totais conhecidos.
+6. Arredondar o valor consolidado aplicável.
+7. Determinar se o estado é conhecido, parcial ou desconhecido.
+
+Nunca utilizar truncamento.
+
+---
+
+## 10. Decisões ainda pendentes
 
 Ainda não estão definidas:
 
@@ -1136,7 +1474,15 @@ Ainda não estão definidas:
 - regras de estorno ou devolução da taxa;
 - definição e implementação completa do total final;
 - cancelamento, pagamento, estorno e movimentações financeiras;
-- custo dos produtos;
+- implementação do cadastro de custos;
+- estrutura de armazenamento;
+- snapshot histórico;
+- custo por tamanho ou variação;
+- composição de custo para múltiplos sabores;
+- proporções e ingredientes compartilhados;
+- custo de adicionais;
+- outros custos diretos;
+- alertas de custo ausente ou inválido;
 - lucro bruto estimado;
 - margem bruta;
 - preço original versus preço efetivamente cobrado no schema;
