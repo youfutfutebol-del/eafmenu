@@ -10,7 +10,7 @@
 - F02.06 — Receita líquida: aprovada
 - F02.07 — Taxa de entrega: aprovada
 - F02.08 — Custo dos produtos: aprovado
-- Lucro bruto estimado: ainda não definido
+- F02.09 — Lucro bruto estimado: aprovado
 - Margem bruta: ainda não definida
 
 ---
@@ -1448,7 +1448,428 @@ Nunca utilizar truncamento.
 
 ---
 
-## 10. Decisões ainda pendentes
+## 10. Lucro bruto estimado
+
+### Definição
+
+Lucro bruto estimado é a diferença entre a receita líquida dos produtos e o custo completo dos produtos utilizados no pedido.
+
+Fórmula oficial:
+
+lucro_bruto_estimado =
+receita_liquida - custo_dos_produtos
+
+Com arredondamento:
+
+lucro_bruto_estimado =
+arredondar(receita_liquida - custo_dos_produtos, 2)
+
+### Natureza estimada
+
+O termo oficial é:
+
+lucro bruto estimado
+
+O cálculo considera somente:
+
+- receita líquida dos produtos;
+- custo completo dos produtos cadastrado pelo restaurante.
+
+Ele não considera automaticamente:
+
+- embalagem;
+- recipiente;
+- talheres;
+- materiais descartáveis;
+- comissão de plataforma;
+- taxa de cartão;
+- impostos;
+- salários;
+- aluguel;
+- energia;
+- gás;
+- desperdício;
+- custo do motoboy;
+- despesas administrativas;
+- despesas operacionais;
+- resultado financeiro da entrega;
+- estornos;
+- perdas financeiras.
+
+Nunca utilizar a expressão “lucro líquido” para esse resultado.
+
+O valor também não deve ser apresentado como lucro final real do restaurante.
+
+### Condição obrigatória de cálculo
+
+O lucro bruto estimado somente pode ser calculado e apresentado como completo quando:
+
+estado_custo = conhecido
+
+Quando:
+
+estado_custo = parcial
+
+ou:
+
+estado_custo = desconhecido
+
+o sistema:
+
+- não deve calcular lucro parcial e apresentá-lo como completo;
+- não deve utilizar custo ausente como zero;
+- não deve utilizar `custo_conhecido_parcial` como `custo_dos_produtos`;
+- deve informar que o lucro bruto estimado está indisponível;
+- pode indicar quais custos estão ausentes;
+- não deve bloquear a venda.
+
+### Relação com receita líquida
+
+A base de receita utilizada é exclusivamente:
+
+receita_liquida
+
+Não utilizar:
+
+- subtotal bruto;
+- total final;
+- valor pago;
+- valor recebido em caixa;
+- receita líquida acrescida da taxa de entrega.
+
+Fórmula de conferência:
+
+receita_liquida =
+lucro_bruto_estimado + custo_dos_produtos
+
+### Relação com taxa de entrega
+
+A taxa de entrega não entra no lucro bruto estimado dos produtos.
+
+A fórmula correta é:
+
+lucro_bruto_estimado =
+receita_liquida - custo_dos_produtos
+
+Não utilizar:
+
+lucro_bruto_estimado =
+total_final - custo_dos_produtos
+
+O resultado financeiro da entrega será tratado separadamente em regra futura.
+
+### Resultado positivo, zero ou negativo
+
+O resultado pode ser positivo quando:
+
+receita_liquida > custo_dos_produtos
+
+Pode ser igual a zero quando:
+
+receita_liquida = custo_dos_produtos
+
+Pode ser negativo quando:
+
+receita_liquida < custo_dos_produtos
+
+O resultado negativo continua sendo armazenado na própria grandeza:
+
+lucro_bruto_estimado
+
+com valor inferior a zero.
+
+Ele pode ser apresentado ao restaurante com o rótulo:
+
+prejuízo bruto estimado
+
+Porém, não criar uma segunda grandeza ou fórmula independente chamada `prejuizo_bruto_estimado`.
+
+O sistema não deve converter resultado negativo em zero.
+
+### Venda com resultado negativo
+
+Uma venda pode ser confirmada mesmo quando o lucro bruto estimado for negativo.
+
+O sistema pode alertar sobre prejuízo bruto estimado, mas não deve bloquear automaticamente a venda.
+
+A decisão comercial pertence ao restaurante.
+
+O alerta não deve alterar:
+
+- preço;
+- desconto;
+- quantidade;
+- confirmação;
+- pagamento.
+
+### Relação com descontos
+
+Os descontos:
+
+- reduzem a receita líquida;
+- não reduzem o custo dos produtos;
+- podem reduzir o lucro bruto estimado;
+- podem zerar o lucro bruto estimado;
+- podem produzir resultado negativo.
+
+Exemplo:
+
+Subtotal bruto: R$ 100,00
+Desconto total: R$ 30,00
+Receita líquida: R$ 70,00
+Custo dos produtos: R$ 60,00
+Lucro bruto estimado: R$ 10,00
+
+Outro exemplo:
+
+Subtotal bruto: R$ 100,00
+Desconto total: R$ 50,00
+Receita líquida: R$ 50,00
+Custo dos produtos: R$ 60,00
+Lucro bruto estimado: -R$ 10,00
+
+### Desconto de 100%
+
+Quando:
+
+receita_liquida = R$ 0,00
+
+e o custo estiver completamente conhecido:
+
+lucro_bruto_estimado =
+0 - custo_dos_produtos
+
+Exemplo:
+
+Receita líquida: R$ 0,00
+Custo dos produtos: R$ 40,00
+Lucro bruto estimado: -R$ 40,00
+
+A taxa de entrega permanece separada e não altera esse resultado.
+
+### Relação com pagamento
+
+O lucro bruto estimado é independente do estado de pagamento.
+
+Portanto:
+
+- pedido não pago pode possuir lucro bruto estimado;
+- marcar como pago não altera o resultado;
+- desmarcar como pago não recalcula o resultado;
+- forma de pagamento não altera o resultado nesta definição;
+- troco não altera o resultado.
+
+Lucro bruto estimado e entrada financeira recebida são conceitos diferentes.
+
+Taxas de meios de pagamento serão tratadas separadamente.
+
+### Relação com cancelamento
+
+Depois da confirmação:
+
+- a receita líquida histórica permanece preservada;
+- o custo histórico permanece preservado;
+- o lucro bruto estimado histórico, quando calculado, deve permanecer preservado;
+- cancelar não apaga nem recalcula esses valores;
+- pedidos cancelados não entram nos consolidados de vendas válidas;
+- os valores permanecem disponíveis para auditoria.
+
+Não são definidos nesta etapa:
+
+- estorno;
+- desperdício;
+- aproveitamento de ingredientes;
+- devolução;
+- baixa de estoque;
+- perda financeira após a produção.
+
+### Momento de fixação
+
+O lucro bruto estimado deve ser determinado no momento da confirmação, desde que:
+
+estado_custo = conhecido
+
+Depois da confirmação:
+
+- alterações futuras no preço não recalculam o pedido;
+- alterações futuras no custo não recalculam o pedido;
+- alterações futuras em promoções não recalculam o pedido;
+- alterações futuras em combos não recalculam o pedido;
+- alterações futuras na taxa de entrega não recalculam o pedido;
+- o resultado histórico permanece auditável.
+
+Quando o custo estiver parcial ou desconhecido no momento da confirmação:
+
+- o lucro bruto estimado permanece indisponível;
+- cadastrar custos posteriormente não recalcula automaticamente o pedido antigo;
+- o estado histórico não deve ser alterado silenciosamente.
+
+### Estados oficiais do resultado
+
+A representação oficial é:
+
+estado_lucro_bruto =
+calculado | indisponivel
+
+#### Calculado
+
+O estado será calculado quando:
+
+- `estado_custo = conhecido`;
+- a receita líquida for válida;
+- o custo dos produtos for válido;
+- a fórmula não possuir divergências.
+
+estado_lucro_bruto = calculado
+
+O resultado calculado pode ser positivo, zero ou negativo.
+
+#### Indisponível
+
+O estado será indisponível quando:
+
+- o custo for parcial;
+- o custo for desconhecido;
+- o custo for inválido;
+- a receita líquida for inválida;
+- existir inconsistência na fórmula.
+
+estado_lucro_bruto = indisponivel
+
+Não existe estado de lucro bruto “parcialmente calculado” apresentado como resultado completo.
+
+### Inconsistências
+
+Existe inconsistência quando:
+
+lucro_bruto_estimado
+≠
+receita_liquida - custo_dos_produtos
+
+Também existe inconsistência quando:
+
+- o sistema apresenta lucro bruto estimado com `estado_custo ≠ conhecido`;
+- utiliza `custo_conhecido_parcial` como custo total;
+- utiliza `total_final` no lugar de `receita_liquida`;
+- inclui taxa de entrega na fórmula;
+- apresenta resultado indisponível como confiável.
+
+Quando a inconsistência estiver restrita ao cálculo ou à apresentação do lucro bruto estimado:
+
+- não altera o valor cobrado do cliente;
+- não bloqueia automaticamente a venda;
+- impede apresentar o lucro bruto estimado como confiável;
+- deve gerar indicação de erro interno ao restaurante.
+
+Esta regra não elimina os bloqueios já definidos nas etapas anteriores.
+
+Se a origem do problema for uma inconsistência em subtotal bruto, descontos, receita líquida, taxa de entrega ou total final, continuam valendo as regras de bloqueio da confirmação estabelecidas nas respectivas etapas.
+
+### Limites
+
+O lucro bruto estimado:
+
+- pode ser positivo;
+- pode ser zero;
+- pode ser negativo;
+- deve possuir duas casas decimais;
+- não pode ser editado diretamente;
+- deve ser derivado da receita líquida e do custo completo dos produtos;
+- não inclui taxa de entrega;
+- não pode ser calculado com custo parcial ou desconhecido.
+
+Não existe limite mínimo igual a zero.
+
+### Preservação histórica
+
+Depois da confirmação, devem permanecer preservados:
+
+- receita líquida utilizada;
+- estado do custo;
+- custo dos produtos utilizado;
+- estado do lucro bruto estimado;
+- lucro bruto estimado, quando calculado;
+- valores utilizados no momento da confirmação.
+
+### Arredondamento
+
+1. Receber a receita líquida já arredondada.
+2. Confirmar que `estado_custo = conhecido`.
+3. Receber `custo_dos_produtos` já arredondado.
+4. Subtrair o custo dos produtos da receita líquida.
+5. Arredondar o resultado para duas casas.
+6. Validar a fórmula de conferência.
+7. Classificar o resultado como positivo, zero ou negativo.
+8. Definir `estado_lucro_bruto = calculado`.
+
+Quando os requisitos não forem atendidos:
+
+estado_lucro_bruto = indisponivel
+
+Nunca utilizar truncamento.
+
+### Casos validados
+
+#### Resultado positivo
+
+Receita líquida: R$ 80,00
+Custo dos produtos: R$ 50,00
+Lucro bruto estimado: R$ 30,00
+Estado: calculado
+
+#### Resultado zero
+
+Receita líquida: R$ 80,00
+Custo dos produtos: R$ 80,00
+Lucro bruto estimado: R$ 0,00
+Estado: calculado
+
+#### Resultado negativo
+
+Receita líquida: R$ 80,00
+Custo dos produtos: R$ 90,00
+Lucro bruto estimado: -R$ 10,00
+Estado: calculado
+
+O resultado pode ser apresentado como prejuízo bruto estimado de R$ 10,00, sem criar uma segunda grandeza financeira.
+
+#### Custo parcial
+
+Receita líquida: R$ 80,00
+Custo conhecido parcial: R$ 40,00
+Existem itens sem custo.
+Lucro bruto estimado: indisponível
+Estado: indisponível
+
+Não apresentar lucro de R$ 40,00.
+
+#### Custo desconhecido
+
+Receita líquida: R$ 80,00
+Custo dos produtos: desconhecido
+Lucro bruto estimado: indisponível
+Estado: indisponível
+
+#### Taxa de entrega
+
+Receita líquida: R$ 80,00
+Custo dos produtos: R$ 50,00
+Taxa de entrega: R$ 8,00
+Total final: R$ 88,00
+Lucro bruto estimado: R$ 30,00
+
+A taxa de entrega não altera esse indicador.
+
+#### Pedido cancelado
+
+Lucro bruto estimado histórico: R$ 30,00
+Pedido posteriormente cancelado.
+
+O valor histórico permanece preservado para auditoria, mas o pedido não entra nos consolidados de vendas válidas.
+
+---
+
+## 11. Decisões ainda pendentes
 
 Ainda não estão definidas:
 
@@ -1483,7 +1904,14 @@ Ainda não estão definidas:
 - custo de adicionais;
 - outros custos diretos;
 - alertas de custo ausente ou inválido;
-- lucro bruto estimado;
+- implementação técnica do lucro bruto estimado;
+- estrutura de armazenamento do lucro bruto estimado;
+- armazenamento de `estado_lucro_bruto`;
+- alertas de resultado negativo;
+- relatórios e consolidados;
+- tratamento financeiro separado da entrega;
+- taxas de meios de pagamento;
+- despesas e outros custos diretos;
 - margem bruta;
 - preço original versus preço efetivamente cobrado no schema;
 - implementação técnica da ordem de cálculo;
