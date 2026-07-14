@@ -243,7 +243,20 @@
   .pin-input { display:flex; gap:8px; justify-content:center; margin: 4px 0 6px; }
   .pin-input input { width:46px; height:52px; text-align:center; font-size:20px; font-weight:800; border:1.5px solid var(--border); border-radius:10px; }
   .resumo-linha { display:flex; justify-content:space-between; font-size:13px; padding:6px 0; color: var(--ink); }
+  .resumo-linha span:first-child { min-width:0; padding-right:12px; overflow-wrap:anywhere; }
+  .resumo-linha span:last-child { flex-shrink:0; }
   .resumo-linha.total { font-weight:800; font-size:15px; border-top:1px solid var(--border); margin-top:6px; padding-top:12px; font-family: var(--font-display); }
+  .pagamento-opcoes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:14px 0 16px; }
+  .pagamento-opcao { min-width:0; min-height:70px; border:1.5px solid var(--border); border-radius:12px; padding:10px 7px; background:var(--surface); color:var(--muted); font-size:12px; font-weight:750; line-height:1.25; overflow-wrap:anywhere; }
+  .pagamento-opcao.active { border-color:var(--accent); color:var(--accent); background:color-mix(in srgb, var(--accent) 7%, #fff); }
+  .pagamento-opcao span { display:block; font-size:20px; margin-bottom:5px; }
+  .troco-opcoes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+  .troco-opcao { min-width:0; border:1.5px solid var(--border); border-radius:10px; padding:11px 9px; background:var(--surface); color:var(--muted); font-size:12px; font-weight:700; line-height:1.3; }
+  .troco-opcao.active { border-color:var(--accent); color:var(--accent); background:color-mix(in srgb, var(--accent) 7%, #fff); }
+  .revisao-secao { border-top:1px solid var(--border); padding-top:12px; margin-top:12px; }
+  .revisao-secao:first-of-type { border-top:0; padding-top:4px; margin-top:4px; }
+  .revisao-titulo { margin:0 0 6px; color:var(--muted); font-size:11px; font-weight:800; letter-spacing:.35px; text-transform:uppercase; }
+  .revisao-detalhe { margin:0; font-size:12.5px; line-height:1.55; color:var(--ink); overflow-wrap:anywhere; }
 
   /* ---------------- Meus pedidos / tracking ---------------- */
   .pedido-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:17px; margin-bottom:12px; box-shadow: var(--shadow-xs); }
@@ -259,6 +272,12 @@
   .pedido-card__previsao.aguardando { color:var(--muted); font-weight:500; }
   .pedido-card__itens { font-size:12px; color:var(--muted); margin-top:10px; line-height:1.5; }
   .pedido-card__total { font-weight:800; font-size:14.5px; margin-top:9px; font-family: var(--font-display); }
+  .pedidos-busca { border-top:1px solid var(--border); margin-top:18px; padding-top:16px; }
+  .pedidos-busca h4 { margin:0 0 10px; font-family:var(--font-display); font-size:14px; }
+  .pedidos-busca__linha { display:flex; gap:8px; align-items:stretch; }
+  .pedidos-busca__linha input { min-width:0; flex:1; padding:10px 12px; border:1.5px solid var(--border); border-radius:10px; background:var(--bg); color:var(--ink); font:inherit; font-size:13px; }
+  .pedidos-busca__linha .btn { width:auto; flex:0 0 auto; padding:10px 18px; }
+  .pedidos-voltar { margin-top:10px; }
 
   /* ---------------- Toast ---------------- */
   .toast {
@@ -410,14 +429,21 @@
     <div id="stepPagamento" class="hidden">
       <h3>Forma de pagamento</h3>
       <p class="sub">Só pra o restaurante se organizar — o pagamento é combinado na entrega/retirada.</p>
-      <div class="field"><select id="formaPagamento" onchange="onFormaPagamentoChange()">
-        <option value="dinheiro">Dinheiro</option>
-        <option value="pix">Pix</option>
-        <option value="cartao">Cartão (maquininha)</option>
-      </select></div>
-      <div class="field" id="campoTroco">
-        <label>Precisa de troco para quanto?</label>
-        <input type="number" id="trocoParaInput" placeholder="Ex: 100 (deixe em branco se não precisar)" inputmode="decimal" min="0" step="0.01">
+      <input type="hidden" id="formaPagamento" value="dinheiro">
+      <div class="pagamento-opcoes" role="group" aria-label="Forma de pagamento">
+        <button type="button" class="pagamento-opcao active" data-forma="dinheiro" onclick="setFormaPagamento('dinheiro')"><span>💵</span>Dinheiro</button>
+        <button type="button" class="pagamento-opcao" data-forma="pix" onclick="setFormaPagamento('pix')"><span>◆</span>Pix</button>
+        <button type="button" class="pagamento-opcao" data-forma="cartao" onclick="setFormaPagamento('cartao')"><span>💳</span>Cartão na entrega/retirada</button>
+      </div>
+      <div id="campoTroco">
+        <div class="troco-opcoes" role="group" aria-label="Opção de troco">
+          <button type="button" class="troco-opcao active" id="trocoNaoBtn" onclick="setOpcaoTroco(false)">Não preciso de troco</button>
+          <button type="button" class="troco-opcao" id="trocoSimBtn" onclick="setOpcaoTroco(true)">Preciso de troco</button>
+        </div>
+        <div class="field hidden" id="trocoValorWrap">
+          <label>Troco para</label>
+          <input type="text" id="trocoParaInput" placeholder="R$ 100,00" inputmode="decimal">
+        </div>
       </div>
       <button class="btn primary" onclick="irParaRevisao()">Continuar</button>
       <button class="link-btn" onclick="voltarParaEntrega()">Voltar</button>
@@ -426,9 +452,10 @@
     <!-- Passo 4: revisão -->
     <div id="stepRevisao" class="hidden">
       <h3>Revise seu pedido</h3>
-      <div id="revisaoItens"></div>
-      <div class="resumo-linha total"><span>Total</span><span id="revisaoTotal">R$ 0,00</span></div>
-      <p class="sub" id="revisaoTipoTexto" style="margin-top:10px;"></p>
+      <div class="revisao-secao"><p class="revisao-titulo">Produtos</p><div id="revisaoItens"></div></div>
+      <div class="revisao-secao"><p class="revisao-titulo">Valores</p><div id="revisaoValores"></div></div>
+      <div class="revisao-secao"><p class="revisao-titulo">Entrega ou retirada</p><p class="revisao-detalhe" id="revisaoTipoTexto"></p></div>
+      <div class="revisao-secao"><p class="revisao-titulo">Pagamento</p><p class="revisao-detalhe" id="revisaoPagamentoTexto"></p></div>
       <button class="btn primary" id="btnConfirmarPedido" onclick="confirmarPedido()" style="margin-top:8px;">Confirmar pedido</button>
       <button class="link-btn" onclick="voltarParaPagamento()">Voltar</button>
     </div>
@@ -439,8 +466,16 @@
 <div class="sheet-bg" id="sheetPedidos">
   <div class="sheet">
     <div class="sheet__handle"></div>
-    <h3>Meus pedidos</h3>
+    <h3 id="meusPedidosTitulo">Pedidos de hoje</h3>
     <div id="meusPedidosLista" style="margin-top:10px;"></div>
+    <div class="pedidos-busca">
+      <h4>Buscar pedido anterior</h4>
+      <div class="pedidos-busca__linha">
+        <input type="date" id="buscaPedidosData" aria-label="Data do pedido anterior">
+        <button class="btn" type="button" onclick="buscarPedidosAnteriores()">Buscar</button>
+      </div>
+      <button class="link-btn pedidos-voltar hidden" id="voltarPedidosHojeBtn" type="button" onclick="voltarParaPedidosHoje()">Voltar para pedidos de hoje</button>
+    </div>
     <button class="btn" onclick="closeSheet('sheetPedidos')" style="margin-top:10px;">Fechar</button>
   </div>
 </div>
@@ -479,6 +514,8 @@
 
   let checkoutTipo = 'entrega';
   let checkoutEnderecoId = null;
+  let checkoutEndereco = null;
+  let checkoutPrecisaTroco = false;
 
   let restauranteAbertoAgora = true;
   let statusAbertoInterval = null;
@@ -1081,9 +1118,8 @@
 
     closeSheet('sheetCarrinho');
 
-    document.getElementById('formaPagamento').value = 'dinheiro';
-    document.getElementById('trocoParaInput').value = '';
-    onFormaPagamentoChange();
+    setFormaPagamento('dinheiro');
+    setOpcaoTroco(false);
 
     if (cliente) {
       irParaStep(2); // já identificado nesse aparelho: pula direto pra entrega
@@ -1166,6 +1202,14 @@
       const cidade = document.getElementById('endCidade').value.trim();
       if (!rua || !numero || !bairro || !cidade) { showToast('Endereço incompleto', 'Preencha rua, número, bairro e cidade.'); return; }
 
+      checkoutEndereco = {
+        rua,
+        numero,
+        complemento: document.getElementById('endComplemento').value.trim(),
+        bairro,
+        cidade
+      };
+
       const { data, error } = await sb.from('enderecos_cliente').insert({
         cliente_id: cliente.id,
         logradouro: rua,
@@ -1180,6 +1224,7 @@
       checkoutEnderecoId = data.id;
     } else {
       checkoutEnderecoId = null;
+      checkoutEndereco = null;
     }
     irParaStep(3);
   }
@@ -1215,21 +1260,54 @@
   // =====================================================================
   function voltarParaEntrega() { irParaStep(2); }
 
+  function setFormaPagamento(forma) {
+    if (!['dinheiro', 'pix', 'cartao'].includes(forma)) return;
+    document.getElementById('formaPagamento').value = forma;
+    document.querySelectorAll('.pagamento-opcao').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.forma === forma);
+    });
+    onFormaPagamentoChange();
+  }
+
+  function setOpcaoTroco(precisaTroco) {
+    checkoutPrecisaTroco = Boolean(precisaTroco);
+    document.getElementById('trocoNaoBtn').classList.toggle('active', !checkoutPrecisaTroco);
+    document.getElementById('trocoSimBtn').classList.toggle('active', checkoutPrecisaTroco);
+    document.getElementById('trocoValorWrap').classList.toggle('hidden', !checkoutPrecisaTroco);
+    if (!checkoutPrecisaTroco) document.getElementById('trocoParaInput').value = '';
+  }
+
   function onFormaPagamentoChange() {
     const isDinheiro = document.getElementById('formaPagamento').value === 'dinheiro';
     document.getElementById('campoTroco').classList.toggle('hidden', !isDinheiro);
-    if (!isDinheiro) document.getElementById('trocoParaInput').value = '';
+    if (!isDinheiro) setOpcaoTroco(false);
+  }
+
+  function validarTroco(totalAtual) {
+    if (document.getElementById('formaPagamento').value !== 'dinheiro' || !checkoutPrecisaTroco) {
+      return { valido: true, valor: null };
+    }
+
+    const digitado = document.getElementById('trocoParaInput').value.trim();
+    if (!/^\d+(?:[.,]\d{1,2})?$/.test(digitado)) {
+      return { valido: false, mensagem: 'Informe um valor válido para o troco.' };
+    }
+    const valor = Number(digitado.replace(',', '.'));
+    if (!Number.isFinite(valor) || valor <= 0) {
+      return { valido: false, mensagem: 'Informe um valor válido para o troco.' };
+    }
+    if (valor < totalAtual) {
+      return { valido: false, mensagem: 'O valor pra troco precisa ser maior ou igual ao total do pedido.' };
+    }
+    return { valido: true, valor };
   }
 
   function irParaRevisao() {
-    const forma = document.getElementById('formaPagamento').value;
-    if (forma === 'dinheiro') {
-      const trocoPara = parseFloat(document.getElementById('trocoParaInput').value);
-      const totalAtual = totalCarrinho() + (checkoutTipo === 'entrega' ? Number(restaurante.taxa_entrega_padrao || 0) : 0);
-      if (document.getElementById('trocoParaInput').value && trocoPara < totalAtual) {
-        showToast('Valor muito baixo', 'O valor pra troco precisa ser maior ou igual ao total do pedido.');
-        return;
-      }
+    const totalAtual = totalCarrinho() + (checkoutTipo === 'entrega' ? Number(restaurante.taxa_entrega_padrao || 0) : 0);
+    const troco = validarTroco(totalAtual);
+    if (!troco.valido) {
+      showToast(troco.mensagem.startsWith('O valor') ? 'Valor muito baixo' : 'Troco inválido', troco.mensagem);
+      return;
     }
     renderRevisao();
     irParaStep(4);
@@ -1244,35 +1322,50 @@
     const subtotal = totalCarrinho();
     const taxa = checkoutTipo === 'entrega' ? Number(restaurante.taxa_entrega_padrao || 0) : 0;
     document.getElementById('revisaoItens').innerHTML = cart.map(i => `
-      <div class="resumo-linha"><span>${i.qtd}x ${i.nome}</span><span>${formatMoeda(i.precoUnit * i.qtd)}</span></div>
-    `).join('') + (taxa > 0 ? `<div class="resumo-linha"><span>Taxa de entrega</span><span>${formatMoeda(taxa)}</span></div>` : '');
-    document.getElementById('revisaoTotal').textContent = formatMoeda(subtotal + taxa);
+      <div class="resumo-linha"><span>${i.qtd}x ${escapeHtml(i.nome)}</span><span>${formatMoeda(i.precoUnit * i.qtd)}</span></div>
+    `).join('');
+    document.getElementById('revisaoValores').innerHTML = `
+      <div class="resumo-linha"><span>Subtotal</span><span>${formatMoeda(subtotal)}</span></div>
+      ${checkoutTipo === 'entrega' ? `<div class="resumo-linha"><span>Taxa de entrega</span><span>${formatMoeda(taxa)}</span></div>` : ''}
+      <div class="resumo-linha total"><span>Total</span><span>${formatMoeda(subtotal + taxa)}</span></div>`;
 
     const forma = document.getElementById('formaPagamento').value;
-    const trocoPara = parseFloat(document.getElementById('trocoParaInput').value);
-    let textoTipo = checkoutTipo === 'entrega' ? '🛵 Entrega no endereço informado' : '🏠 Retirada no restaurante';
-    if (forma === 'dinheiro' && trocoPara > 0) {
-      const totalAtual = totalCarrinho() + (checkoutTipo === 'entrega' ? Number(restaurante.taxa_entrega_padrao || 0) : 0);
-      textoTipo += ` · 💵 Troco: ${formatMoeda(trocoPara - totalAtual)} (pagando com ${formatMoeda(trocoPara)})`;
+    const totalAtual = subtotal + taxa;
+    const troco = validarTroco(totalAtual);
+    document.getElementById('revisaoTipoTexto').textContent = checkoutTipo === 'entrega'
+      ? `Entrega — ${checkoutEndereco.rua}, ${checkoutEndereco.numero}${checkoutEndereco.complemento ? `, ${checkoutEndereco.complemento}` : ''} — ${checkoutEndereco.bairro}, ${checkoutEndereco.cidade}`
+      : 'Retirada no restaurante';
+
+    const formaTexto = forma === 'dinheiro' ? 'Dinheiro' : forma === 'pix' ? 'Pix' : `Cartão na ${checkoutTipo === 'entrega' ? 'entrega' : 'retirada'}`;
+    const pagamentoLinhas = [`Pagamento: ${formaTexto}`];
+    if (forma === 'dinheiro' && troco.valor !== null) {
+      pagamentoLinhas.push(`Troco para: ${formatMoeda(troco.valor)}`);
+      pagamentoLinhas.push(`Troco esperado: ${formatMoeda(troco.valor - totalAtual)}`);
     }
-    document.getElementById('revisaoTipoTexto').textContent = textoTipo;
+    document.getElementById('revisaoPagamentoTexto').innerHTML = pagamentoLinhas.map(escapeHtml).join('<br>');
   }
 
   async function confirmarPedido() {
+    const btn = document.getElementById('btnConfirmarPedido');
+    if (btn.disabled) return;
     if (!atualizarStatusAberto()) {
       showToast('Restaurante fechado', 'Restaurante fechado no momento. Volte no próximo horário de funcionamento.');
       closeSheet('sheetCheckout');
       return;
     }
 
-    const btn = document.getElementById('btnConfirmarPedido');
     btn.disabled = true; btn.textContent = 'Enviando pedido...';
 
     const subtotal = totalCarrinho();
     const taxaEntrega = checkoutTipo === 'entrega' ? Number(restaurante.taxa_entrega_padrao || 0) : 0;
     const total = subtotal + taxaEntrega;
     const forma = document.getElementById('formaPagamento').value;
-    const trocoPara = forma === 'dinheiro' ? parseFloat(document.getElementById('trocoParaInput').value) : NaN;
+    const troco = validarTroco(total);
+    if (!troco.valido) {
+      showToast('Troco inválido', troco.mensagem);
+      btn.disabled = false; btn.textContent = 'Confirmar pedido';
+      return;
+    }
 
     const payload = {
       restaurante_id: restaurante.id,
@@ -1284,7 +1377,7 @@
       total,
       status: 'recebido',
       pago: false,
-      troco_para: !isNaN(trocoPara) && trocoPara > 0 ? trocoPara : null
+      troco_para: troco.valido ? troco.valor : null
     };
     if (checkoutTipo === 'entrega' && checkoutEnderecoId) payload.endereco_entrega_id = checkoutEnderecoId;
 
@@ -1325,6 +1418,46 @@
   };
   const FLOW_ENTREGA = ['recebido', 'aceito', 'em_preparo', 'saiu_para_entrega', 'entregue'];
   const FLOW_RETIRADA = ['recebido', 'aceito', 'em_preparo', 'retirado'];
+  const STATUS_PEDIDOS_ATIVOS = ['recebido', 'aceito', 'em_preparo', 'saiu_para_entrega'];
+  const PEDIDO_SELECT = `id, tipo, status, total, criado_em, previsao_inicio, previsao_fim, itens_pedido ( quantidade, produtos ( nome ) )`;
+  let visualizacaoPedidos = 'hoje';
+
+  function chaveDataSaoPaulo(data = new Date()) {
+    const partes = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(data);
+    const valor = tipo => partes.find(parte => parte.type === tipo)?.value;
+    return `${valor('year')}-${valor('month')}-${valor('day')}`;
+  }
+
+  function horarioSaoPauloParaUtc(ano, mes, dia) {
+    const alvo = Date.UTC(ano, mes - 1, dia, 0, 0, 0);
+    let estimativa = alvo;
+    const formatador = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+    });
+
+    for (let tentativa = 0; tentativa < 3; tentativa++) {
+      const partes = formatador.formatToParts(new Date(estimativa));
+      const valor = tipo => Number(partes.find(parte => parte.type === tipo)?.value);
+      const observado = Date.UTC(valor('year'), valor('month') - 1, valor('day'), valor('hour'), valor('minute'), valor('second'));
+      estimativa += alvo - observado;
+    }
+    return new Date(estimativa);
+  }
+
+  function intervaloDiaSaoPaulo(chave = chaveDataSaoPaulo()) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(chave)) return null;
+    const [ano, mes, dia] = chave.split('-').map(Number);
+    const dataValidada = new Date(Date.UTC(ano, mes - 1, dia));
+    if (dataValidada.getUTCFullYear() !== ano || dataValidada.getUTCMonth() !== mes - 1 || dataValidada.getUTCDate() !== dia) return null;
+    const proximoDia = new Date(Date.UTC(ano, mes - 1, dia + 1));
+    return {
+      inicio: horarioSaoPauloParaUtc(ano, mes, dia).toISOString(),
+      fim: horarioSaoPauloParaUtc(proximoDia.getUTCFullYear(), proximoDia.getUTCMonth() + 1, proximoDia.getUTCDate()).toISOString()
+    };
+  }
 
   function formatarJanelaPrevisao(inicioIso, fimIso) {
     if (!inicioIso || !fimIso) return null;
@@ -1371,6 +1504,7 @@
     const { data } = await sb.from('pedidos')
       .select('id, status')
       .eq('cliente_id', cliente.id)
+      .eq('restaurante_id', restaurante.id)
       .not('status', 'in', '(entregue,retirado,cancelado)');
 
     const n = (data || []).length;
@@ -1379,30 +1513,75 @@
   }
 
   async function openMeusPedidos() {
-    const wrap = document.getElementById('meusPedidosLista');
-
     if (!cliente) {
-      wrap.innerHTML = `<div class="cart-empty">Você ainda não fez nenhum pedido nesse restaurante.</div>`;
+      document.getElementById('meusPedidosLista').innerHTML = `<div class="cart-empty">Você ainda não fez nenhum pedido nesse restaurante.</div>`;
+      document.getElementById('meusPedidosTitulo').textContent = 'Pedidos de hoje';
+      document.getElementById('voltarPedidosHojeBtn').classList.add('hidden');
       openSheet('sheetPedidos');
       return;
     }
 
-    const { data, error } = await sb.from('pedidos')
-      .select(`id, tipo, status, total, criado_em, previsao_inicio, previsao_fim, itens_pedido ( quantidade, produtos ( nome ) )`)
-      .eq('cliente_id', cliente.id)
-      .order('criado_em', { ascending: false })
-      .limit(20);
-
-    if (error) { wrap.innerHTML = `<div class="cart-empty">Não foi possível carregar seus pedidos agora.</div>`; openSheet('sheetPedidos'); return; }
-
-    renderMeusPedidos(data || []);
+    await carregarPedidosHoje();
     openSheet('sheetPedidos');
     subscribeTrackingPedidos();
   }
 
-  function renderMeusPedidos(lista) {
+  async function carregarPedidosHoje() {
+    const intervalo = intervaloDiaSaoPaulo();
+    visualizacaoPedidos = 'hoje';
+    document.getElementById('meusPedidosTitulo').textContent = 'Pedidos de hoje';
+    document.getElementById('voltarPedidosHojeBtn').classList.add('hidden');
+
+    const { data, error } = await sb.from('pedidos')
+      .select(PEDIDO_SELECT)
+      .eq('cliente_id', cliente.id)
+      .eq('restaurante_id', restaurante.id)
+      .or(`and(criado_em.gte.${intervalo.inicio},criado_em.lt.${intervalo.fim}),status.in.(${STATUS_PEDIDOS_ATIVOS.join(',')})`)
+      .order('criado_em', { ascending: false });
+
+    if (error) {
+      document.getElementById('meusPedidosLista').innerHTML = `<div class="cart-empty">Não foi possível carregar seus pedidos agora.</div>`;
+      return;
+    }
+    renderMeusPedidos(data || [], 'Nenhum pedido feito hoje.');
+  }
+
+  async function buscarPedidosAnteriores() {
+    if (!cliente) return;
+    const chave = document.getElementById('buscaPedidosData').value;
+    const intervalo = intervaloDiaSaoPaulo(chave);
+    if (!intervalo) {
+      showToast('Escolha uma data', 'Informe a data do pedido que deseja buscar.');
+      return;
+    }
+
+    const { data, error } = await sb.from('pedidos')
+      .select(PEDIDO_SELECT)
+      .eq('cliente_id', cliente.id)
+      .eq('restaurante_id', restaurante.id)
+      .gte('criado_em', intervalo.inicio)
+      .lt('criado_em', intervalo.fim)
+      .order('criado_em', { ascending: false });
+
+    if (error) {
+      showToast('Busca indisponível', 'Não foi possível buscar os pedidos dessa data agora.');
+      return;
+    }
+    visualizacaoPedidos = 'historico';
+    const dataLegivel = chave.split('-').reverse().join('/');
+    document.getElementById('meusPedidosTitulo').textContent = `Pedidos de ${dataLegivel}`;
+    document.getElementById('voltarPedidosHojeBtn').classList.remove('hidden');
+    renderMeusPedidos(data || [], 'Nenhum pedido encontrado nessa data.');
+  }
+
+  async function voltarParaPedidosHoje() {
+    document.getElementById('buscaPedidosData').value = '';
+    await carregarPedidosHoje();
+  }
+
+  function renderMeusPedidos(lista, mensagemVazia = 'Nenhum pedido encontrado.') {
     const wrap = document.getElementById('meusPedidosLista');
-    if (lista.length === 0) { wrap.innerHTML = `<div class="cart-empty">Nenhum pedido encontrado.</div>`; return; }
+    if (lista.length === 0) { wrap.innerHTML = `<div class="cart-empty">${escapeHtml(mensagemVazia)}</div>`; return; }
 
     wrap.innerHTML = lista.map(o => {
       const flow = o.tipo === 'entrega' ? FLOW_ENTREGA : FLOW_RETIRADA;
@@ -1445,12 +1624,7 @@
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'pedidos', filter: `cliente_id=eq.${cliente.id}` },
         async (payload) => {
-          const { data } = await sb.from('pedidos')
-            .select(`id, tipo, status, total, criado_em, previsao_inicio, previsao_fim, itens_pedido ( quantidade, produtos ( nome ) )`)
-            .eq('cliente_id', cliente.id)
-            .order('criado_em', { ascending: false })
-            .limit(20);
-          if (data) renderMeusPedidos(data);
+          if (visualizacaoPedidos === 'hoje') await carregarPedidosHoje();
           await atualizarBadgePedidos();
           const statusAnterior = payload.old?.status;
           const statusNovo = payload.new?.status;
