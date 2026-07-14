@@ -15,6 +15,44 @@
     return (o.numero_diario != null) ? ('#' + o.numero_diario) : ('#' + o.id.slice(0,8).toUpperCase());
   }
 
+  function formatarJanelaPrevisao(inicioIso, fimIso) {
+    if (!inicioIso || !fimIso) return null;
+
+    const inicio = new Date(inicioIso);
+    const fim = new Date(fimIso);
+    if (!Number.isFinite(inicio.getTime()) || !Number.isFinite(fim.getTime()) || fim < inicio) return null;
+
+    const timeZone = 'America/Sao_Paulo';
+    const formatarData = data => data.toLocaleDateString('pt-BR', {
+      timeZone,
+      day: '2-digit',
+      month: '2-digit'
+    });
+    const formatarChaveData = data => data.toLocaleDateString('pt-BR', {
+      timeZone,
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    const formatarHora = data => data.toLocaleTimeString('pt-BR', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23'
+    });
+
+    const dataInicio = formatarData(inicio);
+    const dataFim = formatarData(fim);
+    const chaveDataInicio = formatarChaveData(inicio);
+    const chaveDataFim = formatarChaveData(fim);
+    const horaInicio = formatarHora(inicio);
+    const horaFim = formatarHora(fim);
+
+    if (inicio.getTime() === fim.getTime()) return horaInicio;
+    if (chaveDataInicio === chaveDataFim) return `${horaInicio}–${horaFim}`;
+    return `${dataInicio} ${horaInicio}–${dataFim} ${horaFim}`;
+  }
+
   function setFiltroPedidos(f) {
     filtroPedidos = f;
     document.querySelectorAll('#filterTabsPedidos .tab').forEach(t => t.classList.toggle('active', t.dataset.f === f));
@@ -50,6 +88,12 @@
         : '';
       const trocoLinha = (o.forma_pagamento === 'dinheiro' && o.troco_para)
         ? `<div class="order-itens" style="margin-top:2px; color:var(--amber); font-weight:700;">💵 Troco: R$ ${(Number(o.troco_para) - Number(o.total)).toFixed(2).replace('.', ',')} (paga com R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')})</div>`
+        : '';
+      const janelaPrevisao = o.tipo === 'entrega'
+        ? formatarJanelaPrevisao(o.previsao_inicio, o.previsao_fim)
+        : null;
+      const previsaoLinha = janelaPrevisao
+        ? `<div class="order-previsao">⏱ Entrega prevista: ${escapeHtml(janelaPrevisao)}</div>`
         : '';
 
       const pedidoIdArg = escapeHtml(JSON.stringify(o.id));
@@ -87,6 +131,7 @@
             <div class="order-cliente">${cliente}</div>
             <div class="order-itens">${itens || 'sem itens'}</div>
             ${enderecoLinha}
+            ${previsaoLinha}
             ${obsLinha}
             ${trocoLinha}
           </div>

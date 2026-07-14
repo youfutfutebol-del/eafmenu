@@ -16,7 +16,7 @@
     const { data, error } = await sb
       .from('pedidos')
       .select(`
-        id, numero_diario, tipo, status, pago, forma_pagamento, total, criado_em, motoboy_id, troco_para, observacoes,
+        id, numero_diario, tipo, status, pago, forma_pagamento, total, criado_em, motoboy_id, troco_para, observacoes, previsao_inicio, previsao_fim,
         clientes ( nome ),
         enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento, referencia ),
         itens_pedido ( quantidade, produtos ( nome ), itens_pedido_sabores ( produtos ( nome ) ) )
@@ -134,6 +134,13 @@
       pagamentoLinhas += '\n' + linhaValor('TROCO', Number(o.troco_para) - Number(o.total));
     }
 
+    const janelaPrevisao = o.tipo === 'entrega'
+      ? formatarJanelaPrevisao(o.previsao_inicio, o.previsao_fim)
+      : null;
+    const previsaoLinhas = janelaPrevisao
+      ? `${linhaTracejada}\nPREVISAO DE ENTREGA\n${janelaPrevisao.replace('–', ' A ')}\n${linhaTracejada}`
+      : null;
+
     const corpo = [
       nomeRestaurante,
       enderecoRestaurante,
@@ -141,6 +148,7 @@
       linhaTracejada,
       linhaDireita(o.tipo === 'entrega' ? 'ENTREGA' : 'RETIRADA', dataTxt + ' ' + horaTxt),
       `Pedido: ${codigoPedido(o)}`,
+      previsaoLinhas,
       cliente,
       telefoneCliente ? 'Telefone: ' + telefoneCliente : null,
       `Status: ${o.pago ? 'PAGO' : 'PENDENTE'}`,

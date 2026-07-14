@@ -255,6 +255,8 @@
   .flow-bar span.done { background: var(--green); }
   .flow-bar span.cancel { background: var(--red); }
   .flow-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); }
+  .pedido-card__previsao { margin-top:9px; font-size:12px; line-height:1.4; font-weight:650; color:var(--ink); overflow-wrap:anywhere; }
+  .pedido-card__previsao.aguardando { color:var(--muted); font-weight:500; }
   .pedido-card__itens { font-size:12px; color:var(--muted); margin-top:10px; line-height:1.5; }
   .pedido-card__total { font-weight:800; font-size:14.5px; margin-top:9px; font-family: var(--font-display); }
 
@@ -1324,6 +1326,44 @@
   const FLOW_ENTREGA = ['recebido', 'aceito', 'em_preparo', 'saiu_para_entrega', 'entregue'];
   const FLOW_RETIRADA = ['recebido', 'aceito', 'em_preparo', 'retirado'];
 
+  function formatarJanelaPrevisao(inicioIso, fimIso) {
+    if (!inicioIso || !fimIso) return null;
+
+    const inicio = new Date(inicioIso);
+    const fim = new Date(fimIso);
+    if (!Number.isFinite(inicio.getTime()) || !Number.isFinite(fim.getTime()) || fim < inicio) return null;
+
+    const timeZone = 'America/Sao_Paulo';
+    const formatarData = data => data.toLocaleDateString('pt-BR', {
+      timeZone,
+      day: '2-digit',
+      month: '2-digit'
+    });
+    const formatarChaveData = data => data.toLocaleDateString('pt-BR', {
+      timeZone,
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    const formatarHora = data => data.toLocaleTimeString('pt-BR', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23'
+    });
+
+    const dataInicio = formatarData(inicio);
+    const dataFim = formatarData(fim);
+    const chaveDataInicio = formatarChaveData(inicio);
+    const chaveDataFim = formatarChaveData(fim);
+    const horaInicio = formatarHora(inicio);
+    const horaFim = formatarHora(fim);
+
+    if (inicio.getTime() === fim.getTime()) return horaInicio;
+    if (chaveDataInicio === chaveDataFim) return `${horaInicio}–${horaFim}`;
+    return `${dataInicio} ${horaInicio}–${dataFim} ${horaFim}`;
+  }
+
   async function atualizarBadgePedidos() {
     const badge = document.getElementById('pedidosBadge');
     if (!cliente) { badge.classList.add('hidden'); return; }
@@ -1348,7 +1388,7 @@
     }
 
     const { data, error } = await sb.from('pedidos')
-      .select(`id, tipo, status, total, criado_em, itens_pedido ( quantidade, produtos ( nome ) )`)
+      .select(`id, tipo, status, total, criado_em, previsao_inicio, previsao_fim, itens_pedido ( quantidade, produtos ( nome ) )`)
       .eq('cliente_id', cliente.id)
       .order('criado_em', { ascending: false })
       .limit(20);
@@ -1369,6 +1409,14 @@
       const idx = flow.indexOf(o.status);
       const cancelado = o.status === 'cancelado';
       const itens = (o.itens_pedido || []).map(i => `${i.quantidade}x ${i.produtos?.nome || 'item'}`).join(', ');
+      const janelaPrevisao = o.tipo === 'entrega'
+        ? formatarJanelaPrevisao(o.previsao_inicio, o.previsao_fim)
+        : null;
+      const previsaoHtml = janelaPrevisao
+        ? `<div class="pedido-card__previsao">Entrega prevista: ${escapeHtml(janelaPrevisao)}</div>`
+        : o.tipo === 'entrega' && o.status === 'recebido'
+          ? '<div class="pedido-card__previsao aguardando">Aguardando confirmação para calcular a entrega.</div>'
+          : '';
 
       const barras = flow.slice(1).map((_, i) => {
         if (cancelado) return `<span class="cancel"></span>`;
@@ -1382,6 +1430,7 @@
             <span class="pedido-card__status">${STATUS_LABEL[o.status] || o.status}</span>
           </div>
           <div class="flow-bar">${barras}</div>
+          ${previsaoHtml}
           <div class="pedido-card__itens">${itens || 'sem itens'}</div>
           <div class="pedido-card__total">${formatMoeda(o.total)}</div>
         </div>`;
@@ -1397,7 +1446,7 @@
         { event: '*', schema: 'public', table: 'pedidos', filter: `cliente_id=eq.${cliente.id}` },
         async (payload) => {
           const { data } = await sb.from('pedidos')
-            .select(`id, tipo, status, total, criado_em, itens_pedido ( quantidade, produtos ( nome ) )`)
+            .select(`id, tipo, status, total, criado_em, previsao_inicio, previsao_fim, itens_pedido ( quantidade, produtos ( nome ) )`)
             .eq('cliente_id', cliente.id)
             .order('criado_em', { ascending: false })
             .limit(20);
