@@ -132,6 +132,30 @@
     );
   }
 
+  async function notificarConfiguracaoPublicaAtualizada() {
+    if (!sb || !restauranteId) return;
+
+    const channel = sb.channel(`restaurante-publico:${restauranteId}`);
+
+    try {
+      const resposta = await channel.send({
+        type: 'broadcast',
+        event: 'configuracao_atualizada',
+        payload: {
+          restaurante_id: restauranteId
+        }
+      });
+
+      if (resposta !== 'ok') {
+        console.warn('Broadcast da configuração pública não confirmado:', resposta);
+      }
+    } catch (erro) {
+      console.warn('Não foi possível notificar o cardápio aberto:', erro);
+    } finally {
+      sb.removeChannel(channel);
+    }
+  }
+
   function abrirPrazoEntregaPedidos() {
     if (currentUser?.role !== 'dono') {
       showToast('Acesso restrito', 'Somente o dono pode alterar o prazo de entrega.');
@@ -166,6 +190,8 @@
       showToast('Erro ao salvar prazo', error.message);
       return;
     }
+
+    await notificarConfiguracaoPublicaAtualizada();
 
     restauranteInfo = { ...(restauranteInfo || {}), ...payload };
     atualizarBotaoPrazoEntrega();
@@ -208,6 +234,7 @@
       }
       return;
     }
+    await notificarConfiguracaoPublicaAtualizada();
     document.getElementById('restauranteNome').textContent = nome;
     document.getElementById('mkSlug').value = slugFinal || '';
     restauranteSlugAtual = slugFinal;

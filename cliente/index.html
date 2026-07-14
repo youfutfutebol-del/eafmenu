@@ -480,6 +480,7 @@
 
   let restauranteAbertoAgora = true;
   let statusAbertoInterval = null;
+  let restauranteConfigChannel = null;
 
   const trackedChannels = [];
 
@@ -514,6 +515,7 @@
     restaurante = data;
     localStorage.setItem('eaf_ultimo_restaurante', restauranteSlug);
     aplicarMarca();
+    subscribeConfiguracaoPublica();
 
     await carregarSessaoCliente();
     atualizarSaudacao();
@@ -584,6 +586,58 @@
         : `Entrega estimada: ${minimo}–${maximo} min`;
     prazoEl.classList.remove('hidden');
   }
+
+  async function recarregarConfiguracaoPublica() {
+    if (!restaurante?.id) return;
+
+    const { data, error } = await sb
+      .from('restaurantes_publico')
+      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horarios_semana, taxa_entrega_padrao, prazo_entrega_min_minutos, prazo_entrega_max_minutos')
+      .eq('id', restaurante.id)
+      .maybeSingle();
+
+    if (error || !data) {
+      console.warn('Não foi possível atualizar a configuração pública:', error);
+      return;
+    }
+
+    restaurante = data;
+    aplicarMarca();
+    atualizarStatusAberto();
+  }
+
+  function subscribeConfiguracaoPublica() {
+    if (!restaurante?.id) return;
+
+    if (restauranteConfigChannel) {
+      sb.removeChannel(restauranteConfigChannel);
+    }
+
+    restauranteConfigChannel = sb
+      .channel(`restaurante-publico:${restaurante.id}`)
+      .on(
+        'broadcast',
+        { event: 'configuracao_atualizada' },
+        async (mensagem) => {
+          const idRecebido = mensagem?.payload?.restaurante_id;
+
+          if (idRecebido && idRecebido !== restaurante.id) return;
+
+          await recarregarConfiguracaoPublica();
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Canal de configuração pública indisponível:', status);
+        }
+      });
+  }
+
+  window.addEventListener('pagehide', () => {
+    if (restauranteConfigChannel && sb) {
+      sb.removeChannel(restauranteConfigChannel);
+    }
+  });
 
   function abrirWhatsappRestauranteCliente() {
     abrirWhatsapp(restaurante?.whatsapp, 'Olá, tenho uma dúvida sobre o cardápio/pedido.');
