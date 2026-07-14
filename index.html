@@ -488,7 +488,8 @@
 
 <div class="modal-bg" id="pedidoPrazoModalBg">
   <div class="modal pedido-prazo-modal">
-    <h3>Prazo estimado de entrega</h3>
+    <h3>Prazos estimados</h3>
+    <p class="pm-section-label">Prazo de entrega</p>
     <p class="pedido-prazo-ajuda">Este prazo aparece no cardápio do cliente.</p>
     <div class="pedido-prazo-fields">
       <div class="field">
@@ -499,6 +500,12 @@
         <label for="pedidoPrazoEntregaMax">Prazo máximo (minutos)</label>
         <input id="pedidoPrazoEntregaMax" type="number" min="0" max="120" step="1" inputmode="numeric">
       </div>
+    </div>
+    <p class="pm-section-label">Prazo de retirada</p>
+    <p class="pedido-prazo-ajuda">Tempo estimado para o pedido ficar pronto para retirada.</p>
+    <div class="field">
+      <label for="pedidoPrazoRetirada">Minutos</label>
+      <input id="pedidoPrazoRetirada" type="number" min="0" max="120" step="1" inputmode="numeric">
     </div>
     <div class="modal-actions">
       <button class="btn" type="button" onclick="fecharPrazoEntregaPedidos()">Cancelar</button>
@@ -892,7 +899,7 @@
 
     let { data: userRow, error: userErr } = await sb
       .from('usuarios')
-      .select('id, nome, email, role, restaurante_id, primeiro_acesso, restaurantes(nome, slug, horarios_semana, endereco, whatsapp, prazo_entrega_min_minutos, prazo_entrega_max_minutos)')
+      .select('id, nome, email, role, restaurante_id, primeiro_acesso, restaurantes(nome, slug, horarios_semana, endereco, whatsapp, prazo_entrega_min_minutos, prazo_entrega_max_minutos, prazo_retirada_min_minutos, prazo_retirada_max_minutos)')
       .eq('id', session.user.id)
       .single();
 

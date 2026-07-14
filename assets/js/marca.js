@@ -167,11 +167,30 @@
     document.getElementById('pedidoPrazoEntregaMax').value = restauranteInfo?.prazo_entrega_max_minutos == null
       ? ''
       : String(restauranteInfo.prazo_entrega_max_minutos);
+    document.getElementById('pedidoPrazoRetirada').value = restauranteInfo?.prazo_retirada_min_minutos == null
+      ? ''
+      : String(restauranteInfo.prazo_retirada_min_minutos);
     document.getElementById('pedidoPrazoModalBg').classList.add('show');
   }
 
   function fecharPrazoEntregaPedidos() {
     document.getElementById('pedidoPrazoModalBg').classList.remove('show');
+  }
+
+  function validarPrazoRetirada() {
+    const valorDigitado = document.getElementById('pedidoPrazoRetirada').value.trim();
+    if (!valorDigitado) return { valido: true, valor: null };
+
+    if (!/^\d+$/.test(valorDigitado)) {
+      return { valido: false };
+    }
+
+    const valor = Number(valorDigitado);
+    if (!Number.isInteger(valor) || valor < 0 || valor > 120) {
+      return { valido: false };
+    }
+
+    return { valido: true, valor };
   }
 
   async function salvarPrazoEntregaPedidos() {
@@ -180,10 +199,17 @@
       showToast('Prazo de entrega inválido', prazosEntrega.mensagem);
       return;
     }
+    const prazoRetirada = validarPrazoRetirada();
+    if (!prazoRetirada.valido) {
+      showToast('Prazo de retirada inválido', 'Informe o prazo de retirada em minutos, usando um número inteiro entre 0 e 120.');
+      return;
+    }
 
     const payload = {
       prazo_entrega_min_minutos: prazosEntrega.minimo,
-      prazo_entrega_max_minutos: prazosEntrega.maximo
+      prazo_entrega_max_minutos: prazosEntrega.maximo,
+      prazo_retirada_min_minutos: prazoRetirada.valor,
+      prazo_retirada_max_minutos: prazoRetirada.valor
     };
     const { error } = await sb.from('restaurantes').update(payload).eq('id', restauranteId);
     if (error) {
