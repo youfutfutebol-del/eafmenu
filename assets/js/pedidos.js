@@ -16,7 +16,7 @@
     const { data, error } = await sb
       .from('pedidos')
       .select(`
-        id, numero_diario, tipo, status, pago, forma_pagamento, total, criado_em, motoboy_id, troco_para, observacoes, previsao_inicio, previsao_fim,
+        id, numero_diario, tipo, status, pago, forma_pagamento, subtotal, taxa_entrega, total, desconto_tipo, desconto_valor_informado, desconto_manual, desconto_motivo, criado_em, motoboy_id, troco_para, observacoes, previsao_inicio, previsao_fim,
         clientes ( nome, telefone ),
         enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento, referencia ),
         itens_pedido ( quantidade, preco_unitario, produtos ( nome ), itens_pedido_sabores ( produtos ( nome ) ) )
@@ -138,6 +138,15 @@
     const previsaoHtml = horarioFinalPrevisao
       ? `<section class="previsao"><div>ENTREGA PREVISTA PARA</div><strong>${seguro(horarioFinalPrevisao)}</strong></section>`
       : '';
+    const subtotalComanda = o.subtotal == null ? NaN : Number(o.subtotal);
+    const descontoComanda = o.desconto_manual == null ? 0 : Number(o.desconto_manual);
+    const taxaComanda = o.taxa_entrega == null ? 0 : Number(o.taxa_entrega);
+    const financeiroHtml = `<section class="financeiro">
+      ${Number.isFinite(subtotalComanda) ? `<div class="financeiro-linha"><span>SUBTOTAL</span><b>${moeda(subtotalComanda)}</b></div>` : ''}
+      ${Number.isFinite(descontoComanda) && descontoComanda > 0 ? `<div class="financeiro-linha desconto"><span>DESCONTO</span><b>- ${moeda(descontoComanda)}</b></div>` : ''}
+      ${Number.isFinite(taxaComanda) && taxaComanda > 0 ? `<div class="financeiro-linha"><span>TAXA DE ENTREGA</span><b>${moeda(taxaComanda)}</b></div>` : ''}
+      <div class="total"><span>TOTAL</span><span>${moeda(o.total)}</span></div>
+    </section>`;
 
     const html = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Comanda ${seguro(codigoPedido(o))}</title>
@@ -151,7 +160,7 @@
   .restaurante h1 { margin:0 0 3px; font-size:17px; line-height:1.15; font-weight:900; }
   .restaurante div { font-size:11px; }
   .pedido-topo { border-top:2px dashed #000; padding:8px 0 3px; }
-  .tipo-data, .item-linha, .qtd-total, .total, .troco div { display:flex; justify-content:space-between; gap:8px; }
+  .tipo-data, .item-linha, .qtd-total, .financeiro-linha, .total, .troco div { display:flex; justify-content:space-between; gap:8px; }
   .tipo-data b { font-size:13px; font-weight:900; }
   .pedido-numero { margin-top:3px; font-size:18px; font-weight:900; }
   .previsao { margin:8px 0; padding:7px 4px; border-top:3px solid #000; border-bottom:3px solid #000; text-align:center; font-weight:900; }
@@ -167,6 +176,8 @@
   .item-linha > b { flex-shrink:0; }
   .sabores { margin:3px 0 0 18px; font-size:11px; }
   .qtd-total { padding:6px 0; border-bottom:2px solid #000; }
+  .financeiro { border-bottom:2px solid #000; }
+  .financeiro-linha { padding:6px 0; border-bottom:1px dashed #000; font-weight:900; }
   .total { padding:8px 0; font-size:18px; font-weight:900; border-bottom:2px solid #000; }
   .pagamento { border-bottom:1px dashed #000; font-weight:900; }
   .troco { margin-top:6px; padding:6px; border:2px solid #000; font-size:13px; font-weight:900; }
@@ -198,7 +209,7 @@
     ${itensHtml || '<div class="item">sem itens</div>'}
     <div class="qtd-total"><span>Quantidade de itens:</span><b>${seguro(qtdItens)}</b></div>
   </section>
-  <div class="total"><span>TOTAL</span><span>${moeda(o.total)}</span></div>
+  ${financeiroHtml}
   <section class="section pagamento">
     <h2>FORMA DE PAGAMENTO</h2>
     <div class="dado-principal">${seguro(formaPagamento)}</div>

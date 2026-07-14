@@ -262,6 +262,64 @@
 .pm-item-subtotal { font-weight:800; font-size:12.5px; min-width:64px; text-align:right; flex-shrink:0; }
 .pm-item-remover { background:none; border:none; color: var(--red); font-size:14px; padding:4px; flex-shrink:0; }
 .pm-total-row { display:flex; justify-content:space-between; align-items:center; font-size:15px; font-weight:800; border-top:1px solid var(--border); padding-top:12px; margin-top:4px; }
+.pm-checkout-modal { width:620px; max-width:calc(100vw - 28px); }
+.pm-etapas { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px; }
+.pm-etapa { display:flex; align-items:center; justify-content:center; gap:7px; padding:9px 10px; border:1px solid var(--border); border-radius:9px; color:var(--muted); font-size:12.5px; font-weight:800; }
+.pm-etapa span { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:#F4F4F5; font-size:11px; }
+.pm-etapa.active { border-color:var(--ink); color:var(--ink); background:#FAFAFA; }
+.pm-etapa.active span { background:var(--ink); color:#fff; }
+.pm-erro { margin-bottom:12px; padding:9px 11px; border:1px solid #FCA5A5; border-radius:8px; background:#FEF2F2; color:#991B1B; font-size:12.5px; font-weight:700; }
+.pm-subtotal-parcial { margin-top:12px; }
+.pm-resumo-topo { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+.pm-resumo-topo > div { min-width:0; padding:9px 10px; border:1px solid var(--border); border-radius:9px; background:#FAFAFA; }
+.pm-resumo-topo > div:last-child { grid-column:1/-1; }
+.pm-resumo-topo span { display:block; margin-bottom:2px; color:var(--muted); font-size:10.5px; font-weight:800; text-transform:uppercase; }
+.pm-resumo-topo b { display:block; font-size:12.5px; overflow-wrap:anywhere; }
+.pm-resumo-itens { border:1px solid var(--border); border-radius:9px; overflow:hidden; }
+.pm-resumo-item { display:flex; justify-content:space-between; gap:10px; padding:8px 10px; border-bottom:1px dashed var(--border); font-size:12.5px; }
+.pm-resumo-item:last-child { border-bottom:none; }
+.pm-resumo-item span:first-child { min-width:0; overflow-wrap:anywhere; }
+.pm-resumo-item b { flex-shrink:0; }
+.pm-desconto-toggle { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:16px; padding:11px 12px; border:1px solid var(--border); border-radius:10px; }
+.pm-desconto-toggle label { min-width:0; cursor:pointer; }
+.pm-desconto-toggle label span { display:block; font-size:13px; font-weight:800; }
+.pm-desconto-toggle label small { display:block; margin-top:2px; color:var(--muted); font-size:11px; }
+.pm-desconto-toggle input { width:18px; height:18px; flex-shrink:0; accent-color:var(--ink); }
+.pm-desconto-campos { margin-top:10px; padding:12px; border:1px solid var(--border); border-radius:10px; background:#FAFAFA; }
+.pm-segmentado, .pm-pagamento-opcoes, .pm-troco-opcoes { display:flex; gap:7px; margin-bottom:12px; }
+.pm-segmentado button, .pm-pagamento-opcoes button, .pm-troco-opcoes button { flex:1; min-width:0; padding:9px 8px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--muted); font-size:12px; font-weight:800; }
+.pm-segmentado button.active, .pm-pagamento-opcoes button.active, .pm-troco-opcoes button.active { border-color:var(--ink); background:var(--ink); color:#fff; }
+.pm-aplicado-por { margin:2px 0 11px; font-size:12px; color:var(--muted); }
+.pm-inline-erro { margin:6px 0 0; color:#991B1B; font-size:11.5px; font-weight:700; }
+.pm-troco-area { margin-top:8px; padding:11px; border:1px solid var(--border); border-radius:10px; }
+.pm-troco-preview { margin:4px 0 0; color:var(--green); font-size:12.5px; font-weight:800; }
+.pm-financeiro-resumo { margin-top:16px; border:1px solid var(--border); border-radius:10px; padding:5px 12px; }
+.pm-financeiro-resumo > div { display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:8px 0; border-bottom:1px dashed var(--border); font-size:12.5px; }
+.pm-financeiro-resumo > div:last-child { border-bottom:none; }
+.pm-financeiro-resumo .desconto { color:var(--green); }
+.pm-financeiro-resumo small { display:block; margin-top:2px; color:inherit; font-size:10.5px; }
+.pm-financeiro-resumo .total { padding:11px 0; font-size:16px; font-weight:900; }
+.pm-revisao-final { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 12px; padding:11px 12px; border:1px solid var(--border); border-radius:10px; background:#FAFAFA; }
+.pm-revisao-linha { display:flex; justify-content:space-between; gap:8px; min-width:0; font-size:12px; }
+.pm-revisao-linha span { color:var(--muted); }
+.pm-revisao-linha b { text-align:right; overflow-wrap:anywhere; }
+.pm-final-actions { position:sticky; bottom:-22px; margin:16px -24px -22px; padding:12px 24px 22px; background:#fff; border-top:1px solid var(--border); }
+
+@media (max-width: 700px) {
+  .pm-checkout-modal { width:100%; max-width:100%; max-height:92vh; padding:18px 16px calc(18px + env(safe-area-inset-bottom)); }
+  .pm-add-row { flex-wrap:wrap; }
+  .pm-select-produto { flex:1 1 calc(100% - 76px); }
+  .pm-btn-add { width:100%; }
+  .pm-item-row { flex-wrap:wrap; }
+  .pm-item-info { flex:1 1 calc(100% - 90px); }
+  .pm-item-subtotal { margin-left:auto; }
+  .pm-resumo-topo, .pm-revisao-final { grid-template-columns:1fr; }
+  .pm-resumo-topo > div:last-child { grid-column:auto; }
+  .pm-segmentado, .pm-pagamento-opcoes, .pm-troco-opcoes { flex-wrap:wrap; }
+  .pm-segmentado button, .pm-pagamento-opcoes button { flex:1 1 90px; }
+  .pm-troco-opcoes button { flex:1 1 150px; }
+  .pm-final-actions { bottom:calc(-18px - env(safe-area-inset-bottom)); margin:16px -16px calc(-18px - env(safe-area-inset-bottom)); padding:12px 16px calc(18px + env(safe-area-inset-bottom)); }
+}
 
 /* ===== Auditoria de cancelamentos no Relatório Financeiro ===== */
 .cancelados-link { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }

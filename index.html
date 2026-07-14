@@ -515,65 +515,135 @@
 </div>
 
 <div class="modal-bg" id="manualModalBg">
-  <div class="modal">
+  <div class="modal pm-checkout-modal">
     <h3>Lançar pedido manual</h3>
-
-    <p class="pm-section-label">Cliente</p>
-    <div class="field">
-      <label>Telefone</label>
-      <input id="mCliTel" placeholder="(41) 9...." oninput="onTelefoneManualInput()" onblur="buscarClientePorTelefone()">
-      <div class="cliente-lookup-box" id="clienteLookupBox"></div>
+    <div class="pm-etapas" aria-label="Etapas do pedido manual">
+      <div class="pm-etapa active" id="mEtapaIndicador1"><span>1</span> Pedido</div>
+      <div class="pm-etapa" id="mEtapaIndicador2"><span>2</span> Pagamento</div>
     </div>
-    <div class="field"><label>Nome do cliente</label><input id="mCliNome" placeholder="Nome"></div>
+    <div class="pm-erro hidden" id="mPedidoErro" role="alert"></div>
 
-    <p class="pm-section-label">Tipo de pedido</p>
-    <div class="field"><label>Tipo</label>
-      <select id="mTipo" onchange="onTipoManualChange()"><option value="retirada">Retirada</option><option value="entrega">Entrega</option></select>
-    </div>
-    <div class="endereco-fields" id="enderecoFields">
-      <div class="field"><label>Endereço (rua)</label><input id="mEndLogradouro" placeholder="Rua das Flores"></div>
-      <div class="endereco-row2">
-        <div class="field"><label>Número</label><input id="mEndNumero" placeholder="123"></div>
-        <div class="field"><label>Bairro</label><input id="mEndBairro" placeholder="Centro"></div>
+    <section id="mEtapaPedido">
+      <p class="pm-section-label">Cliente</p>
+      <div class="field">
+        <label>Telefone</label>
+        <input id="mCliTel" placeholder="(41) 9...." oninput="onTelefoneManualInput()" onblur="buscarClientePorTelefone()">
+        <div class="cliente-lookup-box" id="clienteLookupBox"></div>
       </div>
-      <div class="field"><label>Complemento (opcional)</label><input id="mEndComplemento" placeholder="Apto, bloco..."></div>
-      <div class="field"><label>Ponto de referência (opcional)</label><input id="mEndReferencia" placeholder="Ex: portão azul, perto da farmácia, casa dos fundos..."></div>
-    </div>
+      <div class="field"><label>Nome do cliente</label><input id="mCliNome" placeholder="Nome"></div>
 
-    <p class="pm-section-label">Adicionar produto</p>
-    <div class="pm-busca-row">
-      <input id="mBuscaProduto" placeholder="Pesquisar produto..." oninput="filtrarProdutosBusca()">
-    </div>
-    <div class="pm-add-row">
-      <select id="mProdutoSelecionado" class="pm-select-produto"></select>
-      <input type="number" id="mQtdAdicionar" min="1" value="1" class="pm-qtd-add">
-      <button type="button" class="btn primary pm-btn-add" onclick="adicionarItemManual()">Adicionar</button>
-    </div>
+      <p class="pm-section-label">Tipo de pedido</p>
+      <div class="field"><label>Tipo</label>
+        <select id="mTipo" onchange="onTipoManualChange()"><option value="retirada">Retirada</option><option value="entrega">Entrega</option></select>
+      </div>
+      <div class="endereco-fields" id="enderecoFields">
+        <div class="field"><label>Endereço (rua)</label><input id="mEndLogradouro" placeholder="Rua das Flores"></div>
+        <div class="endereco-row2">
+          <div class="field"><label>Número</label><input id="mEndNumero" placeholder="123"></div>
+          <div class="field"><label>Bairro</label><input id="mEndBairro" placeholder="Centro"></div>
+        </div>
+        <div class="field"><label>Complemento (opcional)</label><input id="mEndComplemento" placeholder="Apto, bloco..."></div>
+        <div class="field"><label>Ponto de referência (opcional)</label><input id="mEndReferencia" placeholder="Ex: portão azul, perto da farmácia, casa dos fundos..."></div>
+      </div>
 
-    <p class="pm-section-label">Itens do pedido</p>
-    <div id="mItens" class="pm-itens-lista"></div>
+      <p class="pm-section-label">Adicionar produto</p>
+      <div class="pm-busca-row">
+        <input id="mBuscaProduto" placeholder="Pesquisar produto..." oninput="filtrarProdutosBusca()">
+      </div>
+      <div class="pm-add-row">
+        <select id="mProdutoSelecionado" class="pm-select-produto"></select>
+        <input type="number" id="mQtdAdicionar" min="1" step="1" value="1" class="pm-qtd-add">
+        <button type="button" class="btn primary pm-btn-add" onclick="adicionarItemManual()">Adicionar</button>
+      </div>
 
-    <p class="pm-section-label">Observação do pedido</p>
-    <div class="field"><label>Observação (opcional)</label><input id="mObservacoes" maxlength="300" placeholder="Ex: tirar cebola, mandar maquininha, tocar campainha..."></div>
+      <p class="pm-section-label">Itens do pedido</p>
+      <div id="mItens" class="pm-itens-lista"></div>
 
-    <p class="pm-section-label">Pagamento</p>
-    <div class="field"><label>Forma de pagamento</label>
-      <select id="mForma" onchange="onFormaPagamentoManualChange()"><option value="dinheiro">Dinheiro</option><option value="pix">Pix</option><option value="cartao">Cartão (maquininha)</option></select>
-    </div>
-    <div class="field" id="mCampoTroco">
-      <label>Precisa de troco para quanto?</label>
-      <input type="number" id="mTrocoPara" placeholder="Deixe em branco se não precisar" min="0" step="0.01">
-    </div>
+      <p class="pm-section-label">Observação do pedido</p>
+      <div class="field"><label>Observação (opcional)</label><input id="mObservacoes" maxlength="300" placeholder="Ex: tirar cebola, mandar maquininha, tocar campainha..."></div>
 
-    <div class="pm-total-row">
-      <span>Total</span>
-      <span id="mTotalPreview">R$ 0,00</span>
-    </div>
+      <div class="pm-total-row pm-subtotal-parcial">
+        <span>Subtotal dos produtos</span>
+        <span id="mTotalPreview">R$ 0,00</span>
+      </div>
 
-    <div class="modal-actions">
-      <button class="btn" onclick="closeManualOrder()">Cancelar</button>
-      <button class="btn primary" onclick="submitManualOrder()">Lançar pedido</button>
-    </div>
+      <div class="modal-actions">
+        <button class="btn" type="button" onclick="closeManualOrder()">Cancelar</button>
+        <button class="btn primary" type="button" onclick="continuarParaPagamentoManual()">Continuar para pagamento</button>
+      </div>
+    </section>
+
+    <section id="mEtapaPagamento" class="hidden">
+      <div class="pm-resumo-topo">
+        <div><span>Cliente</span><b id="mResumoCliente"></b></div>
+        <div><span>Tipo</span><b id="mResumoTipo"></b></div>
+        <div id="mResumoEnderecoLinha" class="hidden"><span>Endereço</span><b id="mResumoEndereco"></b></div>
+      </div>
+
+      <p class="pm-section-label">Resumo dos itens</p>
+      <div id="mResumoItens" class="pm-resumo-itens"></div>
+
+      <div class="pm-desconto-toggle">
+        <label for="mDescontoAtivo"><span>Aplicar desconto</span><small>Opcional, sujeito à autorização</small></label>
+        <input id="mDescontoAtivo" type="checkbox" onchange="setDescontoAtivoManual(this.checked)">
+      </div>
+
+      <div id="mDescontoCampos" class="pm-desconto-campos hidden">
+        <div class="pm-segmentado" role="group" aria-label="Modalidade do desconto">
+          <button type="button" class="active" data-tipo="valor" onclick="setTipoDescontoManual('valor')">R$ Valor</button>
+          <button type="button" data-tipo="percentual" onclick="setTipoDescontoManual('percentual')">% Percentual</button>
+        </div>
+        <div class="field">
+          <label for="mDescontoValor">Valor do desconto</label>
+          <input id="mDescontoValor" type="text" inputmode="decimal" placeholder="10,00" oninput="atualizarResumoFinanceiroManual()">
+        </div>
+        <div class="field">
+          <label for="mDescontoMotivo">Motivo do desconto</label>
+          <input id="mDescontoMotivo" maxlength="200" placeholder="Cliente fidelidade, cortesia autorizada..." oninput="atualizarRevisaoFinalManual()">
+        </div>
+        <p class="pm-aplicado-por">Aplicado por: <b id="mDescontoAplicadoPor"></b></p>
+        <div class="field">
+          <label for="mDescontoAutorizadoPor">Autorizado por</label>
+          <select id="mDescontoAutorizadoPor" onchange="atualizarRevisaoFinalManual()"><option value="">Carregando equipe...</option></select>
+          <p class="pm-inline-erro hidden" id="mDescontoEquipeErro"></p>
+        </div>
+      </div>
+
+      <p class="pm-section-label">Pagamento</p>
+      <input id="mForma" type="hidden" value="dinheiro">
+      <div class="pm-pagamento-opcoes" role="group" aria-label="Forma de pagamento">
+        <button type="button" class="active" data-forma="dinheiro" onclick="setFormaPagamentoManual('dinheiro')">Dinheiro</button>
+        <button type="button" data-forma="pix" onclick="setFormaPagamentoManual('pix')">Pix</button>
+        <button type="button" data-forma="cartao" onclick="setFormaPagamentoManual('cartao')">Cartão</button>
+      </div>
+
+      <div id="mCampoTroco" class="pm-troco-area">
+        <div class="pm-troco-opcoes" role="group" aria-label="Necessidade de troco">
+          <button type="button" class="active" id="mTrocoNaoBtn" onclick="setNecessidadeTrocoManual(false)">Não precisa de troco</button>
+          <button type="button" id="mTrocoSimBtn" onclick="setNecessidadeTrocoManual(true)">Precisa de troco</button>
+        </div>
+        <div class="field hidden" id="mTrocoValorWrap">
+          <label for="mTrocoPara">Troco para quanto?</label>
+          <input type="text" id="mTrocoPara" inputmode="decimal" placeholder="100,00" oninput="atualizarResumoFinanceiroManual()">
+        </div>
+        <p class="pm-troco-preview hidden" id="mTrocoPreview"></p>
+      </div>
+
+      <div class="pm-financeiro-resumo">
+        <div><span>Subtotal dos produtos</span><b id="mResumoSubtotal">R$ 0,00</b></div>
+        <div class="desconto hidden" id="mResumoDescontoLinha"><span>Desconto <small id="mResumoDescontoDetalhe"></small></span><b id="mResumoDesconto">- R$ 0,00</b></div>
+        <div><span>Taxa de entrega</span><b id="mResumoTaxa">R$ 0,00</b></div>
+        <div class="total"><span>TOTAL</span><b id="mResumoTotal">R$ 0,00</b></div>
+      </div>
+
+      <p class="pm-section-label">Revisão final</p>
+      <div id="mRevisaoFinal" class="pm-revisao-final"></div>
+
+      <div class="modal-actions pm-final-actions">
+        <button class="btn" type="button" onclick="irParaEtapaPedidoManual(1)">Voltar</button>
+        <button class="btn primary" id="mConfirmarBtn" type="button" onclick="submitManualOrder()">Confirmar e lançar pedido</button>
+      </div>
+    </section>
   </div>
 </div>
 
@@ -899,7 +969,7 @@
 
     let { data: userRow, error: userErr } = await sb
       .from('usuarios')
-      .select('id, nome, email, role, restaurante_id, primeiro_acesso, restaurantes(nome, slug, horarios_semana, endereco, whatsapp, prazo_entrega_min_minutos, prazo_entrega_max_minutos, prazo_retirada_min_minutos, prazo_retirada_max_minutos)')
+      .select('id, nome, email, role, restaurante_id, primeiro_acesso, restaurantes(nome, slug, horarios_semana, endereco, whatsapp, taxa_entrega_padrao, prazo_entrega_min_minutos, prazo_entrega_max_minutos, prazo_retirada_min_minutos, prazo_retirada_max_minutos)')
       .eq('id', session.user.id)
       .single();
 
