@@ -17,9 +17,9 @@
       .from('pedidos')
       .select(`
         id, numero_diario, tipo, status, pago, forma_pagamento, total, criado_em, motoboy_id, troco_para, observacoes, previsao_inicio, previsao_fim,
-        clientes ( nome ),
+        clientes ( nome, telefone ),
         enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento, referencia ),
-        itens_pedido ( quantidade, produtos ( nome ), itens_pedido_sabores ( produtos ( nome ) ) )
+        itens_pedido ( quantidade, preco_unitario, produtos ( nome ), itens_pedido_sabores ( produtos ( nome ) ) )
       `)
       .eq('restaurante_id', restauranteId)
       .gte('criado_em', inicio)
@@ -80,108 +80,133 @@
     const o = orders.find(x => x.id === pedidoId);
     if (!o) { showToast('Erro', 'Pedido não encontrado na lista atual.'); return; }
 
-    const LARGURA = 42; // colunas aproximadas de uma bobina de 80mm em fonte monoespaçada
-    const linhaTracejada = '-'.repeat(LARGURA);
-
-    function linhaValor(desc, valor) {
-      const valorTxt = 'R$ ' + Number(valor).toFixed(2).replace('.', ',');
-      const espacos = Math.max(1, LARGURA - desc.length - valorTxt.length);
-      return desc + ' '.repeat(espacos) + valorTxt;
-    }
-    function linhaDireita(desc, valorTxt) {
-      const espacos = Math.max(1, LARGURA - desc.length - valorTxt.length);
-      return desc + ' '.repeat(espacos) + valorTxt;
-    }
+    const moeda = valor => 'R$ ' + Number(valor || 0).toFixed(2).replace('.', ',');
+    const seguro = valor => escapeHtml(String(valor ?? ''));
 
     const nomeRestaurante = (restauranteInfo?.nome || document.getElementById('restauranteNome')?.textContent || 'EAF Menu').toUpperCase();
     const enderecoRestaurante = restauranteInfo?.endereco || '';
     const whatsappRestaurante = restauranteInfo?.whatsapp || '';
 
     const dataObj = new Date(o.criado_em);
-    const dataTxt = dataObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const horaTxt = dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const timeZone = 'America/Sao_Paulo';
+    const dataTxt = dataObj.toLocaleDateString('pt-BR', {
+      timeZone, day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+    const dataCurtaTxt = dataObj.toLocaleDateString('pt-BR', {
+      timeZone, day: '2-digit', month: '2-digit'
+    });
+    const horaTxt = dataObj.toLocaleTimeString('pt-BR', {
+      timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+    });
 
     const cliente = o.clientes?.nome || 'Cliente balcão';
     const telefoneCliente = o.clientes?.telefone || '';
 
     const end = o.enderecos_cliente;
-    const enderecoLinhas = (o.tipo === 'entrega' && end?.logradouro)
-      ? [
-          `${end.logradouro}${end.numero ? ', ' + end.numero : ''}`,
-          end.complemento || null,
-          `${end.bairro || ''}${end.cidade ? ' - ' + end.cidade : ''}`
-        ].filter(Boolean).join('\n')
-      : null;
+    const enderecoHtml = (o.tipo === 'entrega' && end?.logradouro)
+      ? `<section class="section endereco">
+          <h2>ENTREGAR EM</h2>
+          <div>${seguro(end.logradouro)}${end.numero ? ', ' + seguro(end.numero) : ''}</div>
+          ${end.complemento ? `<div>${seguro(end.complemento)}</div>` : ''}
+          ${(end.bairro || end.cidade) ? `<div>${seguro(end.bairro)}${end.bairro && end.cidade ? ' - ' : ''}${seguro(end.cidade)}</div>` : ''}
+          ${end.referencia ? `<div class="referencia"><b>Referência:</b> ${seguro(end.referencia)}</div>` : ''}
+        </section>`
+      : '';
 
-    // Itens — cada linha principal com valor à direita, e sub-linhas de sabores indentadas (igual cupom real de pizza meio a meio)
-    const itensLinhas = (o.itens_pedido || []).map(i => {
+    const itensHtml = (o.itens_pedido || []).map(i => {
       const sabores = (i.itens_pedido_sabores || []).map(s => s.produtos?.nome).filter(Boolean);
       const nomePrincipal = i.produtos?.nome || (sabores.length ? sabores.join(' + ') : 'item');
-      const valorItem = Number(i.preco_unitario || 0) * Number(i.quantidade || 1);
-      let bloco = linhaValor(`${i.quantidade}x ${nomePrincipal}`, valorItem);
-      if (sabores.length > 1) {
-        bloco += '\n' + sabores.map(s => `   -1x ${s}`).join('\n');
-      }
-      return bloco;
-    }).join('\n');
+      const quantidade = Number(i.quantidade || 1);
+      const valorItem = Number(i.preco_unitario || 0) * quantidade;
+      return `<div class="item">
+        <div class="item-linha"><span><b>${seguro(quantidade)}x</b> ${seguro(nomePrincipal)}</span><b>${moeda(valorItem)}</b></div>
+        ${sabores.length ? `<div class="sabores">${sabores.map(sabor => `• ${seguro(sabor)}`).join('<br>')}</div>` : ''}
+      </div>`;
+    }).join('');
 
     const qtdItens = (o.itens_pedido || []).reduce((s, i) => s + Number(i.quantidade || 1), 0);
 
     const FORMA_LABEL = { dinheiro: 'Dinheiro', pix: 'Pix', cartao: 'Cartão (maquininha)' };
-    let pagamentoLinhas = linhaValor(FORMA_LABEL[o.forma_pagamento] || o.forma_pagamento, o.total);
-    if (o.forma_pagamento === 'dinheiro' && o.troco_para) {
-      pagamentoLinhas += `\nPaga com R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')}`;
-      pagamentoLinhas += '\n' + linhaValor('TROCO', Number(o.troco_para) - Number(o.total));
-    }
+    const formaPagamento = FORMA_LABEL[o.forma_pagamento] || o.forma_pagamento || 'Não informado';
+    const trocoHtml = (o.forma_pagamento === 'dinheiro' && o.troco_para)
+      ? `<div class="troco"><div>Paga com <b>${moeda(o.troco_para)}</b></div><div>TROCO <b>${moeda(Number(o.troco_para) - Number(o.total))}</b></div></div>`
+      : '';
 
-    const janelaPrevisao = o.tipo === 'entrega'
-      ? formatarJanelaPrevisao(o.previsao_inicio, o.previsao_fim)
+    const horarioFinalPrevisao = o.tipo === 'entrega'
+      ? formatarJanelaPrevisao(o.previsao_fim, o.previsao_fim)
       : null;
-    const previsaoLinhas = janelaPrevisao
-      ? `${linhaTracejada}\nPREVISAO DE ENTREGA\n${janelaPrevisao.replace('–', ' A ')}\n${linhaTracejada}`
-      : null;
-
-    const corpo = [
-      nomeRestaurante,
-      enderecoRestaurante,
-      whatsappRestaurante ? 'Tel: ' + whatsappRestaurante : null,
-      linhaTracejada,
-      linhaDireita(o.tipo === 'entrega' ? 'ENTREGA' : 'RETIRADA', dataTxt + ' ' + horaTxt),
-      `Pedido: ${codigoPedido(o)}`,
-      previsaoLinhas,
-      cliente,
-      telefoneCliente ? 'Telefone: ' + telefoneCliente : null,
-      `Status: ${o.pago ? 'PAGO' : 'PENDENTE'}`,
-      o.observacoes ? 'OBS: ' + o.observacoes : null,
-      linhaTracejada,
-      enderecoLinhas ? 'ENTREGAR EM:\n' + enderecoLinhas : null,
-      end?.referencia ? 'REFERÊNCIA: ' + end.referencia : null,
-      enderecoLinhas ? linhaTracejada : null,
-      linhaDireita('Qt. Descrição', 'Valor'),
-      linhaTracejada,
-      itensLinhas || 'sem itens',
-      linhaTracejada,
-      linhaDireita('Quantidade de itens:', String(qtdItens)),
-      linhaTracejada,
-      linhaValor('TOTAL', o.total),
-      linhaTracejada,
-      'FORMA DE PAGAMENTO',
-      pagamentoLinhas,
-      linhaTracejada,
-      `${dataTxt} ${horaTxt}`,
-      restauranteInfo?.nome || nomeRestaurante
-    ].filter(l => l !== null).join('\n');
+    const previsaoHtml = horarioFinalPrevisao
+      ? `<section class="previsao"><div>ENTREGA PREVISTA PARA</div><strong>${seguro(horarioFinalPrevisao)}</strong></section>`
+      : '';
 
     const html = `<!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="UTF-8"><title>Comanda ${codigoPedido(o)}</title>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Comanda ${seguro(codigoPedido(o))}</title>
 <style>
   @page { size: 80mm auto; margin: 3mm; }
   * { box-sizing: border-box; }
-  body { font-family: 'Courier New', ui-monospace, monospace; font-size: 12.5px; line-height:1.45; color:#000; width: 100%; margin:0; padding:0; white-space: pre-wrap; word-break: break-word; }
-  @media print { body { -webkit-print-color-adjust: exact; } }
+  body, body * { color:#000 !important; opacity:1 !important; border-color:#000 !important; }
+  html { width:100%; max-width:100%; margin:0; padding:0; overflow-x:hidden; }
+  body { width:74mm; max-width:100%; margin:0 auto; padding:0; overflow-x:hidden; font-family:Arial, Helvetica, sans-serif; font-size:12px; line-height:1.35; font-weight:700; background:#fff; overflow-wrap:anywhere; }
+  .restaurante { text-align:center; padding-bottom:8px; }
+  .restaurante h1 { margin:0 0 3px; font-size:17px; line-height:1.15; font-weight:900; }
+  .restaurante div { font-size:11px; }
+  .pedido-topo { border-top:2px dashed #000; padding:8px 0 3px; }
+  .tipo-data, .item-linha, .qtd-total, .total, .troco div { display:flex; justify-content:space-between; gap:8px; }
+  .tipo-data b { font-size:13px; font-weight:900; }
+  .pedido-numero { margin-top:3px; font-size:18px; font-weight:900; }
+  .previsao { margin:8px 0; padding:7px 4px; border-top:3px solid #000; border-bottom:3px solid #000; text-align:center; font-weight:900; }
+  .previsao strong { display:block; margin-top:2px; font-size:18px; line-height:1.15; }
+  .section { padding:8px 0; border-bottom:1px dashed #000; }
+  .section h2 { margin:0 0 4px; font-size:12px; font-weight:900; }
+  .section .dado-principal { font-size:13px; font-weight:900; }
+  .referencia { margin-top:4px; }
+  .itens-cabecalho { display:grid; grid-template-columns:1fr auto; gap:8px; padding:6px 0 4px; border-bottom:1px dashed #000; font-weight:900; }
+  .item { padding:6px 0; border-bottom:1px dotted #000; }
+  .item-linha { font-weight:900; }
+  .item-linha > span:first-child { min-width:0; }
+  .item-linha > b { flex-shrink:0; }
+  .sabores { margin:3px 0 0 18px; font-size:11px; }
+  .qtd-total { padding:6px 0; border-bottom:2px solid #000; }
+  .total { padding:8px 0; font-size:18px; font-weight:900; border-bottom:2px solid #000; }
+  .pagamento { border-bottom:1px dashed #000; font-weight:900; }
+  .troco { margin-top:6px; padding:6px; border:2px solid #000; font-size:13px; font-weight:900; }
+  .observacoes { margin-top:8px; padding:7px; border:2px solid #000; font-weight:900; }
+  .observacoes h2 { margin-bottom:3px; font-weight:900; }
+  .rodape { padding-top:8px; text-align:center; font-size:11px; }
+  @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
 </style>
 </head>
-<body onload="window.print()">${corpo}</body></html>`;
+<body onload="window.print()">
+  <header class="restaurante">
+    <h1>${seguro(nomeRestaurante)}</h1>
+    ${enderecoRestaurante ? `<div>${seguro(enderecoRestaurante)}</div>` : ''}
+    ${whatsappRestaurante ? `<div>Telefone: ${seguro(whatsappRestaurante)}</div>` : ''}
+  </header>
+  <section class="pedido-topo">
+    <div class="tipo-data"><b>${o.tipo === 'entrega' ? 'ENTREGA' : 'RETIRADA'}</b><span>${seguro(dataCurtaTxt)} ${seguro(horaTxt)}</span></div>
+    <div class="pedido-numero">PEDIDO ${seguro(codigoPedido(o))}</div>
+  </section>
+  ${previsaoHtml}
+  <section class="section cliente">
+    <h2>CLIENTE</h2>
+    <div class="dado-principal">${seguro(cliente)}</div>
+    ${telefoneCliente ? `<div>${seguro(telefoneCliente)}</div>` : ''}
+  </section>
+  ${enderecoHtml}
+  <section class="section itens">
+    <div class="itens-cabecalho"><span>QTD / DESCRIÇÃO</span><span>VALOR</span></div>
+    ${itensHtml || '<div class="item">sem itens</div>'}
+    <div class="qtd-total"><span>Quantidade de itens:</span><b>${seguro(qtdItens)}</b></div>
+  </section>
+  <div class="total"><span>TOTAL</span><span>${moeda(o.total)}</span></div>
+  <section class="section pagamento">
+    <h2>FORMA DE PAGAMENTO</h2>
+    <div class="dado-principal">${seguro(formaPagamento)}</div>
+    ${trocoHtml}
+  </section>
+  ${o.observacoes ? `<section class="observacoes"><h2>OBSERVAÇÕES</h2><div>${seguro(o.observacoes)}</div></section>` : ''}
+  <footer class="rodape">${seguro(dataTxt)} ${seguro(horaTxt)}<br>${seguro(restauranteInfo?.nome || nomeRestaurante)}</footer>
+</body></html>`;
 
     const janela = window.open('', '_blank', 'width=380,height=600');
     if (!janela) { showToast('Bloqueado pelo navegador', 'Permita pop-ups pra imprimir a comanda.'); return; }
