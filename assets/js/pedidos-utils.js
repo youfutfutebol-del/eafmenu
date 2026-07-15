@@ -123,7 +123,7 @@
       } else {
         actionHtml = `<button onclick="advanceStatus(${pedidoIdArg}, ${statusArg}, ${tipoArg})">${escapeHtml(NEXT_LABEL[o.status] || 'Avançar')}</button>`;
       }
-      if (!o.pago) {
+      if (!o.pago && o.status !== 'cancelado') {
         actionHtml += `<button class="pago-btn" onclick="marcarPago(${pedidoIdArg})">Marcar pago</button>`;
       }
       actionHtml += `<button class="pago-btn" onclick="imprimirComanda(${pedidoIdArg})">🖨️ Imprimir</button>`;
