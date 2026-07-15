@@ -89,11 +89,12 @@
       const trocoLinha = (o.forma_pagamento === 'dinheiro' && o.troco_para)
         ? `<div class="order-itens" style="margin-top:2px; color:var(--amber); font-weight:700;">💵 Troco: R$ ${(Number(o.troco_para) - Number(o.total)).toFixed(2).replace('.', ',')} (paga com R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')})</div>`
         : '';
-      const horarioFinalPrevisao = o.tipo === 'entrega'
+      const pedidoFinalizado = STATUS_FINAIS.includes(o.status);
+      const horarioFinalPrevisao = o.tipo === 'entrega' && !pedidoFinalizado
         ? formatarJanelaPrevisao(o.previsao_fim, o.previsao_fim)
         : null;
       const previsaoFimMs = o.previsao_fim ? new Date(o.previsao_fim).getTime() : NaN;
-      const previsaoAtrasada = !STATUS_FINAIS.includes(o.status)
+      const previsaoAtrasada = !pedidoFinalizado
         && Number.isFinite(previsaoFimMs)
         && Date.now() > previsaoFimMs;
       const previsaoLinha = previsaoAtrasada && horarioFinalPrevisao
