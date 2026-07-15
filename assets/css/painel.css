@@ -146,6 +146,19 @@
   .price-tags { display:flex; flex-wrap:wrap; gap:4px; }
   .price-tag { font-size:11px; background:#F4F4F5; color:var(--ink); padding:2px 8px; border-radius:20px; white-space:nowrap; }
   .price-tag b { color: var(--ink); }
+  .produtos-busca-wrap { position:relative; margin-bottom:16px; }
+  .produtos-busca-icone { position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:15px; pointer-events:none; }
+  #produtoBusca { width:100%; min-height:44px; padding:10px 14px 10px 42px; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--ink); font-size:13.5px; }
+  #produtoBusca:focus-visible, .produtos-categoria__cabecalho:focus-visible { outline:3px solid rgba(229,52,42,.28); outline-offset:2px; }
+  .produtos-categorias { display:flex; flex-direction:column; gap:10px; }
+  .produtos-categoria { min-width:0; background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .produtos-categoria__cabecalho { width:100%; min-height:54px; display:grid; grid-template-columns:minmax(0, 1fr) auto 18px; align-items:center; gap:14px; padding:12px 16px; border:0; background:#fff; color:var(--ink); text-align:left; }
+  .produtos-categoria__cabecalho:hover { background:#FAFAFA; }
+  .produtos-categoria__nome { min-width:0; font-size:14px; font-weight:800; overflow-wrap:anywhere; }
+  .produtos-categoria__quantidade { color:var(--muted); font-size:12px; font-weight:700; white-space:nowrap; }
+  .produtos-categoria__seta { font-size:11px; text-align:center; }
+  .produtos-categoria__conteudo { border-top:1px solid var(--border); overflow:hidden; }
+  .produtos-categoria__tabela { border:0; border-radius:0; }
   .novo-tamanho-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
   .novo-tamanho-row input.nome { flex:1; }
   .novo-tamanho-row input.preco { width:100px; }

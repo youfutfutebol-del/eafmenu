@@ -5,6 +5,9 @@
 // showToast/formatMoeda/loadProdutos (essa ultima fica no script principal, alimenta o pedido manual).
 // So chamadas apos o script principal rodar. Continuam globais (sem type=module).
 
+  const categoriasProdutosAbertas = new Set();
+  const CATEGORIA_SEM_CATEGORIA = '__sem_categoria__';
+
   async function loadCategorias() {
     const { data, error } = await sb.from('categorias')
       .select('id, nome, ordem')
@@ -119,12 +122,41 @@
   }
 
   function renderProdutosTable() {
-    const tbody = document.getElementById('produtosTableBody');
+    const wrap = document.getElementById('produtosCategorias');
+    const buscaEl = document.getElementById('produtoBusca');
+    if (!wrap) return;
     if (produtosAdminCache.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="ic">🛍️</div><h4>Nenhum produto cadastrado</h4></div></td></tr>`;
+      wrap.innerHTML = `<div class="empty-state"><div class="ic">🛍️</div><h4>Nenhum produto cadastrado</h4></div>`;
       return;
     }
-    tbody.innerHTML = produtosAdminCache.map(p => {
+
+    const normalizarBusca = valor => String(valor || '').normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
+    const termo = normalizarBusca(buscaEl?.value);
+    const pesquisando = termo.length > 0;
+    const produtosFiltrados = pesquisando
+      ? produtosAdminCache.filter(p => normalizarBusca(`${p.nome || ''} ${p.descricao || ''}`).includes(termo))
+      : produtosAdminCache;
+    if (pesquisando && produtosFiltrados.length === 0) {
+      wrap.innerHTML = `<div class="empty-state"><div class="ic">🔍</div><h4>Nenhum produto encontrado</h4><p>Tente pesquisar por outro nome.</p></div>`;
+      return;
+    }
+
+    const categoriasValidas = new Set(categoriasCache.map(c => String(c.id)));
+    categoriasProdutosAbertas.forEach(chave => {
+      if (chave !== CATEGORIA_SEM_CATEGORIA && !categoriasValidas.has(chave)) categoriasProdutosAbertas.delete(chave);
+    });
+    const grupos = categoriasCache.map(c => ({ chave: String(c.id), nome: c.nome, produtos: [] }));
+    const gruposPorId = new Map(grupos.map(grupo => [grupo.chave, grupo]));
+    const semCategoria = { chave: CATEGORIA_SEM_CATEGORIA, nome: 'Sem categoria', produtos: [] };
+    produtosFiltrados.forEach(produto => {
+      const grupo = produto.categoria_id ? gruposPorId.get(String(produto.categoria_id)) : null;
+      (grupo || semCategoria).produtos.push(produto);
+    });
+    if (semCategoria.produtos.length) grupos.push(semCategoria);
+    grupos.forEach(grupo => grupo.produtos.sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', { sensitivity: 'base' })));
+
+    const renderProduto = p => {
       const precosAtivos = (p.produto_precos || []).filter(pp => pp.ativo);
 
       let precoHtml = '—';
@@ -134,34 +166,79 @@
         precoHtml = '<div class="price-tags">' + precosAtivos
           .slice()
           .sort((a, b) => Number(a.preco) - Number(b.preco))
-          .map(pp => `<span class="price-tag">${pp.opcoes_tamanho?.nome || 'Único'}: <b>${formatMoeda(pp.preco)}</b></span>`)
+          .map(pp => `<span class="price-tag">${escapeHtml(pp.opcoes_tamanho?.nome || 'Único')}: <b>${escapeHtml(formatMoeda(pp.preco))}</b></span>`)
           .join('') + '</div>';
       }
 
       const thumb = p.imagem_url
-        ? `<img src="${p.imagem_url}" alt="">`
+        ? `<img src="${escapeHtml(p.imagem_url)}" alt="">`
         : getProdutoPlaceholder(p);
+      const produtoId = escapeHtml(String(p.id));
 
       return `
         <tr>
           <td data-label="Produto">
             <div class="prod-row-name">
               <div class="prod-thumb">${thumb}</div>
-              <div class="prod-name-text"><b>${p.nome}</b>${p.descricao ? `<span>${p.descricao}</span>` : ''}</div>
+              <div class="prod-name-text"><b>${escapeHtml(p.nome)}</b>${p.descricao ? `<span>${escapeHtml(p.descricao)}</span>` : ''}</div>
             </div>
           </td>
-          <td data-label="Categoria">${p.categorias?.nome || 'Sem categoria'}</td>
           <td data-label="Preço">${precoHtml}</td>
           <td data-label="Status"><span class="status-pill ${p.ativo ? 'ativo' : 'inativo'}">${p.ativo ? 'Ativo' : 'Inativo'}</span></td>
           <td data-label="Ações">
             <div class="row-actions">
-              <button onclick="editProduto('${p.id}')">Editar</button>
-              <button onclick="toggleProdutoAtivo('${p.id}', ${p.ativo})">${p.ativo ? 'Ocultar' : 'Reativar'}</button>
+              <button type="button" data-produto-acao="editar" data-produto-id="${produtoId}">Editar</button>
+              <button type="button" data-produto-acao="alternar" data-produto-id="${produtoId}" data-produto-ativo="${p.ativo ? 'true' : 'false'}">${p.ativo ? 'Ocultar' : 'Reativar'}</button>
             </div>
           </td>
         </tr>`;
+    };
+
+    wrap.innerHTML = grupos.filter(grupo => grupo.produtos.length).map((grupo, indice) => {
+      const aberto = pesquisando || categoriasProdutosAbertas.has(grupo.chave);
+      const painelId = `produtos-categoria-${indice}`;
+      const quantidade = grupo.produtos.length;
+      return `<section class="produtos-categoria" data-categoria-chave="${escapeHtml(grupo.chave)}">
+        <button class="produtos-categoria__cabecalho" type="button" aria-expanded="${aberto}" aria-controls="${painelId}">
+          <span class="produtos-categoria__nome">${escapeHtml(grupo.nome)}</span>
+          <span class="produtos-categoria__quantidade">${quantidade} ${quantidade === 1 ? 'produto' : 'produtos'}</span>
+          <span class="produtos-categoria__seta" aria-hidden="true">${aberto ? '&#9650;' : '&#9660;'}</span>
+        </button>
+        <div class="produtos-categoria__conteudo" id="${painelId}" ${aberto ? '' : 'hidden'}>
+          <table class="data-table produtos-categoria__tabela">
+            <thead><tr><th>Foto / Nome</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody>${grupo.produtos.map(renderProduto).join('')}</tbody>
+          </table>
+        </div>
+      </section>`;
     }).join('');
   }
+
+  function inicializarProdutosCategorias() {
+    const busca = document.getElementById('produtoBusca');
+    const wrap = document.getElementById('produtosCategorias');
+    if (!busca || !wrap || busca.dataset.inicializado) return;
+    busca.dataset.inicializado = 'true';
+    busca.addEventListener('input', renderProdutosTable);
+    wrap.addEventListener('click', evento => {
+      const acao = evento.target.closest('[data-produto-acao]');
+      if (acao) {
+        const id = acao.dataset.produtoId;
+        if (acao.dataset.produtoAcao === 'editar') editProduto(id);
+        else toggleProdutoAtivo(id, acao.dataset.produtoAtivo === 'true');
+        return;
+      }
+      const cabecalho = evento.target.closest('.produtos-categoria__cabecalho');
+      if (!cabecalho || busca.value.trim()) return;
+      const chave = cabecalho.closest('.produtos-categoria').dataset.categoriaChave;
+      if (categoriasProdutosAbertas.has(chave)) categoriasProdutosAbertas.delete(chave);
+      else categoriasProdutosAbertas.add(chave);
+      renderProdutosTable();
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inicializarProdutosCategorias);
+  else inicializarProdutosCategorias();
 
   async function toggleProdutoAtivo(id, ativoAtual) {
     const { error } = await sb.from('produtos').update({ ativo: !ativoAtual }).eq('id', id);

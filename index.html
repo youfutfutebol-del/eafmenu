@@ -339,12 +339,13 @@
             <button class="btn primary" onclick="openProduto()">+ Novo Produto</button>
           </div>
         </div>
-        <table class="data-table">
-          <thead><tr><th>Foto / Nome</th><th>Categoria</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead>
-          <tbody id="produtosTableBody">
-            <tr><td colspan="5"><div class="empty-state"><div class="ic">🛍️</div><h4>Nenhum produto cadastrado</h4></div></td></tr>
-          </tbody>
-        </table>
+        <div class="produtos-busca-wrap">
+          <span class="produtos-busca-icone" aria-hidden="true">&#128269;</span>
+          <input id="produtoBusca" type="search" placeholder="Pesquisar produto por nome ou descrição..." autocomplete="off" aria-label="Pesquisar produto por nome ou descrição">
+        </div>
+        <div id="produtosCategorias" class="produtos-categorias">
+          <div class="empty-state"><div class="ic">🛍️</div><h4>Nenhum produto cadastrado</h4></div>
+        </div>
       </div>
 
       <div class="view" id="viewCategorias">
