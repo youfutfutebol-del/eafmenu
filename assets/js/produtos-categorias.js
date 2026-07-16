@@ -1,7 +1,7 @@
 // /assets/js/produtos-categorias.js
 // Logica de Produtos, Categorias, Grupos de Tamanho e upload de imagem de produto, extraida do index.html (Etapa 6).
 // Dependem de globais do script principal: sb, restauranteId, categoriasCache, gruposTamanhoCache,
-// produtosAdminCache, tipoPrecoAtual, camposTamanhoAtivos, novosTamanhosState, e das funcoes
+// produtosAdminCache, novosTamanhosState e das funcoes
 // showToast/formatMoeda/loadProdutos (essa ultima fica no script principal, alimenta o pedido manual).
 // So chamadas apos o script principal rodar. Continuam globais (sem type=module).
 
@@ -97,20 +97,12 @@
       ...g,
       opcoes_tamanho: (g.opcoes_tamanho || []).sort((a, b) => a.ordem - b.ordem)
     }));
-    fillGrupoTamanhoSelect();
-  }
-
-  function fillGrupoTamanhoSelect() {
-    const sel = document.getElementById('pGrupoTamanho');
-    sel.innerHTML = '<option value="">Selecione um grupo de tamanho...</option>' +
-      gruposTamanhoCache.map(g => `<option value="${g.id}">${g.nome}</option>`).join('') +
-      '<option value="__novo__">+ Criar novo grupo de tamanho</option>';
   }
 
   async function loadProdutosAdmin() {
     const { data, error } = await sb.from('produtos')
       .select(`
-        id, nome, descricao, imagem_url, ativo, categoria_id,
+        id, nome, descricao, imagem_url, ativo, categoria_id, grupo_tamanho_id,
         categorias ( nome ),
         produto_precos ( id, preco, ativo, opcao_tamanho_id, opcoes_tamanho ( nome ) )
       `)
@@ -166,7 +158,9 @@
         precoHtml = '<div class="price-tags">' + precosAtivos
           .slice()
           .sort((a, b) => Number(a.preco) - Number(b.preco))
-          .map(pp => `<span class="price-tag">${escapeHtml(pp.opcoes_tamanho?.nome || 'Único')}: <b>${escapeHtml(formatMoeda(pp.preco))}</b></span>`)
+          .map(pp => pp.opcoes_tamanho?.nome
+            ? `<span class="price-tag">${escapeHtml(pp.opcoes_tamanho.nome)}: <b>${escapeHtml(formatMoeda(pp.preco))}</b></span>`
+            : `<span class="price-tag"><b>${escapeHtml(formatMoeda(pp.preco))}</b></span>`)
           .join('') + '</div>';
       }
 
@@ -247,42 +241,8 @@
     await loadProdutos();
   }
 
-  function setTipoPreco(tipo) {
-    tipoPrecoAtual = tipo;
-    document.getElementById('btnPrecoUnico').classList.toggle('active', tipo === 'unico');
-    document.getElementById('btnPrecoTamanhos').classList.toggle('active', tipo === 'tamanhos');
-    document.getElementById('blocoPrecoUnico').style.display = tipo === 'unico' ? 'block' : 'none';
-    document.getElementById('blocoPrecoTamanhos').style.display = tipo === 'tamanhos' ? 'block' : 'none';
-  }
-
-  function onGrupoTamanhoChange() {
-    const val = document.getElementById('pGrupoTamanho').value;
-    document.getElementById('camposPrecoTamanhos').innerHTML = '';
-    camposTamanhoAtivos = [];
-    document.getElementById('grupoMaxSaboresExistenteWrap').style.display = 'none';
-
-    if (val === '__novo__') {
-      document.getElementById('novoGrupoFields').style.display = 'block';
-      document.getElementById('pNovoGrupoNome').value = '';
-      document.getElementById('pNovoGrupoMaxSabores').value = 1;
-      novosTamanhosState = [];
-      addNovoTamanhoRow();
-      addNovoTamanhoRow();
-    } else {
-      document.getElementById('novoGrupoFields').style.display = 'none';
-      novosTamanhosState = [];
-      if (val) {
-        const grupo = gruposTamanhoCache.find(g => g.id === val);
-        camposTamanhoAtivos = (grupo?.opcoes_tamanho || []).map(o => ({ id: o.id, nome: o.nome }));
-        renderCamposPreco();
-        document.getElementById('grupoMaxSaboresExistenteWrap').style.display = 'block';
-        document.getElementById('pGrupoMaxSaboresExistente').value = grupo?.max_sabores || 1;
-      }
-    }
-  }
-
   function addNovoTamanhoRow(nome, preco) {
-    novosTamanhosState.push({ nome: nome || '', preco: preco || '' });
+    novosTamanhosState.push({ nome: nome ?? '', preco: preco ?? '' });
     renderNovosTamanhosRows();
   }
 
@@ -298,23 +258,116 @@
   function renderNovosTamanhosRows() {
     const wrap = document.getElementById('novosTamanhosRows');
     if (novosTamanhosState.length === 0) {
-      wrap.innerHTML = `<p class="novos-tamanhos-empty">Nenhum tamanho ainda. Clique em "+ adicionar tamanho".</p>`;
+      wrap.innerHTML = `<p class="novos-tamanhos-empty">Adicione ao menos uma linha de preço.</p>`;
       return;
     }
     wrap.innerHTML = novosTamanhosState.map((t, i) => `
       <div class="novo-tamanho-row">
-        <input class="nome" placeholder="Ex: 30cm" value="${t.nome}" oninput="atualizarNovoTamanho(${i}, 'nome', this.value)">
-        <input class="preco" type="number" step="0.01" min="0" placeholder="0,00" value="${t.preco}" oninput="atualizarNovoTamanho(${i}, 'preco', this.value)">
-        <button type="button" class="remove" onclick="removeNovoTamanhoRow(${i})" title="Remover">✕</button>
+        <input class="nome" aria-label="Nome do tamanho, opcional" placeholder="Ex: Grande, 30 cm, Família" value="${escapeHtml(t.nome)}" oninput="atualizarNovoTamanho(${i}, 'nome', this.value)">
+        <input class="preco" aria-label="Preço" type="number" step="0.01" min="0" placeholder="0,00" value="${escapeHtml(t.preco)}" oninput="atualizarNovoTamanho(${i}, 'preco', this.value)">
+        <button type="button" class="remove" onclick="removeNovoTamanhoRow(${i})" aria-label="Remover tamanho" title="Remover">✕</button>
       </div>`).join('');
   }
 
-  function renderCamposPreco(precoExistente) {
-    const wrap = document.getElementById('camposPrecoTamanhos');
-    wrap.innerHTML = camposTamanhoAtivos.map((t, i) => {
-      const valorAtual = precoExistente ? (precoExistente[t.id] ?? '') : '';
-      return `<div class="size-price-row"><span>${t.nome}</span><input type="number" step="0.01" min="0" class="precoTamanhoInput" data-idx="${i}" value="${valorAtual}" placeholder="0,00"></div>`;
-    }).join('');
+  function onPermitirCombinarChange() {
+    const permitir = document.getElementById('pPermitirCombinar').checked;
+    document.getElementById('pMaxSaboresWrap').classList.toggle('hidden', !permitir);
+    if (permitir && Number(document.getElementById('pMaxSabores').value) < 2) {
+      document.getElementById('pMaxSabores').value = 2;
+    }
+  }
+
+  function normalizarNomeTamanho(nome) {
+    return String(nome || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLocaleLowerCase('pt-BR');
+  }
+
+  function assinaturaTamanhos(tamanhos) {
+    return tamanhos.map(t => normalizarNomeTamanho(t.nome)).join('\u001f');
+  }
+
+  function validarTamanhosProduto(linhas, permitirCombinar, maxSaboresValor) {
+    if (!linhas.length) return { erro: ['Faltaram os preços', 'Adicione ao menos uma linha de preço.'] };
+
+    const tamanhos = linhas.map(linha => ({
+      nome: String(linha.nome ?? ''),
+      preco: Number(linha.preco)
+    }));
+    if (linhas.some(linha => String(linha.preco ?? '').trim() === '') || tamanhos.some(t => !Number.isFinite(t.preco) || t.preco <= 0)) {
+      return { erro: ['Preço inválido', 'Informe um preço maior que zero em todas as linhas.'] };
+    }
+    if (tamanhos.length > 1 && tamanhos.some(t => !t.nome.trim())) {
+      return { erro: ['Faltou o tamanho', 'Quando há mais de uma linha, informe o nome de todos os tamanhos.'] };
+    }
+
+    const nomesNormalizados = tamanhos.map(t => normalizarNomeTamanho(t.nome)).filter(Boolean);
+    if (new Set(nomesNormalizados).size !== nomesNormalizados.length) {
+      return { erro: ['Tamanho duplicado', 'Use um nome diferente para cada tamanho.'] };
+    }
+    if (permitirCombinar && tamanhos.some(t => !t.nome.trim())) {
+      return { erro: ['Nomeie o tamanho', 'Para combinar sabores, todas as linhas precisam ter nome.'] };
+    }
+
+    const maxSabores = permitirCombinar ? Number(maxSaboresValor) : 1;
+    if (permitirCombinar && (!Number.isInteger(maxSabores) || maxSabores < 2)) {
+      return { erro: ['Máximo inválido', 'Informe um número inteiro de sabores igual ou maior que 2.'] };
+    }
+    return { tamanhos, maxSabores };
+  }
+
+  function grupoTemAssinatura(grupo, tamanhos, maxSabores) {
+    return Number(grupo?.max_sabores || 1) === maxSabores
+      && assinaturaTamanhos(grupo?.opcoes_tamanho || []) === assinaturaTamanhos(tamanhos);
+  }
+
+  function encontrarGrupoCompativel(categoriaId, tamanhos, maxSabores, produtoId) {
+    return gruposTamanhoCache.find(grupo => {
+      if (!grupoTemAssinatura(grupo, tamanhos, maxSabores)) return false;
+      const vinculados = produtosAdminCache.filter(p => p.grupo_tamanho_id === grupo.id);
+      if (!vinculados.length) return false;
+      const outros = vinculados.filter(p => p.id !== produtoId);
+      if (!outros.length && vinculados.some(p => p.id === produtoId)) return true;
+      return outros.length > 0 && outros.every(p => (p.categoria_id || null) === categoriaId);
+    }) || null;
+  }
+
+  function encontrarGrupoExclusivoAtual(produtoId, tamanhos) {
+    if (!produtoId) return null;
+    const produto = produtosAdminCache.find(p => p.id === produtoId);
+    const grupo = gruposTamanhoCache.find(g => g.id === produto?.grupo_tamanho_id);
+    if (!grupoTemAssinatura(grupo, tamanhos, 1)) return null;
+    const outros = produtosAdminCache.filter(p => p.id !== produtoId && p.grupo_tamanho_id === grupo.id);
+    return outros.length === 0 ? grupo : null;
+  }
+
+  function nomeGrupoInterno(categoriaId, tamanhos, maxSabores) {
+    const categoria = normalizarNomeTamanho(categoriaId || 'sem-categoria').replace(/[^a-z0-9-]+/g, '-');
+    const nomes = tamanhos.map(t => normalizarNomeTamanho(t.nome).replace(/[^a-z0-9-]+/g, '-')).join('-');
+    const sufixo = globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    return `interno-categoria-${categoria}-${nomes}-${maxSabores}-${sufixo}`;
+  }
+
+  async function criarGrupoInterno(categoriaId, tamanhos, maxSabores) {
+    const { data: grupo, error: grupoErr } = await sb.from('grupos_tamanho')
+      .insert({
+        nome: nomeGrupoInterno(categoriaId, tamanhos, maxSabores),
+        restaurante_id: restauranteId,
+        max_sabores: maxSabores
+      }).select().single();
+    if (grupoErr) throw new Error(grupoErr.message);
+
+    const { data: opcoes, error: opcoesErr } = await sb.from('opcoes_tamanho')
+      .insert(tamanhos.map((t, ordem) => ({ grupo_id: grupo.id, nome: t.nome, ordem })))
+      .select();
+    if (opcoesErr) throw new Error(opcoesErr.message);
+    const opcoesOrdenadas = (opcoes || []).slice().sort((a, b) => a.ordem - b.ordem);
+    const grupoCompleto = { ...grupo, opcoes_tamanho: opcoesOrdenadas };
+    gruposTamanhoCache.push(grupoCompleto);
+    return grupoCompleto;
   }
 
   function openProduto() {
@@ -330,16 +383,11 @@
     document.getElementById('pImagemPlaceholder').style.display = 'block';
     document.getElementById('pImagemStatus').textContent = '';
     document.getElementById('pAtivo').checked = true;
-    document.getElementById('pPrecoUnico').value = '';
-    document.getElementById('pGrupoTamanho').value = '';
-    document.getElementById('novoGrupoFields').style.display = 'none';
-    document.getElementById('grupoMaxSaboresExistenteWrap').style.display = 'none';
-    document.getElementById('pNovoGrupoNome').value = '';
-    document.getElementById('novosTamanhosRows').innerHTML = '';
-    document.getElementById('camposPrecoTamanhos').innerHTML = '';
-    camposTamanhoAtivos = [];
-    novosTamanhosState = [];
-    setTipoPreco('unico');
+    document.getElementById('pPermitirCombinar').checked = false;
+    document.getElementById('pMaxSabores').value = 2;
+    novosTamanhosState = [{ nome: '', preco: '' }];
+    renderNovosTamanhosRows();
+    onPermitirCombinarChange();
     document.getElementById('produtoModalBg').classList.add('show');
   }
 
@@ -364,30 +412,16 @@
       document.getElementById('pImagemPlaceholder').style.display = 'block';
     }
     document.getElementById('pAtivo').checked = p.ativo;
-    document.getElementById('novoGrupoFields').style.display = 'none';
-    document.getElementById('grupoMaxSaboresExistenteWrap').style.display = 'none';
-    novosTamanhosState = [];
-
     const precos = p.produto_precos || [];
-    const comTamanho = precos.some(pp => pp.opcao_tamanho_id);
-
-    if (!comTamanho) {
-      setTipoPreco('unico');
-      document.getElementById('pPrecoUnico').value = precos[0]?.preco ?? '';
-    } else {
-      setTipoPreco('tamanhos');
-      const opcaoIds = precos.map(pp => pp.opcao_tamanho_id).filter(Boolean);
-      const grupo = gruposTamanhoCache.find(g => g.opcoes_tamanho.some(o => opcaoIds.includes(o.id)));
-      if (grupo) {
-        document.getElementById('pGrupoTamanho').value = grupo.id;
-        camposTamanhoAtivos = grupo.opcoes_tamanho.map(o => ({ id: o.id, nome: o.nome }));
-        const precoPorOpcao = {};
-        precos.forEach(pp => { if (pp.opcao_tamanho_id) precoPorOpcao[pp.opcao_tamanho_id] = pp.preco; });
-        renderCamposPreco(precoPorOpcao);
-        document.getElementById('grupoMaxSaboresExistenteWrap').style.display = 'block';
-        document.getElementById('pGrupoMaxSaboresExistente').value = grupo.max_sabores || 1;
-      }
-    }
+    const grupo = gruposTamanhoCache.find(g => g.id === p.grupo_tamanho_id);
+    const precoPorOpcao = new Map(precos.map(pp => [pp.opcao_tamanho_id, pp.preco]));
+    novosTamanhosState = grupo?.opcoes_tamanho?.length
+      ? grupo.opcoes_tamanho.map(opcao => ({ nome: opcao.nome, preco: precoPorOpcao.get(opcao.id) ?? '' }))
+      : [{ nome: '', preco: precos.find(pp => !pp.opcao_tamanho_id)?.preco ?? '' }];
+    document.getElementById('pPermitirCombinar').checked = Number(grupo?.max_sabores || 1) > 1;
+    document.getElementById('pMaxSabores').value = Math.max(2, Number(grupo?.max_sabores || 2));
+    renderNovosTamanhosRows();
+    onPermitirCombinarChange();
 
     document.getElementById('produtoModalBg').classList.add('show');
   }
@@ -408,60 +442,34 @@
     const imagem_url = document.getElementById('pImagemUrl').value.trim() || null;
     const ativo = document.getElementById('pAtivo').checked;
 
+    const permitirCombinar = document.getElementById('pPermitirCombinar').checked;
+    const validacao = validarTamanhosProduto(novosTamanhosState, permitirCombinar, document.getElementById('pMaxSabores').value);
+    if (validacao.erro) { showToast(...validacao.erro); return; }
+
+    const { tamanhos, maxSabores } = validacao;
+    const usaGrupo = tamanhos.length > 1 || Boolean(tamanhos[0].nome.trim());
     let grupo_tamanho_id = null;
     let precosParaSalvar = [];
 
-    if (tipoPrecoAtual === 'unico') {
-      const preco = parseFloat(document.getElementById('pPrecoUnico').value);
-      if (!preco || preco <= 0) { showToast('Preço inválido', 'Informe um preço maior que zero.'); return; }
-      precosParaSalvar = [{ opcao_tamanho_id: null, preco }];
+    if (!usaGrupo) {
+      precosParaSalvar = [{ opcao_tamanho_id: null, preco: tamanhos[0].preco }];
     } else {
-      let grupoSelecionado = document.getElementById('pGrupoTamanho').value;
-
-      if (grupoSelecionado === '__novo__') {
-        const novoNome = document.getElementById('pNovoGrupoNome').value.trim();
-        if (!novoNome) { showToast('Faltou o nome do grupo', 'Dê um nome ao grupo de tamanho (ex: Tamanho da Pizza).'); return; }
-        const novoMaxSabores = Math.max(1, parseInt(document.getElementById('pNovoGrupoMaxSabores').value || '1', 10));
-
-        const tamanhosValidos = novosTamanhosState
-          .map(t => ({ nome: (t.nome || '').trim(), preco: parseFloat(t.preco) }))
-          .filter(t => t.nome);
-
-        if (tamanhosValidos.length === 0) { showToast('Adicione os tamanhos', 'Clique em "+ adicionar tamanho" e preencha o nome de cada um (ex: 30cm, 35cm, 40cm).'); return; }
-        if (tamanhosValidos.some(t => !t.preco || t.preco <= 0)) { showToast('Preço inválido', 'Informe um preço maior que zero para cada tamanho.'); return; }
-
-        const { data: grupo, error: grupoErr } = await sb.from('grupos_tamanho')
-          .insert({ nome: novoNome, restaurante_id: restauranteId, max_sabores: novoMaxSabores }).select().single();
-        if (grupoErr) { showToast('Erro ao criar grupo', grupoErr.message); return; }
-        grupo_tamanho_id = grupo.id;
-
-        const { data: opcoesInseridas, error: opcErr } = await sb.from('opcoes_tamanho')
-          .insert(tamanhosValidos.map((t, i) => ({ grupo_id: grupo.id, nome: t.nome, ordem: i })))
-          .select();
-        if (opcErr) { showToast('Erro ao criar tamanhos', opcErr.message); return; }
-
-        const opcoesOrdenadas = opcoesInseridas.slice().sort((a, b) => a.ordem - b.ordem);
-        precosParaSalvar = opcoesOrdenadas.map((o, i) => ({ opcao_tamanho_id: o.id, preco: tamanhosValidos[i].preco }));
-
-        await loadGruposTamanho();
-      } else if (grupoSelecionado) {
-        grupo_tamanho_id = grupoSelecionado;
-        const inputs = [...document.querySelectorAll('.precoTamanhoInput')];
-        if (inputs.length === 0) { showToast('Faltaram os preços', 'Preencha o preço de cada tamanho.'); return; }
-        precosParaSalvar = inputs.map((inp, i) => {
-          const preco = parseFloat(inp.value);
-          return { opcao_tamanho_id: camposTamanhoAtivos[i].id, preco };
-        });
-        if (precosParaSalvar.some(p => !p.preco || p.preco <= 0)) { showToast('Preço inválido', 'Todos os tamanhos precisam de um preço maior que zero.'); return; }
-
-        const maxSaboresEditado = Math.max(1, parseInt(document.getElementById('pGrupoMaxSaboresExistente').value || '1', 10));
-        const { error: grupoUpdateErr } = await sb.from('grupos_tamanho').update({ max_sabores: maxSaboresEditado }).eq('id', grupoSelecionado);
-        if (grupoUpdateErr) { showToast('Erro ao atualizar sabores do grupo', grupoUpdateErr.message); return; }
-        await loadGruposTamanho();
-      } else {
-        showToast('Selecione um grupo', 'Escolha ou crie um grupo de tamanho.');
-        return;
+      let grupo = permitirCombinar
+        ? encontrarGrupoCompativel(categoria_id, tamanhos, maxSabores, id)
+        : encontrarGrupoExclusivoAtual(id, tamanhos);
+      if (!grupo) {
+        try {
+          grupo = await criarGrupoInterno(categoria_id, tamanhos, maxSabores);
+        } catch (error) {
+          showToast('Erro ao preparar tamanhos', error.message);
+          return;
+        }
       }
+      grupo_tamanho_id = grupo.id;
+      precosParaSalvar = grupo.opcoes_tamanho.map((opcao, i) => ({
+        opcao_tamanho_id: opcao.id,
+        preco: tamanhos[i].preco
+      }));
     }
 
     const payload = { nome, categoria_id, grupo_tamanho_id, descricao, imagem_url, ativo, restaurante_id: restauranteId };
@@ -470,7 +478,8 @@
     if (id) {
       const { error } = await sb.from('produtos').update(payload).eq('id', id);
       if (error) { showToast('Erro ao salvar produto', error.message); return; }
-      await sb.from('produto_precos').delete().eq('produto_id', id);
+      const { error: deleteErr } = await sb.from('produto_precos').delete().eq('produto_id', id);
+      if (deleteErr) { showToast('Erro ao atualizar preços', deleteErr.message); return; }
     } else {
       const { data: novoProduto, error } = await sb.from('produtos').insert(payload).select().single();
       if (error) { showToast('Erro ao criar produto', error.message); return; }

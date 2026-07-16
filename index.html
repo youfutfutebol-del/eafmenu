@@ -730,37 +730,22 @@
       </div>
       <input type="hidden" id="pImagemUrl">
     </div>
-    <div class="field">
-      <label>Preço</label>
-      <div class="price-toggle">
-        <button type="button" id="btnPrecoUnico" class="active" onclick="setTipoPreco('unico')">Preço único</button>
-        <button type="button" id="btnPrecoTamanhos" onclick="setTipoPreco('tamanhos')">Vários tamanhos</button>
+    <div class="field tamanhos-precos-field">
+      <label>Tamanhos e preços</label>
+      <div class="tamanhos-precos-cabecalho" aria-hidden="true">
+        <span>Nome do tamanho, opcional</span>
+        <span>Preço</span>
+        <span></span>
       </div>
-      <div id="blocoPrecoUnico">
-        <input id="pPrecoUnico" type="number" step="0.01" min="0" placeholder="0,00">
-      </div>
-      <div id="blocoPrecoTamanhos" style="display:none">
-        <select id="pGrupoTamanho" onchange="onGrupoTamanhoChange()">
-          <option value="">Selecione um grupo de tamanho...</option>
-          <option value="__novo__">+ Criar novo grupo de tamanho</option>
-        </select>
-        <div id="grupoMaxSaboresExistenteWrap" style="display:none; margin-top:10px;">
-          <label style="display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:5px;">Quantos sabores o cliente pode combinar nesse tamanho?</label>
-          <input id="pGrupoMaxSaboresExistente" type="number" min="1" value="1" style="width:100px;">
-          <p style="font-size:11px; color:var(--muted); margin:4px 0 0;">1 = sem combinação. 2 = ex: pizza meio a meio. Vale para todos os produtos desse grupo de tamanho.</p>
-        </div>
-        <div id="novoGrupoFields" style="display:none; margin-top:8px;">
-          <input id="pNovoGrupoNome" placeholder="Nome do grupo (ex: Tamanho da Pizza, Tamanho do Açaí...)" style="margin-bottom:10px;">
-          <label style="display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:6px;">Tamanhos e preços (use os nomes que fizer sentido pra você: 30cm, P, Individual, etc.)</label>
-          <div id="novosTamanhosRows"></div>
-          <button type="button" class="add-item-btn" onclick="addNovoTamanhoRow()">+ adicionar tamanho</button>
-          <div style="margin-top:12px;">
-            <label style="display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:5px;">Quantos sabores o cliente pode combinar nesse tamanho?</label>
-            <input id="pNovoGrupoMaxSabores" type="number" min="1" value="1" style="width:100px;">
-            <p style="font-size:11px; color:var(--muted); margin:4px 0 0;">1 = sem combinação. 2 = ex: pizza meio a meio (o preço cobrado é a média entre os sabores escolhidos).</p>
-          </div>
-        </div>
-        <div id="camposPrecoTamanhos" style="margin-top:10px;"></div>
+      <div id="novosTamanhosRows"></div>
+      <button type="button" class="add-item-btn tamanhos-adicionar" onclick="addNovoTamanhoRow()">+ Adicionar tamanho</button>
+      <label class="combinar-sabores-check">
+        <input type="checkbox" id="pPermitirCombinar" onchange="onPermitirCombinarChange()">
+        <span>Permitir combinar sabores</span>
+      </label>
+      <div id="pMaxSaboresWrap" class="max-sabores-wrap hidden">
+        <label for="pMaxSabores">Máximo de sabores</label>
+        <input id="pMaxSabores" type="number" min="2" step="1" value="2" inputmode="numeric">
       </div>
     </div>
     <div class="field">
@@ -941,8 +926,6 @@
   let categoriasCache = [];
   let gruposTamanhoCache = [];
   let produtosAdminCache = [];
-  let tipoPrecoAtual = 'unico';
-  let camposTamanhoAtivos = [];
   let novosTamanhosState = [];
 
   let clientesCache = [];

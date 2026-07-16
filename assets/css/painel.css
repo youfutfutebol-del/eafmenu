@@ -165,6 +165,12 @@
   .novo-tamanho-row button.remove { border:none; background:#F4F4F5; color:var(--muted); font-size:14px; width:30px; height:34px; border-radius:7px; flex-shrink:0; line-height:1; }
   .novo-tamanho-row button.remove:hover { background:#FEE2E2; color:var(--red); }
   .novos-tamanhos-empty { font-size:12px; color:var(--muted); margin:2px 0 8px; }
+  .tamanhos-precos-cabecalho { display:grid; grid-template-columns:minmax(0, 1fr) 100px 30px; gap:8px; margin-bottom:5px; color:var(--muted); font-size:10.5px; font-weight:700; }
+  .tamanhos-adicionar { margin-top:1px; }
+  .combinar-sabores-check { display:flex !important; align-items:center; gap:8px; margin-top:14px; color:var(--ink) !important; font-size:12.5px !important; font-weight:700 !important; }
+  .combinar-sabores-check input { width:auto; margin:0; }
+  .max-sabores-wrap { margin-top:10px; }
+  .max-sabores-wrap input { width:120px; }
   .horarios-grid { display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
   .horario-dia-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:9px; background:#FAFAFA; }
   .horario-dia-row.fechado { opacity:.55; }
@@ -251,6 +257,15 @@
     .row-actions { justify-content:flex-end; flex-wrap:wrap; }
     .horario-dia-row { flex-wrap:wrap; }
     .horario-dia-tempos { width:100%; }
+  }
+  @media (max-width: 400px) {
+    .tamanhos-precos-cabecalho { display:none; }
+    .novo-tamanho-row { display:grid; grid-template-columns:minmax(0, 1fr) 38px; gap:7px; padding:9px; border:1px solid var(--border); border-radius:9px; }
+    .novo-tamanho-row input.nome { grid-column:1 / -1; width:100%; min-width:0; }
+    .novo-tamanho-row input.preco { width:100%; min-width:0; }
+    .novo-tamanho-row button.remove { width:38px; height:38px; }
+    .tamanhos-adicionar { max-width:100%; white-space:normal; text-align:left; }
+    #produtoModalBg .modal-actions { position:sticky; bottom:0; margin:16px -2px -2px; padding-top:10px; background:#fff; }
   }
 
 /* ===== Pedido Manual (PDV) — busca de produto, carrinho de itens, total ===== */
