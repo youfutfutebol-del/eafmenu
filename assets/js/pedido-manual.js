@@ -1,6 +1,6 @@
 // /assets/js/pedido-manual.js
 // Checkout do pedido manual. Depende das globais do painel: sb, restauranteId,
-// restauranteInfo, currentUser, produtosCache, clienteEncontradoAtual,
+// restauranteInfo, currentUser, produtosCache, gruposTamanhoCache, clienteEncontradoAtual,
 // enderecoEncontradoAtual, buscaTelefoneTimer, showToast, loadPedidos e
 // pedidosCriadosManualmente.
 
@@ -13,6 +13,15 @@
   let pedidoManualEquipe = [];
   let pedidoManualEquipeErro = null;
   let pedidoManualPedidoCriado = null;
+  let pedidoManualCombinacao = null;
+
+  function limparCombinacaoPedidoManual() {
+    pedidoManualCombinacao = null;
+    const bloco = document.getElementById('mSaboresBlock');
+    if (bloco) bloco.classList.add('hidden');
+    const opcoes = document.getElementById('mSaboresOpcoes');
+    if (opcoes) opcoes.innerHTML = '';
+  }
 
   function mostrarErroPedidoManual(titulo, mensagem) {
     const box = document.getElementById('mPedidoErro');
@@ -43,6 +52,7 @@
     pedidoManualEquipe = [];
     pedidoManualEquipeErro = null;
     pedidoManualPedidoCriado = null;
+    limparCombinacaoPedidoManual();
     clearTimeout(buscaTelefoneTimer);
     buscaTelefoneTimer = null;
 
@@ -82,6 +92,7 @@
 
   function closeManualOrder() {
     if (pedidoManualSubmetendo) return;
+    limparCombinacaoPedidoManual();
     document.getElementById('manualModalBg').classList.remove('show');
   }
 
@@ -209,6 +220,7 @@
     return produtosCache.flatMap(p => (p.produto_precos || []).map(pp => ({
       precoId: pp.id,
       produtoId: p.id,
+      grupoTamanhoId: p.grupo_tamanho_id || null,
       opcaoTamanhoId: pp.opcao_tamanho_id || null,
       nomeProduto: p.nome,
       nomeTamanho: pp.opcoes_tamanho ? pp.opcoes_tamanho.nome : null,
@@ -226,6 +238,86 @@
     sel.innerHTML = filtradas.length
       ? filtradas.map(o => `<option value="${escapeHtml(o.precoId)}">${escapeHtml(o.nomeProduto)}${o.nomeTamanho ? ' - ' + escapeHtml(o.nomeTamanho) : ''} (${formatMoeda(o.preco)})</option>`).join('')
       : '<option value="">Nenhum produto encontrado</option>';
+    onProdutoManualChange();
+  }
+
+  function obterPrecoSaborManual(produto, opcaoTamanhoId) {
+    const preco = (produto?.produto_precos || []).find(pp => (pp.opcao_tamanho_id || null) === opcaoTamanhoId);
+    const valor = Number(preco?.preco);
+    return preco && Number.isFinite(valor) && valor > 0 ? { ...preco, valor } : null;
+  }
+
+  function saboresDisponiveisPedidoManual(opcao) {
+    if (!opcao?.grupoTamanhoId) return [];
+    return produtosCache.filter(produto =>
+      produto.grupo_tamanho_id === opcao.grupoTamanhoId
+      && obterPrecoSaborManual(produto, opcao.opcaoTamanhoId)
+    );
+  }
+
+  function precoCombinacaoPedidoManual() {
+    if (!pedidoManualCombinacao?.saboresIds.length) return 0;
+    const soma = pedidoManualCombinacao.saboresIds.reduce((total, produtoId) => {
+      const produto = produtosCache.find(p => p.id === produtoId);
+      return total + (obterPrecoSaborManual(produto, pedidoManualCombinacao.opcaoTamanhoId)?.valor || 0);
+    }, 0);
+    return arredondarMoedaManual(soma / pedidoManualCombinacao.saboresIds.length);
+  }
+
+  function renderSaboresPedidoManual() {
+    const estado = pedidoManualCombinacao;
+    const bloco = document.getElementById('mSaboresBlock');
+    if (!estado || estado.maxSabores <= 1 || estado.disponiveis.length <= 1) {
+      bloco.classList.add('hidden');
+      return;
+    }
+    bloco.classList.remove('hidden');
+    document.getElementById('mSaboresLabel').textContent = `Escolha até ${estado.maxSabores} sabores`;
+    document.getElementById('mSaboresPreco').textContent = formatMoeda(precoCombinacaoPedidoManual());
+    document.getElementById('mSaboresOpcoes').innerHTML = estado.disponiveis.map(produto => {
+      const selecionado = estado.saboresIds.includes(produto.id);
+      return `<button type="button" class="pm-sabor-opcao${selecionado ? ' selected' : ''}" aria-pressed="${selecionado}" onclick="toggleSaborPedidoManual('${escapeHtml(produto.id)}')">
+        <span>${escapeHtml(produto.nome)}</span><b>${selecionado ? '✓' : '+'}</b>
+      </button>`;
+    }).join('');
+  }
+
+  function onProdutoManualChange() {
+    const precoId = document.getElementById('mProdutoSelecionado').value;
+    const opcao = obterOpcoesProdutoFlat().find(o => o.precoId === precoId);
+    if (!opcao) { limparCombinacaoPedidoManual(); return; }
+    const grupo = gruposTamanhoCache.find(g => g.id === opcao.grupoTamanhoId);
+    const disponiveis = saboresDisponiveisPedidoManual(opcao);
+    pedidoManualCombinacao = {
+      precoId: opcao.precoId,
+      produtoBaseId: opcao.produtoId,
+      grupoTamanhoId: opcao.grupoTamanhoId,
+      opcaoTamanhoId: opcao.opcaoTamanhoId,
+      maxSabores: Math.max(1, parseInt(grupo?.max_sabores || '1', 10)),
+      saboresIds: [opcao.produtoId],
+      disponiveis
+    };
+    renderSaboresPedidoManual();
+  }
+
+  function toggleSaborPedidoManual(produtoId) {
+    const estado = pedidoManualCombinacao;
+    if (!estado || !estado.disponiveis.some(p => p.id === produtoId)) return;
+    const indice = estado.saboresIds.indexOf(produtoId);
+    if (indice >= 0) {
+      if (estado.saboresIds.length === 1) {
+        showToast('Mantenha um sabor', 'A pizza precisa ter pelo menos um sabor selecionado.');
+        return;
+      }
+      estado.saboresIds.splice(indice, 1);
+    } else {
+      if (estado.saboresIds.length >= estado.maxSabores) {
+        showToast('Limite de sabores', `Escolha no máximo ${estado.maxSabores} sabores para este tamanho.`);
+        return;
+      }
+      estado.saboresIds.push(produtoId);
+    }
+    renderSaboresPedidoManual();
   }
 
   function adicionarItemManual() {
@@ -242,16 +334,39 @@
       showToast('Produto inválido', 'O produto selecionado não possui preço válido.');
       return;
     }
-    const existente = pedidoManualItens.find(i => i.precoId === precoId);
+    const estado = pedidoManualCombinacao?.precoId === precoId ? pedidoManualCombinacao : null;
+    const saboresIds = estado?.saboresIds.length ? [...estado.saboresIds] : [opcao.produtoId];
+    const sabores = saboresIds.map(produtoId => {
+      const produto = produtosCache.find(p => p.id === produtoId);
+      const preco = obterPrecoSaborManual(produto, opcao.opcaoTamanhoId);
+      return produto && preco ? { produtoId, nome: produto.nome, preco: preco.valor } : null;
+    });
+    if (sabores.some(sabor => !sabor)) {
+      showToast('Sabores inválidos', 'Um dos sabores não possui preço válido para o tamanho escolhido.');
+      return;
+    }
+    const precoUnit = arredondarMoedaManual(sabores.reduce((soma, sabor) => soma + sabor.preco, 0) / sabores.length);
+    const chaveCombinacao = `${opcao.opcaoTamanhoId || 'sem-tamanho'}:${saboresIds.slice().sort().join(',')}`;
+    const produtoPrincipalId = saboresIds.includes(opcao.produtoId) ? opcao.produtoId : saboresIds[0];
+    const produtoPrincipal = sabores.find(sabor => sabor.produtoId === produtoPrincipalId);
+    const nomeExibicao = sabores.map(sabor => sabor.nome).join(' + ');
+    const existente = pedidoManualItens.find(i => i.chaveCombinacao === chaveCombinacao);
     if (existente) existente.qtd += qtd;
     else pedidoManualItens.push({
       uid: 'pm' + Date.now() + Math.random().toString(36).slice(2, 6),
       precoId: opcao.precoId,
-      produtoId: opcao.produtoId,
+      produtoId: produtoPrincipalId,
       opcaoTamanhoId: opcao.opcaoTamanhoId,
-      nomeProduto: opcao.nomeProduto,
+      nomeProduto: produtoPrincipal.nome,
+      nomeExibicao,
       nomeTamanho: opcao.nomeTamanho,
-      precoUnit: opcao.preco,
+      grupoTamanhoId: opcao.grupoTamanhoId,
+      maxSabores: estado?.maxSabores || 1,
+      sabores,
+      saboresIds,
+      saboresNomes: sabores.map(sabor => sabor.nome),
+      chaveCombinacao,
+      precoUnit,
       qtd
     });
     qtdInput.value = '1';
@@ -283,7 +398,7 @@
         const uidArg = escapeHtml(JSON.stringify(item.uid));
         return `<div class="pm-item-row">
           <div class="pm-item-info">
-            <p class="pm-item-nome">${escapeHtml(item.nomeProduto)}${item.nomeTamanho ? ` <span class="pm-item-tamanho">(${escapeHtml(item.nomeTamanho)})</span>` : ''}</p>
+            <p class="pm-item-nome">${escapeHtml(item.nomeExibicao || item.nomeProduto)}${item.nomeTamanho ? ` <span class="pm-item-tamanho">(${escapeHtml(item.nomeTamanho)})</span>` : ''}</p>
             <p class="pm-item-preco">${formatMoeda(item.precoUnit)} un.</p>
           </div>
           <div class="pm-item-qtd">
@@ -468,7 +583,7 @@
     } else enderecoLinha.classList.add('hidden');
 
     document.getElementById('mResumoItens').innerHTML = pedidoManualItens.map(item => `
-      <div class="pm-resumo-item"><span>${item.qtd}x ${escapeHtml(item.nomeProduto)}${item.nomeTamanho ? ` (${escapeHtml(item.nomeTamanho)})` : ''}</span><b>${formatMoeda(item.precoUnit * item.qtd)}</b></div>
+      <div class="pm-resumo-item"><span>${item.qtd}x ${escapeHtml(item.nomeExibicao || item.nomeProduto)}${item.nomeTamanho ? ` (${escapeHtml(item.nomeTamanho)})` : ''}<small>${formatMoeda(item.precoUnit)} un.</small></span><b>${formatMoeda(item.precoUnit * item.qtd)}</b></div>
     `).join('');
     atualizarResumoFinanceiroManual();
   }
@@ -581,12 +696,38 @@
 
   function montarItensParaInserirManual() {
     return pedidoManualItens.map(item => {
-      const produto = produtosCache.find(p => (p.produto_precos || []).some(pp => pp.id === item.precoId));
-      const preco = produto?.produto_precos?.find(pp => pp.id === item.precoId);
-      if (!produto || !preco || !Number.isFinite(Number(preco.preco)) || Number(preco.preco) <= 0) {
-        throw erroFluxoPedidoManual('Itens inválidos', 'Um produto não possui mais um preço válido. Atualize o pedido.');
+      if (!Number.isInteger(item.qtd) || item.qtd < 1 || !Array.isArray(item.saboresIds) || item.saboresIds.length < 1
+        || new Set(item.saboresIds).size !== item.saboresIds.length || !item.saboresIds.includes(item.produtoId)) {
+        throw erroFluxoPedidoManual('Itens inválidos', 'Revise a quantidade e os sabores dos itens antes de continuar.');
       }
-      return { produto_id: produto.id, opcao_tamanho_id: preco.opcao_tamanho_id || null, quantidade: item.qtd, preco_unitario: Number(preco.preco) };
+      const produtoBase = produtosCache.find(p => p.id === item.produtoId);
+      const grupo = item.grupoTamanhoId ? gruposTamanhoCache.find(g => g.id === item.grupoTamanhoId) : null;
+      const maxSabores = item.grupoTamanhoId ? Number(grupo?.max_sabores) : 1;
+      const precoBase = obterPrecoSaborManual(produtoBase, item.opcaoTamanhoId);
+      if (!produtoBase || produtoBase.grupo_tamanho_id !== item.grupoTamanhoId || !precoBase
+        || !Number.isInteger(maxSabores) || maxSabores < 1 || item.saboresIds.length > maxSabores) {
+        throw erroFluxoPedidoManual('Itens indisponíveis', 'Um produto ou limite de sabores foi alterado. Remova o item e adicione novamente.');
+      }
+      const sabores = item.saboresIds.map(produtoId => {
+        const produto = produtosCache.find(p => p.id === produtoId);
+        const preco = obterPrecoSaborManual(produto, item.opcaoTamanhoId);
+        if (!produto || produto.grupo_tamanho_id !== item.grupoTamanhoId || !preco) return null;
+        return { produtoId, preco: preco.valor };
+      });
+      if (sabores.some(sabor => !sabor)) {
+        throw erroFluxoPedidoManual('Itens indisponíveis', 'Um sabor não está mais disponível neste tamanho. Remova o item e adicione novamente.');
+      }
+      const precoMedio = arredondarMoedaManual(sabores.reduce((soma, sabor) => soma + sabor.preco, 0) / sabores.length);
+      if (!Number.isFinite(precoMedio) || precoMedio <= 0 || precoMedio !== item.precoUnit) {
+        throw erroFluxoPedidoManual('Preço atualizado', 'O preço de um sabor mudou. Remova o item e adicione novamente para revisar o total.');
+      }
+      return {
+        produto_id: produtoBase.id,
+        opcao_tamanho_id: item.opcaoTamanhoId || null,
+        quantidade: item.qtd,
+        preco_unitario: precoMedio,
+        saboresIds: item.saboresIds
+      };
     });
   }
 
@@ -639,9 +780,22 @@
       pedidoManualPedidoCriado = pedido;
       pedidosCriadosManualmente.add(pedido.id);
 
-      const itensFinal = itensParaInserir.map(item => ({ ...item, pedido_id: pedido.id }));
-      const { error: itensErro } = await sb.from('itens_pedido').insert(itensFinal);
-      if (itensErro) throw erroFluxoPedidoManual('Falha ao salvar itens', itensErro.message);
+      for (const item of itensParaInserir) {
+        const { saboresIds, ...itemPedido } = item;
+        const { data: itemInserido, error: itemErro } = await sb.from('itens_pedido')
+          .insert({ ...itemPedido, pedido_id: pedido.id })
+          .select('id').single();
+        if (itemErro) throw erroFluxoPedidoManual('Falha ao salvar itens', itemErro.message);
+        if (saboresIds.length > 1) {
+          const saboresParaInserir = saboresIds.map(produtoId => ({
+            item_pedido_id: itemInserido.id,
+            produto_id: produtoId,
+            preco_unitario: item.preco_unitario
+          }));
+          const { error: saboresErro } = await sb.from('itens_pedido_sabores').insert(saboresParaInserir);
+          if (saboresErro) throw erroFluxoPedidoManual('Falha ao salvar sabores', saboresErro.message);
+        }
+      }
 
       let resultadoFinanceiro;
       if (desconto.ativo) {
@@ -697,6 +851,7 @@
       pedidoManualSubmetendo = false;
       document.getElementById('manualModalBg').classList.remove('show');
       pedidoManualItens = [];
+      limparCombinacaoPedidoManual();
       showToast(`Pedido #${pedido.numero_diario || pedido.id} lançado`, `${nome} · ${formatMoeda(totalDefinitivo)}`);
       pedidoManualPedidoCriado = null;
       await loadPedidos();

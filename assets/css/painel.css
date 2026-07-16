@@ -261,6 +261,15 @@
 .pm-select-produto { flex:1; padding:9px 10px; border:1px solid var(--border); border-radius:8px; font-size:12.5px; min-width:0; }
 .pm-qtd-add { width:64px; padding:9px 8px; border:1px solid var(--border); border-radius:8px; font-size:13px; text-align:center; }
 .pm-btn-add { flex:none; padding:9px 16px; }
+.pm-sabores { margin:0 0 12px; padding:11px 12px; border:1px solid var(--border); border-radius:10px; background:#FAFAFA; }
+.pm-sabores-topo { display:flex; justify-content:space-between; gap:10px; font-size:12.5px; }
+.pm-sabores-topo span { flex-shrink:0; font-weight:800; }
+.pm-sabores > p { margin:3px 0 9px; color:var(--muted); font-size:11px; }
+.pm-sabores-opcoes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+.pm-sabor-opcao { display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; padding:8px 9px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--ink); font-size:12px; text-align:left; }
+.pm-sabor-opcao span { min-width:0; overflow-wrap:anywhere; }
+.pm-sabor-opcao b { flex-shrink:0; }
+.pm-sabor-opcao.selected { border-color:var(--ink); background:var(--ink); color:#fff; }
 .pm-itens-lista { background:#FAFAFA; border:1px solid var(--border); border-radius:10px; padding: 4px 12px; margin-bottom:14px; max-height:220px; overflow-y:auto; }
 .pm-itens-vazio { font-size:12.5px; color:var(--muted); text-align:center; padding:18px 8px; margin:0; }
 .pm-item-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px dashed var(--border); }
@@ -292,6 +301,7 @@
 .pm-resumo-item { display:flex; justify-content:space-between; gap:10px; padding:8px 10px; border-bottom:1px dashed var(--border); font-size:12.5px; }
 .pm-resumo-item:last-child { border-bottom:none; }
 .pm-resumo-item span:first-child { min-width:0; overflow-wrap:anywhere; }
+.pm-resumo-item small { display:block; margin-top:2px; color:var(--muted); font-size:10.5px; }
 .pm-resumo-item b { flex-shrink:0; }
 .pm-desconto-toggle { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:16px; padding:11px 12px; border:1px solid var(--border); border-radius:10px; }
 .pm-desconto-toggle label { min-width:0; cursor:pointer; }
@@ -323,6 +333,7 @@
   .pm-add-row { flex-wrap:wrap; }
   .pm-select-produto { flex:1 1 calc(100% - 76px); }
   .pm-btn-add { width:100%; }
+  .pm-sabores-opcoes { grid-template-columns:1fr; }
   .pm-item-row { flex-wrap:wrap; }
   .pm-item-info { flex:1 1 calc(100% - 90px); }
   .pm-item-subtotal { margin-left:auto; }

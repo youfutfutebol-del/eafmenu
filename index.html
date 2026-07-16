@@ -552,9 +552,17 @@
         <input id="mBuscaProduto" placeholder="Pesquisar produto..." oninput="filtrarProdutosBusca()">
       </div>
       <div class="pm-add-row">
-        <select id="mProdutoSelecionado" class="pm-select-produto"></select>
+        <select id="mProdutoSelecionado" class="pm-select-produto" onchange="onProdutoManualChange()"></select>
         <input type="number" id="mQtdAdicionar" min="1" step="1" value="1" class="pm-qtd-add">
         <button type="button" class="btn primary pm-btn-add" onclick="adicionarItemManual()">Adicionar</button>
+      </div>
+      <div id="mSaboresBlock" class="pm-sabores hidden">
+        <div class="pm-sabores-topo">
+          <b id="mSaboresLabel"></b>
+          <span id="mSaboresPreco"></span>
+        </div>
+        <p>O preço final é a média dos sabores escolhidos.</p>
+        <div id="mSaboresOpcoes" class="pm-sabores-opcoes"></div>
       </div>
 
       <p class="pm-section-label">Itens do pedido</p>
@@ -1066,7 +1074,7 @@
   async function loadProdutos() {
     const { data, error } = await sb
       .from('produtos')
-      .select('id, nome, produto_precos(id, preco, opcao_tamanho_id, opcoes_tamanho(nome))')
+      .select('id, nome, grupo_tamanho_id, produto_precos(id, preco, opcao_tamanho_id, opcoes_tamanho(nome))')
       .eq('restaurante_id', restauranteId)
       .eq('ativo', true);
     if (!error) produtosCache = data || [];
