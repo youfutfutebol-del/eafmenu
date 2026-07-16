@@ -15,6 +15,49 @@
     return (o.numero_diario != null) ? ('#' + o.numero_diario) : ('#' + o.id.slice(0,8).toUpperCase());
   }
 
+  function normalizarItemPedido(item) {
+    const origem = item || {};
+    const sabores = (origem.itens_pedido_sabores || [])
+      .map((sabor, indiceOriginal) => ({
+        nome: sabor?.nome_produto_snapshot || sabor?.produtos?.nome || 'Sabor',
+        ordem: sabor?.ordem,
+        indiceOriginal
+      }))
+      .sort((a, b) => {
+        const ordemA = Number(a.ordem);
+        const ordemB = Number(b.ordem);
+        const temOrdemA = a.ordem != null && Number.isFinite(ordemA);
+        const temOrdemB = b.ordem != null && Number.isFinite(ordemB);
+        if (temOrdemA && temOrdemB && ordemA !== ordemB) return ordemA - ordemB;
+        if (temOrdemA !== temOrdemB) return temOrdemA ? -1 : 1;
+        return a.indiceOriginal - b.indiceOriginal;
+      })
+      .map(sabor => sabor.nome);
+
+    const nomeGrupo = String(origem.nome_grupo_snapshot || '').trim();
+    const nomeTamanho = String(origem.nome_tamanho_snapshot || '').trim();
+    const combinado = origem.produto_id === null || Boolean((nomeGrupo || nomeTamanho) && sabores.length);
+    const nomePrincipal = combinado
+      ? ([nomeGrupo, nomeTamanho].filter(Boolean).join(' ') || 'Item combinado')
+      : (origem.produtos?.nome || 'item');
+    const quantidadeInformada = Number(origem.quantidade);
+    const quantidade = Number.isFinite(quantidadeInformada) && quantidadeInformada > 0 ? quantidadeInformada : 1;
+    const precoInformado = Number(origem.preco_unitario);
+    const precoUnitario = Number.isFinite(precoInformado) ? precoInformado : 0;
+
+    return {
+      combinado,
+      nomePrincipal,
+      nomeGrupo,
+      nomeTamanho,
+      sabores,
+      quantidade,
+      precoUnitario,
+      subtotal: precoUnitario * quantidade,
+      observacoes: String(origem.observacoes || '')
+    };
+  }
+
   function formatarJanelaPrevisao(inicioIso, fimIso) {
     if (!inicioIso || !fimIso) return null;
 
@@ -71,8 +114,16 @@
 
     list.innerHTML = filtered.map(o => {
       const itens = (o.itens_pedido || []).map(i => {
-        const nomeSabores = i.produtos?.nome || (i.itens_pedido_sabores || []).map(s => s.produtos?.nome).filter(Boolean).join(' + ') || 'item';
-        return `${Number(i.quantidade || 0)}x ${escapeHtml(nomeSabores)}`;
+        const item = normalizarItemPedido(i);
+        const linhaPrincipal = `${escapeHtml(item.quantidade)}x ${escapeHtml(item.nomePrincipal)}`;
+        if (!item.combinado) return linhaPrincipal;
+
+        const detalhes = [];
+        if (item.sabores.length) detalhes.push(item.sabores.map(escapeHtml).join(' + '));
+        if (item.observacoes) detalhes.push(`Obs: ${escapeHtml(item.observacoes)}`);
+        return detalhes.length
+          ? `<span>${linhaPrincipal}</span><span style="display:block; margin-left:16px;">${detalhes.join(' · ')}</span>`
+          : linhaPrincipal;
       }).join(' · ');
       const cliente = escapeHtml(o.clientes?.nome || 'Cliente balcão');
       const tipoBadge = o.tipo === 'entrega' ? `<span class="badge entrega">🛵 entrega</span>` : `<span class="badge retirada">🏠 retirada</span>`;

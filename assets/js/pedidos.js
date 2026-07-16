@@ -19,7 +19,12 @@
         id, numero_diario, tipo, status, pago, forma_pagamento, subtotal, taxa_entrega, total, desconto_tipo, desconto_valor_informado, desconto_manual, desconto_motivo, criado_em, motoboy_id, troco_para, observacoes, previsao_inicio, previsao_fim,
         clientes ( nome, telefone ),
         enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento, referencia ),
-        itens_pedido ( quantidade, preco_unitario, produtos ( nome ), itens_pedido_sabores ( produtos ( nome ) ) )
+        itens_pedido (
+          produto_id, nome_grupo_snapshot, nome_tamanho_snapshot, sabores_esperados, precificacao_finalizada_em,
+          preco_unitario, quantidade, observacoes,
+          produtos ( nome ),
+          itens_pedido_sabores ( produto_id, nome_produto_snapshot, preco_unitario, ordem, produtos ( nome ) )
+        )
       `)
       .eq('restaurante_id', restauranteId)
       .gte('criado_em', inicio)
@@ -114,13 +119,15 @@
       : '';
 
     const itensHtml = (o.itens_pedido || []).map(i => {
-      const sabores = (i.itens_pedido_sabores || []).map(s => s.produtos?.nome).filter(Boolean);
-      const nomePrincipal = i.produtos?.nome || (sabores.length ? sabores.join(' + ') : 'item');
-      const quantidade = Number(i.quantidade || 1);
-      const valorItem = Number(i.preco_unitario || 0) * quantidade;
+      const item = normalizarItemPedido(i);
+      const detalhes = item.combinado
+        ? `${item.sabores.length ? `<div class="sabores">${item.sabores.map(sabor => `• ${seguro(sabor)}`).join('<br>')}</div>` : ''}
+          ${item.observacoes ? `<div class="item-observacao">Obs: ${seguro(item.observacoes)}</div>` : ''}
+          <div class="item-valores">${moeda(item.precoUnitario)} un.<br>Total: ${moeda(item.subtotal)}</div>`
+        : (item.sabores.length ? `<div class="sabores">${item.sabores.map(sabor => `• ${seguro(sabor)}`).join('<br>')}</div>` : '');
       return `<div class="item">
-        <div class="item-linha"><span><b>${seguro(quantidade)}x</b> ${seguro(nomePrincipal)}</span><b>${moeda(valorItem)}</b></div>
-        ${sabores.length ? `<div class="sabores">${sabores.map(sabor => `• ${seguro(sabor)}`).join('<br>')}</div>` : ''}
+        <div class="item-linha"><span><b>${seguro(item.quantidade)}x</b> ${seguro(item.nomePrincipal)}</span><b>${moeda(item.subtotal)}</b></div>
+        ${detalhes}
       </div>`;
     }).join('');
 
@@ -175,6 +182,7 @@
   .item-linha > span:first-child { min-width:0; }
   .item-linha > b { flex-shrink:0; }
   .sabores { margin:3px 0 0 18px; font-size:11px; }
+  .item-observacao, .item-valores { margin:3px 0 0 18px; font-size:11px; }
   .qtd-total { padding:6px 0; border-bottom:2px solid #000; }
   .financeiro { border-bottom:2px solid #000; }
   .financeiro-linha { padding:6px 0; border-bottom:1px dashed #000; font-weight:900; }
