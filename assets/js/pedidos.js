@@ -158,16 +158,18 @@
     const html = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Comanda ${seguro(codigoPedido(o))}</title>
 <style>
-  @page { size: 80mm auto; margin: 3mm; }
+  @page { size: 80mm auto; margin: 0; }
   * { box-sizing: border-box; }
   body, body * { color:#000 !important; opacity:1 !important; border-color:#000 !important; }
-  html { width:100%; max-width:100%; margin:0; padding:0; overflow-x:hidden; }
-  body { width:74mm; max-width:100%; margin:0 auto; padding:0; overflow-x:hidden; font-family:Arial, Helvetica, sans-serif; font-size:12px; line-height:1.35; font-weight:700; background:#fff; overflow-wrap:anywhere; }
+  html { width:80mm; margin:0; padding:0; overflow-x:hidden; }
+  body { width:76mm; max-width:76mm; margin:0; padding:2mm; overflow-x:hidden; font-family:Arial, Helvetica, sans-serif; font-size:12px; line-height:1.35; font-weight:700; background:#fff; overflow-wrap:anywhere; }
   .restaurante { text-align:center; padding-bottom:8px; }
   .restaurante h1 { margin:0 0 3px; font-size:17px; line-height:1.15; font-weight:900; }
   .restaurante div { font-size:11px; }
   .pedido-topo { border-top:2px dashed #000; padding:8px 0 3px; }
-  .tipo-data, .item-linha, .qtd-total, .financeiro-linha, .total, .troco div { display:flex; justify-content:space-between; gap:8px; }
+  .tipo-data, .item-linha, .qtd-total, .financeiro-linha, .total, .troco div { display:grid; grid-template-columns:minmax(0, 1fr) max-content; align-items:start; gap:4px; width:100%; }
+  .tipo-data > :last-child, .item-linha > :last-child, .qtd-total > :last-child, .financeiro-linha > :last-child, .total > :last-child, .troco div > :last-child { white-space:nowrap; text-align:right; justify-self:end; }
+  .tipo-data > :first-child, .item-linha > :first-child, .qtd-total > :first-child, .financeiro-linha > :first-child, .total > :first-child, .troco div > :first-child { min-width:0; overflow-wrap:anywhere; }
   .tipo-data b { font-size:13px; font-weight:900; }
   .pedido-numero { margin-top:3px; font-size:18px; font-weight:900; }
   .previsao { margin:8px 0; padding:7px 4px; border-top:3px solid #000; border-bottom:3px solid #000; text-align:center; font-weight:900; }
@@ -176,11 +178,11 @@
   .section h2 { margin:0 0 4px; font-size:12px; font-weight:900; }
   .section .dado-principal { font-size:13px; font-weight:900; }
   .referencia { margin-top:4px; }
-  .itens-cabecalho { display:grid; grid-template-columns:1fr auto; gap:8px; padding:6px 0 4px; border-bottom:1px dashed #000; font-weight:900; }
+  .itens-cabecalho { display:grid; grid-template-columns:minmax(0, 1fr) max-content; gap:4px; width:100%; padding:6px 0 4px; border-bottom:1px dashed #000; font-weight:900; }
+  .itens-cabecalho > :last-child { white-space:nowrap; text-align:right; justify-self:end; }
+  .itens-cabecalho > :first-child { min-width:0; overflow-wrap:anywhere; }
   .item { padding:6px 0; border-bottom:1px dotted #000; }
   .item-linha { font-weight:900; }
-  .item-linha > span:first-child { min-width:0; }
-  .item-linha > b { flex-shrink:0; }
   .sabores { margin:3px 0 0 18px; font-size:11px; }
   .item-observacao, .item-valores { margin:3px 0 0 18px; font-size:11px; }
   .qtd-total { padding:6px 0; border-bottom:2px solid #000; }
