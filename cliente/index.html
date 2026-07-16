@@ -729,7 +729,7 @@
 
   function calcularEstaAberto() {
     const horarios = restaurante?.horarios_semana;
-    if (!Array.isArray(horarios) || horarios.length === 0) return true; // sem config = não bloqueia
+    if (!Array.isArray(horarios) || horarios.length === 0) return false;
 
     const { diaSemana, minutosDoDia } = agoraEmBrasilia();
     const diaAnterior = (diaSemana + 6) % 7;
@@ -753,6 +753,7 @@
   }
 
   function atualizarStatusAberto() {
+    const semConfiguracao = !Array.isArray(restaurante?.horarios_semana) || restaurante.horarios_semana.length === 0;
     restauranteAbertoAgora = calcularEstaAberto();
 
     const statusEl = document.getElementById('topStatus');
@@ -761,15 +762,21 @@
     const bannerTxtEl = document.getElementById('bannerFechadoTexto');
 
     statusEl.classList.toggle('closed', !restauranteAbertoAgora);
-    txtEl.textContent = restauranteAbertoAgora ? 'Aberto agora' : 'Fechado no momento';
+    txtEl.textContent = semConfiguracao
+      ? 'Horário não configurado'
+      : (restauranteAbertoAgora ? 'Aberto agora' : 'Fechado no momento');
 
     if (restauranteAbertoAgora) {
       bannerEl.classList.remove('show');
     } else {
-      const prox = proximoHorarioAbertura();
-      bannerTxtEl.textContent = prox
-        ? `Estamos fechados agora. ${prox.hoje ? 'Abrimos hoje às ' : 'Abrimos às '}${prox.abre}.`
-        : 'Estamos fechados no momento.';
+      if (semConfiguracao) {
+        bannerTxtEl.textContent = 'Este restaurante ainda não configurou o horário de funcionamento e não está aceitando pedidos no momento.';
+      } else {
+        const prox = proximoHorarioAbertura();
+        bannerTxtEl.textContent = prox
+          ? `Estamos fechados agora. ${prox.hoje ? 'Abrimos hoje às ' : 'Abrimos às '}${prox.abre}.`
+          : 'Estamos fechados no momento.';
+      }
       bannerEl.classList.add('show');
     }
 

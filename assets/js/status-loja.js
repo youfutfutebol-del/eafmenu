@@ -20,7 +20,7 @@
   function statusLojaDetalhado() {
     const horarios = horariosLojaAtual;
     if (!Array.isArray(horarios) || horarios.length === 0) {
-      return { aberto: true, minutosRestantes: null, minutosParaAbrir: null };
+      return { aberto: false, semConfiguracao: true, minutosRestantes: null, minutosParaAbrir: null };
     }
 
     const { diaSemana, minutosDoDia } = agoraEmBrasiliaPainel();
@@ -34,7 +34,7 @@
       const [fH, fM] = configOntem.fecha.split(':').map(Number);
       const abreMin = aH * 60 + aM, fechaMin = fH * 60 + fM;
       if (fechaMin <= abreMin && minutosDoDia < fechaMin) {
-        return { aberto: true, minutosRestantes: fechaMin - minutosDoDia, minutosParaAbrir: null };
+        return { aberto: true, semConfiguracao: false, minutosRestantes: fechaMin - minutosDoDia, minutosParaAbrir: null };
       }
     }
 
@@ -46,7 +46,7 @@
       const cruzaMeiaNoite = fechaMin <= abreMin;
       if (minutosDoDia >= abreMin && (cruzaMeiaNoite || minutosDoDia < fechaMin)) {
         const restantes = cruzaMeiaNoite ? (24 * 60 - minutosDoDia) + fechaMin : fechaMin - minutosDoDia;
-        return { aberto: true, minutosRestantes: restantes, minutosParaAbrir: null };
+        return { aberto: true, semConfiguracao: false, minutosRestantes: restantes, minutosParaAbrir: null };
       }
     }
 
@@ -60,10 +60,10 @@
       if (i === 0 && minutosDoDia >= abreMin) continue;
       const minutosAteEsseDia = i * 24 * 60 + abreMin - minutosDoDia;
       if (minutosAteEsseDia > 0) {
-        return { aberto: false, minutosRestantes: null, minutosParaAbrir: minutosAteEsseDia };
+        return { aberto: false, semConfiguracao: false, minutosRestantes: null, minutosParaAbrir: minutosAteEsseDia };
       }
     }
-    return { aberto: false, minutosRestantes: null, minutosParaAbrir: null };
+    return { aberto: false, semConfiguracao: false, minutosRestantes: null, minutosParaAbrir: null };
   }
 
   function atualizarStatusLoja() {
@@ -74,7 +74,9 @@
     const info = statusLojaDetalhado();
     pill.className = 'pill-status ' + (info.aberto ? 'on' : 'off');
 
-    if (info.aberto) {
+    if (info.semConfiguracao) {
+      txt.textContent = 'Horário não configurado';
+    } else if (info.aberto) {
       txt.textContent = (info.minutosRestantes != null && info.minutosRestantes <= 10)
         ? `Loja aberta · fecha em ${info.minutosRestantes} min`
         : 'Loja aberta';
