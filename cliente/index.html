@@ -172,6 +172,13 @@
   }
   @keyframes slideUp { from { transform: translateY(24px); opacity:.6; } to { transform: translateY(0); opacity:1; } }
   .sheet__handle { width:38px; height:4px; background:var(--border); border-radius:3px; margin: 0 auto 16px; }
+  .checkout-sheet { position:relative; }
+  .checkout-close {
+    position:absolute; top:6px; right:8px; width:44px; height:44px; display:flex; align-items:center; justify-content:center;
+    border:0; border-radius:50%; background:transparent; color:var(--ink); font-size:25px; line-height:1;
+  }
+  .checkout-close:hover { background:color-mix(in srgb, var(--ink) 8%, transparent); }
+  .checkout-close:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   .sheet h3 { margin:0 0 4px; font-size:17.5px; font-family: var(--font-display); font-weight:700; letter-spacing:-.2px; }
   .sheet .sub { font-size:12.5px; color:var(--muted); margin:0 0 16px; line-height:1.5; }
   .field { margin-bottom:12px; }
@@ -383,8 +390,9 @@
 
 <!-- ==================== SHEET: checkout ==================== -->
 <div class="sheet-bg" id="sheetCheckout">
-  <div class="sheet">
+  <div class="sheet checkout-sheet">
     <div class="sheet__handle"></div>
+    <button type="button" class="checkout-close" aria-label="Fechar checkout" onclick="closeSheet('sheetCheckout')">×</button>
     <div class="step-dots">
       <span id="dot1" class="active"></span><span id="dot2"></span><span id="dot3"></span><span id="dot4"></span>
     </div>
