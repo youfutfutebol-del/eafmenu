@@ -164,14 +164,14 @@
   html { width:80mm; margin:0; padding:0; overflow-x:hidden; }
   body { width:72mm; max-width:72mm; margin:0; padding:2mm; overflow-x:hidden; font-family:Arial, Helvetica, sans-serif; font-size:12px; line-height:1.35; font-weight:700; background:#fff; overflow-wrap:anywhere; }
   .restaurante { text-align:center; padding-bottom:8px; }
-  .restaurante h1 { margin:0 0 3px; font-size:17px; line-height:1.15; font-weight:900; }
+  .restaurante h1 { margin:0 0 3px; font-size:16px; line-height:1.15; font-weight:900; }
   .restaurante div { font-size:11px; }
   .pedido-topo { border-top:2px dashed #000; padding:8px 0 3px; }
   .tipo-data, .item-linha, .qtd-total, .financeiro-linha, .total, .troco div { display:grid; grid-template-columns:minmax(0, 1fr) max-content; align-items:start; gap:4px; width:100%; }
   .tipo-data > :last-child, .item-linha > :last-child, .qtd-total > :last-child, .financeiro-linha > :last-child, .total > :last-child, .troco div > :last-child { white-space:nowrap; text-align:right; justify-self:end; }
   .tipo-data > :first-child, .item-linha > :first-child, .qtd-total > :first-child, .financeiro-linha > :first-child, .total > :first-child, .troco div > :first-child { min-width:0; overflow-wrap:anywhere; }
-  .tipo-data b { font-size:13px; font-weight:900; }
-  .pedido-numero { margin-top:3px; font-size:18px; font-weight:900; }
+  .tipo-data b { font-size:12px; font-weight:900; }
+  .pedido-numero { margin-top:3px; font-size:17px; font-weight:900; }
   .previsao { margin:8px 0; padding:7px 4px; border-top:3px solid #000; border-bottom:3px solid #000; text-align:center; font-weight:900; }
   .previsao strong { display:block; margin-top:2px; font-size:18px; line-height:1.15; }
   .section { padding:8px 0; border-bottom:1px dashed #000; }
@@ -188,7 +188,7 @@
   .qtd-total { padding:6px 0; border-bottom:2px solid #000; }
   .financeiro { border-bottom:2px solid #000; }
   .financeiro-linha { padding:6px 0; border-bottom:1px dashed #000; font-weight:900; }
-  .total { padding:8px 0; font-size:18px; font-weight:900; border-bottom:2px solid #000; }
+  .total { padding:8px 0; font-size:16px; font-weight:900; border-bottom:2px solid #000; }
   .pagamento { border-bottom:1px dashed #000; font-weight:900; }
   .troco { margin-top:6px; padding:6px; border:2px solid #000; font-size:13px; font-weight:900; }
   .observacoes { margin-top:8px; padding:7px; border:2px solid #000; font-weight:900; }
