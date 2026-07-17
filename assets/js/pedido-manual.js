@@ -726,6 +726,7 @@
         opcao_tamanho_id: item.opcaoTamanhoId || null,
         quantidade: item.qtd,
         preco_unitario: precoMedio,
+        sabores_esperados: item.saboresIds.length,
         saboresIds: item.saboresIds
       };
     });

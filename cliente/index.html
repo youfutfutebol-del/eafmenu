@@ -516,6 +516,7 @@
   let checkoutEnderecoId = null;
   let checkoutEndereco = null;
   let checkoutPrecisaTroco = false;
+  let confirmarPedidoEmAndamento = false;
 
   let restauranteAbertoAgora = true;
   let statusAbertoInterval = null;
@@ -1046,7 +1047,7 @@
       qtd: detalheQtd,
       produtoId: p.id,
       opcaoTamanhoId: detalheTamanhoSelecionadoId,
-      saboresIds: maxSaboresAtual > 1 ? [...detalheSaboresSelecionados] : []
+      saboresIds: maxSaboresAtual > 1 ? [...detalheSaboresSelecionados] : [p.id]
     });
 
     closeSheet('sheetProduto');
@@ -1354,66 +1355,81 @@
 
   async function confirmarPedido() {
     const btn = document.getElementById('btnConfirmarPedido');
-    if (btn.disabled) return;
+    if (confirmarPedidoEmAndamento || btn.disabled) return;
     if (!atualizarStatusAberto()) {
       showToast('Restaurante fechado', 'Restaurante fechado no momento. Volte no próximo horário de funcionamento.');
       closeSheet('sheetCheckout');
       return;
     }
 
+    confirmarPedidoEmAndamento = true;
     btn.disabled = true; btn.textContent = 'Enviando pedido...';
-
-    const subtotal = totalCarrinho();
-    const taxaEntrega = checkoutTipo === 'entrega' ? Number(restaurante.taxa_entrega_padrao || 0) : 0;
-    const total = subtotal + taxaEntrega;
-    const forma = document.getElementById('formaPagamento').value;
-    const troco = validarTroco(total);
-    if (!troco.valido) {
-      showToast('Troco inválido', troco.mensagem);
-      btn.disabled = false; btn.textContent = 'Confirmar pedido';
-      return;
-    }
-
-    const payload = {
-      restaurante_id: restaurante.id,
-      cliente_id: cliente.id,
-      tipo: checkoutTipo,
-      forma_pagamento: forma,
-      subtotal,
-      taxa_entrega: taxaEntrega,
-      total,
-      status: 'recebido',
-      pago: false,
-      troco_para: troco.valido ? troco.valor : null
-    };
-    if (checkoutTipo === 'entrega' && checkoutEnderecoId) payload.endereco_entrega_id = checkoutEnderecoId;
-
-    const { data: pedido, error: pedErr } = await sb.from('pedidos').insert(payload).select('id').single();
-    if (pedErr) { showToast('Erro ao enviar pedido', pedErr.message); btn.disabled = false; btn.textContent = 'Confirmar pedido'; return; }
-
-    for (const item of cart) {
-      const { data: itemInserido, error: itemErr } = await sb.from('itens_pedido').insert({
-        pedido_id: pedido.id,
-        produto_id: item.produtoId,
-        opcao_tamanho_id: item.opcaoTamanhoId,
-        quantidade: item.qtd,
-        preco_unitario: item.precoUnit
-      }).select('id').single();
-
-      if (!itemErr && item.saboresIds.length > 1) {
-        await sb.from('itens_pedido_sabores').insert(
-          item.saboresIds.map(produtoSaborId => ({ item_pedido_id: itemInserido.id, produto_id: produtoSaborId, preco_unitario: item.precoUnit }))
-        );
+    let pedidoIniciado = false;
+    try {
+      for (const item of cart) {
+        if (!Array.isArray(item.saboresIds) || item.saboresIds.length < 1
+          || new Set(item.saboresIds).size !== item.saboresIds.length || !item.saboresIds.includes(item.produtoId)) {
+          throw new Error('Revise os sabores dos itens antes de finalizar o pedido.');
+        }
       }
-    }
 
-    cart = [];
-    atualizarCartFab();
-    closeSheet('sheetCheckout');
-    btn.disabled = false; btn.textContent = 'Confirmar pedido';
-    showToast('Pedido enviado! 🎉', 'Acompanhe pelo botão de pedidos no topo.');
-    await atualizarBadgePedidos();
-    openMeusPedidos();
+      const subtotal = totalCarrinho();
+      const taxaEntrega = checkoutTipo === 'entrega' ? Number(restaurante.taxa_entrega_padrao || 0) : 0;
+      const total = subtotal + taxaEntrega;
+      const forma = document.getElementById('formaPagamento').value;
+      const troco = validarTroco(total);
+      if (!troco.valido) throw new Error(troco.mensagem);
+
+      const payload = {
+        restaurante_id: restaurante.id,
+        cliente_id: cliente.id,
+        tipo: checkoutTipo,
+        forma_pagamento: forma,
+        subtotal,
+        taxa_entrega: taxaEntrega,
+        total,
+        status: 'recebido',
+        pago: false,
+        troco_para: troco.valido ? troco.valor : null
+      };
+      if (checkoutTipo === 'entrega' && checkoutEnderecoId) payload.endereco_entrega_id = checkoutEnderecoId;
+
+      const { data: pedido, error: pedErr } = await sb.from('pedidos').insert(payload).select('id').single();
+      if (pedErr) throw new Error(pedErr.message);
+      pedidoIniciado = true;
+
+      for (const item of cart) {
+        const { data: itemInserido, error: itemErr } = await sb.from('itens_pedido').insert({
+          pedido_id: pedido.id,
+          produto_id: item.produtoId,
+          opcao_tamanho_id: item.opcaoTamanhoId,
+          quantidade: item.qtd,
+          preco_unitario: item.precoUnit,
+          sabores_esperados: item.saboresIds.length
+        }).select('id').single();
+        if (itemErr) throw new Error(itemErr.message);
+
+        if (item.saboresIds.length > 1) {
+          const { error: saboresErr } = await sb.from('itens_pedido_sabores').insert(
+            item.saboresIds.map(produtoSaborId => ({ item_pedido_id: itemInserido.id, produto_id: produtoSaborId, preco_unitario: item.precoUnit }))
+          );
+          if (saboresErr) throw new Error(saboresErr.message);
+        }
+      }
+
+      cart = [];
+      atualizarCartFab();
+      closeSheet('sheetCheckout');
+      showToast('Pedido enviado! 🎉', 'Acompanhe pelo botão de pedidos no topo.');
+      await atualizarBadgePedidos();
+      openMeusPedidos();
+    } catch (erro) {
+      const mensagem = erro?.message || String(erro);
+      showToast(pedidoIniciado ? 'Pedido iniciado, mas não finalizado' : 'Erro ao enviar pedido', `Não foi possível finalizar o pedido: ${mensagem}`);
+    } finally {
+      confirmarPedidoEmAndamento = false;
+      btn.disabled = false; btn.textContent = 'Confirmar pedido';
+    }
   }
 
   // =====================================================================
