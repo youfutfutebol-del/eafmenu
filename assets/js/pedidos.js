@@ -162,7 +162,7 @@
   * { box-sizing: border-box; }
   body, body * { color:#000 !important; opacity:1 !important; border-color:#000 !important; }
   html { width:80mm; margin:0; padding:0; overflow-x:hidden; }
-  body { width:76mm; max-width:76mm; margin:0; padding:2mm; overflow-x:hidden; font-family:Arial, Helvetica, sans-serif; font-size:12px; line-height:1.35; font-weight:700; background:#fff; overflow-wrap:anywhere; }
+  body { width:72mm; max-width:72mm; margin:0; padding:2mm; overflow-x:hidden; font-family:Arial, Helvetica, sans-serif; font-size:12px; line-height:1.35; font-weight:700; background:#fff; overflow-wrap:anywhere; }
   .restaurante { text-align:center; padding-bottom:8px; }
   .restaurante h1 { margin:0 0 3px; font-size:17px; line-height:1.15; font-weight:900; }
   .restaurante div { font-size:11px; }
