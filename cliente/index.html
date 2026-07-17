@@ -151,6 +151,8 @@
   .prod-card__desc { font-size:12px; color:var(--muted); margin:0 0 9px; line-height:1.45; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
   .prod-card__preco { font-family: var(--font-display); font-weight:700; font-size:14px; margin-top:auto; color: var(--accent); }
   .prod-card__preco .de { font-family: var(--font-body); font-size:11px; color:var(--muted); font-weight:600; }
+  .preco-normal-riscado { color:var(--muted); text-decoration:line-through; font-size:.85em; margin-right:6px; }
+  .preco-promocional { color:var(--accent); font-weight:800; }
   .prod-card__thumb { width:80px; height:80px; border-radius:12px; background: linear-gradient(160deg,#F4F0ED,#EDE7E2); flex-shrink:0; overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:26px; }
   .prod-card__thumb img { width:100%; height:100%; object-fit:cover; }
   .produto-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; background: linear-gradient(160deg,#F4F0ED,#EDE7E2); color:var(--muted); font-family:var(--font-display); font-weight:800; font-size:28px; text-transform:uppercase; }
@@ -210,6 +212,7 @@
   .opcao-row.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, #fff); }
   .opcao-row.disabled { opacity:.4; }
   .opcao-row .preco { font-weight:800; color:var(--muted); font-size:12.5px; }
+  .opcao-row .preco .preco-promocional { color:var(--accent); }
   .opcao-row.selected .preco { color: var(--accent); }
   .sabores-aviso { font-size:11.5px; color:var(--muted); margin: 2px 0 10px; line-height:1.5; }
   .qtd-control { display:flex; align-items:center; gap:16px; justify-content:center; margin: 8px 0 16px; }
@@ -838,7 +841,7 @@
     const { data, error } = await sb.from('produtos')
       .select(`
         id, nome, descricao, imagem_url, categoria_id, grupo_tamanho_id,
-        produto_precos ( id, preco, ativo, opcao_tamanho_id, opcoes_tamanho ( id, nome, ordem ) )
+        produto_precos ( id, preco, preco_promocional, promocao_ativa, ativo, opcao_tamanho_id, opcoes_tamanho ( id, nome, ordem ) )
       `)
       .eq('restaurante_id', restaurante.id)
       .eq('ativo', true);
@@ -852,12 +855,30 @@
 
   function precosAtivos(p) { return (p.produto_precos || []).filter(pp => pp.ativo); }
 
+  function precoPromocionalValido(pp) {
+    const normal = Number(pp?.preco);
+    const promocional = Number(pp?.preco_promocional);
+    return pp?.promocao_ativa === true
+      && Number.isFinite(promocional)
+      && promocional > 0
+      && promocional < normal;
+  }
+
+  function precoEfetivo(pp) {
+    return precoPromocionalValido(pp) ? Number(pp.preco_promocional) : Number(pp.preco);
+  }
+
+  function precoHtml(pp) {
+    if (!precoPromocionalValido(pp)) return formatMoeda(pp.preco);
+    return `<span class="preco-normal-riscado">${formatMoeda(pp.preco)}</span><span class="preco-promocional">${formatMoeda(pp.preco_promocional)}</span>`;
+  }
+
   function precoBaseTexto(p) {
     const precos = precosAtivos(p);
     if (precos.length === 0) return '—';
-    const menor = precos.reduce((min, pp) => Number(pp.preco) < Number(min.preco) ? pp : min, precos[0]);
+    const menor = precos.reduce((min, pp) => precoEfetivo(pp) < precoEfetivo(min) ? pp : min, precos[0]);
     const temTamanho = precos.some(pp => pp.opcao_tamanho_id);
-    return (temTamanho ? '<span class="de">a partir de</span> ' : '') + formatMoeda(menor.preco);
+    return (temTamanho ? '<span class="de">a partir de</span> ' : '') + precoHtml(menor);
   }
 
   // =====================================================================
@@ -936,9 +957,9 @@
       document.getElementById('detTamanhoBlock').classList.remove('hidden');
       const opcoes = precos.map(pp => pp.opcoes_tamanho).filter(Boolean).sort((a, b) => a.ordem - b.ordem);
       document.getElementById('detTamanhoOpcoes').innerHTML = opcoes.map(o => {
-        const preco = precos.find(pp => pp.opcao_tamanho_id === o.id)?.preco || 0;
+        const pp = precos.find(preco => preco.opcao_tamanho_id === o.id);
         return `<div class="opcao-row" data-tam="${o.id}" onclick="selecionarTamanho('${o.id}')">
-          <span>${o.nome}</span><span class="preco">${formatMoeda(preco)}</span>
+          <span>${o.nome}</span><span class="preco">${precoHtml(pp)}</span>
         </div>`;
       }).join('');
       if (opcoes.length) selecionarTamanho(opcoes[0].id);
@@ -1014,18 +1035,18 @@
     const p = detalheProdutoAtual;
     const precos = precosAtivos(p);
     if (!detalheTamanhoSelecionadoId) {
-      return Number(precos[0]?.preco || 0);
+      return precoEfetivo(precos[0]) || 0;
     }
     if (maxSaboresAtual <= 1 || detalheSaboresSelecionados.length <= 1) {
       const pp = precos.find(x => x.opcao_tamanho_id === detalheTamanhoSelecionadoId);
-      return Number(pp?.preco || 0);
+      return precoEfetivo(pp) || 0;
     }
     // média entre os sabores escolhidos, no tamanho selecionado
     let soma = 0, n = 0;
     for (const saborId of detalheSaboresSelecionados) {
       const saborProduto = produtos.find(x => x.id === saborId);
       const pp = (saborProduto?.produto_precos || []).find(x => x.opcao_tamanho_id === detalheTamanhoSelecionadoId && x.ativo);
-      if (pp) { soma += Number(pp.preco); n++; }
+      if (pp) { soma += precoEfetivo(pp); n++; }
     }
     return n ? soma / n : 0;
   }
@@ -1053,7 +1074,7 @@
       nome: nomeExibicao,
       precoUnit: unit,
       qtd: detalheQtd,
-      produtoId: p.id,
+      produtoId: detalheSaboresSelecionados.includes(p.id) ? p.id : detalheSaboresSelecionados[0],
       opcaoTamanhoId: detalheTamanhoSelecionadoId,
       saboresIds: maxSaboresAtual > 1 ? [...detalheSaboresSelecionados] : [p.id]
     });

@@ -734,7 +734,7 @@
       <label>Tamanhos e preços</label>
       <div class="tamanhos-precos-cabecalho" aria-hidden="true">
         <span>Nome do tamanho, opcional</span>
-        <span>Preço</span>
+        <span>Preço normal</span>
         <span></span>
       </div>
       <div id="novosTamanhosRows"></div>
@@ -1057,7 +1057,7 @@
   async function loadProdutos() {
     const { data, error } = await sb
       .from('produtos')
-      .select('id, nome, grupo_tamanho_id, produto_precos(id, preco, opcao_tamanho_id, opcoes_tamanho(nome))')
+      .select('id, nome, grupo_tamanho_id, produto_precos(id, preco, preco_promocional, promocao_ativa, ativo, opcao_tamanho_id, opcoes_tamanho(nome))')
       .eq('restaurante_id', restauranteId)
       .eq('ativo', true);
     if (!error) produtosCache = data || [];

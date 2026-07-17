@@ -217,14 +217,17 @@
   }
 
   function obterOpcoesProdutoFlat() {
-    return produtosCache.flatMap(p => (p.produto_precos || []).map(pp => ({
+    return produtosCache.flatMap(p => (p.produto_precos || []).filter(pp => pp.ativo).map(pp => ({
       precoId: pp.id,
       produtoId: p.id,
       grupoTamanhoId: p.grupo_tamanho_id || null,
       opcaoTamanhoId: pp.opcao_tamanho_id || null,
       nomeProduto: p.nome,
       nomeTamanho: pp.opcoes_tamanho ? pp.opcoes_tamanho.nome : null,
-      preco: Number(pp.preco)
+      precoNormal: Number(pp.preco),
+      precoPromocional: Number(pp.preco_promocional),
+      promocaoAtiva: precoPromocionalValidoManual(pp),
+      preco: precoEfetivoManual(pp)
     })));
   }
 
@@ -236,14 +239,27 @@
       : todas;
     const sel = document.getElementById('mProdutoSelecionado');
     sel.innerHTML = filtradas.length
-      ? filtradas.map(o => `<option value="${escapeHtml(o.precoId)}">${escapeHtml(o.nomeProduto)}${o.nomeTamanho ? ' - ' + escapeHtml(o.nomeTamanho) : ''} (${formatMoeda(o.preco)})</option>`).join('')
+      ? filtradas.map(o => `<option value="${escapeHtml(o.precoId)}">${escapeHtml(o.nomeProduto)}${o.nomeTamanho ? ' - ' + escapeHtml(o.nomeTamanho) : ''} — ${o.promocaoAtiva ? `de ${formatMoeda(o.precoNormal)} por ${formatMoeda(o.preco)}` : formatMoeda(o.preco)}</option>`).join('')
       : '<option value="">Nenhum produto encontrado</option>';
     onProdutoManualChange();
   }
 
+  function precoPromocionalValidoManual(pp) {
+    const normal = Number(pp?.preco);
+    const promocional = Number(pp?.preco_promocional);
+    return pp?.promocao_ativa === true
+      && Number.isFinite(promocional)
+      && promocional > 0
+      && promocional < normal;
+  }
+
+  function precoEfetivoManual(pp) {
+    return precoPromocionalValidoManual(pp) ? Number(pp.preco_promocional) : Number(pp.preco);
+  }
+
   function obterPrecoSaborManual(produto, opcaoTamanhoId) {
-    const preco = (produto?.produto_precos || []).find(pp => (pp.opcao_tamanho_id || null) === opcaoTamanhoId);
-    const valor = Number(preco?.preco);
+    const preco = (produto?.produto_precos || []).find(pp => pp.ativo && (pp.opcao_tamanho_id || null) === opcaoTamanhoId);
+    const valor = precoEfetivoManual(preco);
     return preco && Number.isFinite(valor) && valor > 0 ? { ...preco, valor } : null;
   }
 

@@ -8,6 +8,25 @@
   const categoriasProdutosAbertas = new Set();
   const CATEGORIA_SEM_CATEGORIA = '__sem_categoria__';
 
+  function precoPromocionalValido(pp) {
+    const normal = Number(pp?.preco);
+    const promocional = Number(pp?.preco_promocional);
+    return pp?.promocao_ativa === true
+      && Number.isFinite(promocional)
+      && promocional > 0
+      && promocional < normal;
+  }
+
+  function precoEfetivo(pp) {
+    return precoPromocionalValido(pp) ? Number(pp.preco_promocional) : Number(pp.preco);
+  }
+
+  function precoProdutoAdminHtml(pp) {
+    const normal = escapeHtml(formatMoeda(pp.preco));
+    if (!precoPromocionalValido(pp)) return `<b>${normal}</b>`;
+    return `<span class="preco-normal-riscado">${normal}</span><b class="preco-promocional">${escapeHtml(formatMoeda(pp.preco_promocional))}</b><span class="promo-badge">Promoção</span>`;
+  }
+
   async function loadCategorias() {
     const { data, error } = await sb.from('categorias')
       .select('id, nome, ordem')
@@ -104,7 +123,7 @@
       .select(`
         id, nome, descricao, imagem_url, ativo, categoria_id, grupo_tamanho_id,
         categorias ( nome ),
-        produto_precos ( id, preco, ativo, opcao_tamanho_id, opcoes_tamanho ( nome ) )
+        produto_precos ( id, preco, preco_promocional, promocao_ativa, ativo, opcao_tamanho_id, opcoes_tamanho ( nome ) )
       `)
       .eq('restaurante_id', restauranteId)
       .order('nome', { ascending: true });
@@ -153,14 +172,14 @@
 
       let precoHtml = '—';
       if (precosAtivos.length === 1 && !precosAtivos[0].opcoes_tamanho) {
-        precoHtml = formatMoeda(precosAtivos[0].preco);
+        precoHtml = `<span class="produto-preco-admin">${precoProdutoAdminHtml(precosAtivos[0])}</span>`;
       } else if (precosAtivos.length >= 1) {
         precoHtml = '<div class="price-tags">' + precosAtivos
           .slice()
-          .sort((a, b) => Number(a.preco) - Number(b.preco))
+          .sort((a, b) => precoEfetivo(a) - precoEfetivo(b))
           .map(pp => pp.opcoes_tamanho?.nome
-            ? `<span class="price-tag">${escapeHtml(pp.opcoes_tamanho.nome)}: <b>${escapeHtml(formatMoeda(pp.preco))}</b></span>`
-            : `<span class="price-tag"><b>${escapeHtml(formatMoeda(pp.preco))}</b></span>`)
+            ? `<span class="price-tag">${escapeHtml(pp.opcoes_tamanho.nome)}: <span class="price-tag__valores">${precoProdutoAdminHtml(pp)}</span></span>`
+            : `<span class="price-tag"><span class="price-tag__valores">${precoProdutoAdminHtml(pp)}</span></span>`)
           .join('') + '</div>';
       }
 
@@ -241,8 +260,13 @@
     await loadProdutos();
   }
 
-  function addNovoTamanhoRow(nome, preco) {
-    novosTamanhosState.push({ nome: nome ?? '', preco: preco ?? '' });
+  function addNovoTamanhoRow(nome, preco, promocaoAtiva, precoPromocional) {
+    novosTamanhosState.push({
+      nome: nome ?? '',
+      preco: preco ?? '',
+      promocaoAtiva: promocaoAtiva === true,
+      precoPromocional: precoPromocional ?? ''
+    });
     renderNovosTamanhosRows();
   }
 
@@ -263,9 +287,18 @@
     }
     wrap.innerHTML = novosTamanhosState.map((t, i) => `
       <div class="novo-tamanho-row">
-        <input class="nome" aria-label="Nome do tamanho, opcional" placeholder="Ex: Grande, 30 cm, Família" value="${escapeHtml(t.nome)}" oninput="atualizarNovoTamanho(${i}, 'nome', this.value)">
-        <input class="preco" aria-label="Preço" type="number" step="0.01" min="0" placeholder="0,00" value="${escapeHtml(t.preco)}" oninput="atualizarNovoTamanho(${i}, 'preco', this.value)">
-        <button type="button" class="remove" onclick="removeNovoTamanhoRow(${i})" aria-label="Remover tamanho" title="Remover">✕</button>
+        <div class="novo-tamanho-principal">
+          <input class="nome" aria-label="Nome do tamanho, opcional" placeholder="Ex: Grande, 30 cm, Família" value="${escapeHtml(t.nome)}" oninput="atualizarNovoTamanho(${i}, 'nome', this.value)">
+          <input class="preco" aria-label="Preço normal" type="number" step="0.01" min="0" placeholder="0,00" value="${escapeHtml(t.preco)}" oninput="atualizarNovoTamanho(${i}, 'preco', this.value)">
+          <button type="button" class="remove" onclick="removeNovoTamanhoRow(${i})" aria-label="Remover tamanho" title="Remover">✕</button>
+        </div>
+        <div class="novo-tamanho-promocao">
+          <label>
+            <input type="checkbox" ${t.promocaoAtiva ? 'checked' : ''} onchange="atualizarNovoTamanho(${i}, 'promocaoAtiva', this.checked)">
+            <span>Ativar promoção</span>
+          </label>
+          <input class="preco-promocional-input" aria-label="Preço promocional" type="number" step="0.01" min="0" placeholder="Preço promocional" value="${escapeHtml(t.precoPromocional)}" oninput="atualizarNovoTamanho(${i}, 'precoPromocional', this.value)">
+        </div>
       </div>`).join('');
   }
 
@@ -295,7 +328,9 @@
 
     const tamanhos = linhas.map(linha => ({
       nome: String(linha.nome ?? ''),
-      preco: Number(linha.preco)
+      preco: Number(linha.preco),
+      promocaoAtiva: linha.promocaoAtiva === true,
+      precoPromocional: String(linha.precoPromocional ?? '').trim()
     }));
     if (linhas.some(linha => String(linha.preco ?? '').trim() === '') || tamanhos.some(t => !Number.isFinite(t.preco) || t.preco <= 0)) {
       return { erro: ['Preço inválido', 'Informe um preço maior que zero em todas as linhas.'] };
@@ -310,6 +345,24 @@
     }
     if (permitirCombinar && tamanhos.some(t => !t.nome.trim())) {
       return { erro: ['Nomeie o tamanho', 'Para combinar sabores, todas as linhas precisam ter nome.'] };
+    }
+
+    for (const tamanho of tamanhos) {
+      if (tamanho.promocaoAtiva && !tamanho.precoPromocional) {
+        return { erro: ['Promoção inválida', 'Informe o preço promocional.'] };
+      }
+      if (!tamanho.precoPromocional) continue;
+      if (!/^-?\d+(?:[.,]\d{1,2})?$/.test(tamanho.precoPromocional)) {
+        return { erro: ['Promoção inválida', 'Use no máximo duas casas decimais.'] };
+      }
+      const promocional = Number(tamanho.precoPromocional.replace(',', '.'));
+      if (!Number.isFinite(promocional) || promocional <= 0) {
+        return { erro: ['Promoção inválida', 'O preço promocional deve ser maior que zero.'] };
+      }
+      if (promocional >= tamanho.preco) {
+        return { erro: ['Promoção inválida', 'O preço promocional deve ser menor que o preço normal.'] };
+      }
+      tamanho.precoPromocional = promocional;
     }
 
     const maxSabores = permitirCombinar ? Number(maxSaboresValor) : 1;
@@ -385,7 +438,7 @@
     document.getElementById('pAtivo').checked = true;
     document.getElementById('pPermitirCombinar').checked = false;
     document.getElementById('pMaxSabores').value = 2;
-    novosTamanhosState = [{ nome: '', preco: '' }];
+    novosTamanhosState = [{ nome: '', preco: '', promocaoAtiva: false, precoPromocional: '' }];
     renderNovosTamanhosRows();
     onPermitirCombinarChange();
     document.getElementById('produtoModalBg').classList.add('show');
@@ -414,10 +467,21 @@
     document.getElementById('pAtivo').checked = p.ativo;
     const precos = p.produto_precos || [];
     const grupo = gruposTamanhoCache.find(g => g.id === p.grupo_tamanho_id);
-    const precoPorOpcao = new Map(precos.map(pp => [pp.opcao_tamanho_id, pp.preco]));
+    const precoPorOpcao = new Map(precos.map(pp => [pp.opcao_tamanho_id, pp]));
     novosTamanhosState = grupo?.opcoes_tamanho?.length
-      ? grupo.opcoes_tamanho.map(opcao => ({ nome: opcao.nome, preco: precoPorOpcao.get(opcao.id) ?? '' }))
-      : [{ nome: '', preco: precos.find(pp => !pp.opcao_tamanho_id)?.preco ?? '' }];
+      ? grupo.opcoes_tamanho.map(opcao => {
+        const pp = precoPorOpcao.get(opcao.id);
+        return {
+          nome: opcao.nome,
+          preco: pp?.preco ?? '',
+          promocaoAtiva: pp?.promocao_ativa === true,
+          precoPromocional: pp?.preco_promocional ?? ''
+        };
+      })
+      : (() => {
+        const pp = precos.find(preco => !preco.opcao_tamanho_id);
+        return [{ nome: '', preco: pp?.preco ?? '', promocaoAtiva: pp?.promocao_ativa === true, precoPromocional: pp?.preco_promocional ?? '' }];
+      })();
     document.getElementById('pPermitirCombinar').checked = Number(grupo?.max_sabores || 1) > 1;
     document.getElementById('pMaxSabores').value = Math.max(2, Number(grupo?.max_sabores || 2));
     renderNovosTamanhosRows();
@@ -452,7 +516,12 @@
     let precosParaSalvar = [];
 
     if (!usaGrupo) {
-      precosParaSalvar = [{ opcao_tamanho_id: null, preco: tamanhos[0].preco }];
+      precosParaSalvar = [{
+        opcao_tamanho_id: null,
+        preco: tamanhos[0].preco,
+        preco_promocional: tamanhos[0].precoPromocional || null,
+        promocao_ativa: tamanhos[0].promocaoAtiva
+      }];
     } else {
       let grupo = permitirCombinar
         ? encontrarGrupoCompativel(categoria_id, tamanhos, maxSabores, id)
@@ -468,7 +537,9 @@
       grupo_tamanho_id = grupo.id;
       precosParaSalvar = grupo.opcoes_tamanho.map((opcao, i) => ({
         opcao_tamanho_id: opcao.id,
-        preco: tamanhos[i].preco
+        preco: tamanhos[i].preco,
+        preco_promocional: tamanhos[i].precoPromocional || null,
+        promocao_ativa: tamanhos[i].promocaoAtiva
       }));
     }
 
