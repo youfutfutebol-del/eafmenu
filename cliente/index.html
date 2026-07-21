@@ -515,6 +515,7 @@
   let restaurante = null;
   let categorias = [];
   let produtos = [];
+  let gruposTamanho = [];
   let cliente = null; // { id, nome, telefone }
   let cart = []; // { uid, nome, precoUnit, qtd, produtoId, opcaoTamanhoId, saboresIds:[] }
 
@@ -556,14 +557,14 @@
 
     if (!restauranteSlug) { showInvalido(); return; }
 
-    const { data, error } = await sb.from('restaurantes_publico')
-      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horarios_semana, taxa_entrega_padrao, prazo_entrega_min_minutos, prazo_entrega_max_minutos')
-      .eq('slug', restauranteSlug)
-      .maybeSingle();
+    const { data, error } = await sb.rpc('restaurante_publico_por_slug', {
+      p_slug: restauranteSlug
+    });
+    const restauranteEncontrado = Array.isArray(data) ? data[0] : data;
 
-    if (error || !data) { showInvalido(); return; }
+    if (error || !restauranteEncontrado) { showInvalido(); return; }
 
-    restaurante = data;
+    restaurante = restauranteEncontrado;
     localStorage.setItem('eaf_ultimo_restaurante', restauranteSlug);
     aplicarMarca();
     subscribeConfiguracaoPublica();
@@ -571,7 +572,7 @@
     await carregarSessaoCliente();
     atualizarSaudacao();
 
-    await Promise.all([loadCategorias(), loadProdutos()]);
+    await loadCardapio();
     renderCardapio();
     atualizarCartFab();
     await atualizarBadgePedidos();
@@ -641,18 +642,17 @@
   async function recarregarConfiguracaoPublica() {
     if (!restaurante?.id) return;
 
-    const { data, error } = await sb
-      .from('restaurantes_publico')
-      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horarios_semana, taxa_entrega_padrao, prazo_entrega_min_minutos, prazo_entrega_max_minutos')
-      .eq('id', restaurante.id)
-      .maybeSingle();
+    const { data, error } = await sb.rpc('restaurante_publico_por_slug', {
+      p_slug: restauranteSlug
+    });
+    const restauranteAtualizado = Array.isArray(data) ? data[0] : data;
 
-    if (error || !data) {
+    if (error || !restauranteAtualizado) {
       console.warn('Não foi possível atualizar a configuração pública:', error);
       return;
     }
 
-    restaurante = data;
+    restaurante = restauranteAtualizado;
     aplicarMarca();
     atualizarStatusAberto();
   }
@@ -829,23 +829,39 @@
   // =====================================================================
   // CATEGORIAS E PRODUTOS
   // =====================================================================
-  async function loadCategorias() {
-    const { data, error } = await sb.from('categorias')
-      .select('id, nome, ordem')
-      .eq('restaurante_id', restaurante.id)
-      .order('ordem', { ascending: true });
-    if (!error) categorias = data || [];
-  }
+  async function loadCardapio() {
+    const { data, error } = await sb.rpc('cardapio_publico_por_slug', {
+      p_slug: restauranteSlug
+    });
 
-  async function loadProdutos() {
-    const { data, error } = await sb.from('produtos')
-      .select(`
-        id, nome, descricao, imagem_url, categoria_id, grupo_tamanho_id,
-        produto_precos ( id, preco, preco_promocional, promocao_ativa, ativo, opcao_tamanho_id, opcoes_tamanho ( id, nome, ordem ) )
-      `)
-      .eq('restaurante_id', restaurante.id)
-      .eq('ativo', true);
-    if (!error) produtos = data || [];
+    if (error) {
+      console.error('Não foi possível carregar o cardápio público:', error);
+      categorias = [];
+      produtos = [];
+      gruposTamanho = [];
+      return;
+    }
+
+    const cardapio = Array.isArray(data) ? data[0] : data;
+    const opcoesTamanho = Array.isArray(cardapio?.opcoes_tamanho) ? cardapio.opcoes_tamanho : [];
+    const opcoesPorId = new Map(opcoesTamanho.map(opcao => [opcao.id, opcao]));
+
+    categorias = Array.isArray(cardapio?.categorias) ? cardapio.categorias : [];
+    produtos = (Array.isArray(cardapio?.produtos) ? cardapio.produtos : []).map(produto => ({
+      ...produto,
+      produto_precos: (Array.isArray(produto.produto_precos) ? produto.produto_precos : []).map(preco => ({
+        ...preco,
+        opcoes_tamanho: preco.opcao_tamanho_id
+          ? opcoesPorId.get(preco.opcao_tamanho_id) || null
+          : null
+      }))
+    }));
+    gruposTamanho = (Array.isArray(cardapio?.grupos_tamanho) ? cardapio.grupos_tamanho : []).map(grupo => ({
+      ...grupo,
+      opcoes_tamanho: opcoesTamanho
+        .filter(opcao => opcao.grupo_id === grupo.id)
+        .sort((a, b) => Number(a.ordem) - Number(b.ordem))
+    }));
   }
 
   function grupoDoProduto(p) {
@@ -977,7 +993,7 @@
     document.getElementById('detSaboresBlock').classList.add('hidden');
     if (!p.grupo_tamanho_id) { maxSaboresAtual = 1; return; }
 
-    const { data: grupo } = await sb.from('grupos_tamanho').select('id, max_sabores').eq('id', p.grupo_tamanho_id).single();
+    const grupo = gruposTamanho.find(item => item.id === p.grupo_tamanho_id);
     maxSaboresAtual = grupo?.max_sabores || 1;
     if (maxSaboresAtual <= 1) return;
 
