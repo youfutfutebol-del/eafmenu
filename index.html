@@ -92,6 +92,7 @@
       <button class="navitem" id="navFinanceiro" onclick="switchView('financeiro')" style="display:none"><span class="ic">💰</span> Caixa</button>
       <button class="navitem" id="navRelatorio" onclick="switchView('relatorio')" style="display:none"><span class="ic">📊</span> Relatório Financeiro</button>
       <button class="navitem" id="navProdutos" onclick="switchView('produtos')"><span class="ic">🛍️</span> Produtos</button>
+      <button class="navitem" id="navPromocoes" onclick="switchView('promocoes')"><span class="ic">🎁</span> Promoções</button>
       <button class="navitem" id="navCategorias" onclick="switchView('categorias')"><span class="ic">🗂️</span> Categorias</button>
       <button class="navitem" id="navClientes" onclick="switchView('clientes')"><span class="ic">👥</span> Clientes</button>
       <button class="navitem" id="navEntregadores" onclick="switchView('entregadores')"><span class="ic">🚚</span> Entregadores (Motoboys)</button>
@@ -348,6 +349,23 @@
         </div>
       </div>
 
+      <div class="view" id="viewPromocoes">
+        <div class="main__header">
+          <div>
+            <h1 class="main__title">Promoções</h1>
+            <p class="main__subtitle">Crie campanhas como “compre 2 e ganhe 1” ou “leve 3 e pague 2”.</p>
+          </div>
+          <div class="actions"><button class="btn primary" id="novaPromocaoBtn" onclick="openPromocao()">+ Nova promoção</button></div>
+        </div>
+        <div id="promocoesFeedback" class="promocoes-feedback" role="status" aria-live="polite"></div>
+        <table class="data-table promocoes-table">
+          <thead><tr><th>Nome</th><th>Condição</th><th>Benefício</th><th>Status</th><th>Limite/pedido</th><th>Ações</th></tr></thead>
+          <tbody id="promocoesTableBody">
+            <tr><td colspan="6"><div class="empty-state"><div class="ic">🎁</div><h4>Nenhuma promoção cadastrada</h4><p>Crie sua primeira campanha para incentivar novas compras.</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
       <div class="view" id="viewCategorias">
         <div class="main__header">
           <div>
@@ -484,6 +502,49 @@
       </div>
 
     </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="promocaoModalBg" onclick="if(event.target===this) closePromocao()">
+  <div class="modal promocao-modal" role="dialog" aria-modal="true" aria-labelledby="promocaoModalTitle">
+    <div class="promocao-modal__header">
+      <div><h3 id="promocaoModalTitle">Nova promoção</h3><p id="promocaoModalHint">Defina a condição e o benefício da campanha.</p></div>
+      <button class="promocao-close" type="button" onclick="closePromocao()" aria-label="Fechar">×</button>
+    </div>
+    <input type="hidden" id="promoId">
+    <div class="promo-section">
+      <h4>Dados gerais</h4>
+      <div class="promo-grid">
+        <div class="field promo-span-2"><label for="promoNome">Nome da promoção</label><input id="promoNome" maxlength="100" placeholder="Ex.: Leve 3 doces e pague 2"></div>
+        <div class="field"><label for="promoCondicaoQtd">Quantidade necessária</label><input id="promoCondicaoQtd" type="number" min="1" step="1" value="2"></div>
+        <div class="field"><label for="promoBeneficioQtd">Quantidade do benefício</label><input id="promoBeneficioQtd" type="number" min="1" step="1" value="1"></div>
+        <div class="field"><label for="promoPercentual">Percentual de desconto</label><input id="promoPercentual" type="number" min="1" max="100" step="1" value="100"><small>100% = grátis; 50% = metade do preço; 10% = 10% de desconto.</small></div>
+        <div class="field"><label for="promoLimite">Máximo de aplicações por pedido (opcional)</label><input id="promoLimite" type="number" min="1" step="1" placeholder="Sem limite"></div>
+      </div>
+      <button class="promo-shortcut" type="button" onclick="aplicarAtalhoLevePague()">Atalho: Leve X, pague Y</button>
+      <div id="promoAtalhoCampos" class="promo-atalho-campos" hidden>
+        <div class="field"><label for="promoLeveX">Leve</label><input id="promoLeveX" type="number" min="2" step="1" value="3" oninput="atualizarAtalhoLevePague()"></div>
+        <div class="field"><label for="promoPagueY">Pague</label><input id="promoPagueY" type="number" min="1" step="1" value="2" oninput="atualizarAtalhoLevePague()"></div>
+      </div>
+    </div>
+    <div class="promo-section">
+      <h4>O cliente precisa comprar</h4>
+      <div class="promo-grid">
+        <div class="field"><label for="promoCondicaoTipo">Tipo de condição</label><select id="promoCondicaoTipo" onchange="renderPromocaoEscopos()"><option value="produto">Um produto</option><option value="lista">Uma lista de produtos</option><option value="categoria">Uma categoria</option></select></div>
+        <div id="promoCondicaoCampos" class="promo-span-2"></div>
+      </div>
+    </div>
+    <div class="promo-section">
+      <h4>Benefício</h4>
+      <div class="field promo-modo"><label for="promoBeneficioModo">Como aplicar o benefício</label><select id="promoBeneficioModo" onchange="onPromocaoModoChange()"><option value="produto_fixo">Produto definido pelo restaurante</option><option value="escolha_cliente">Cliente escolhe entre as opções</option><option value="menor_preco_elegivel">Aplicar no item elegível de menor preço</option></select></div>
+      <div class="promo-grid">
+        <div class="field"><label for="promoBeneficioTipo">Escopo do benefício</label><select id="promoBeneficioTipo" onchange="renderPromocaoEscopos()"><option value="produto">Um produto</option><option value="lista">Uma lista de produtos</option><option value="categoria">Uma categoria</option></select></div>
+        <div id="promoBeneficioCampos" class="promo-span-2"></div>
+      </div>
+    </div>
+    <div class="promo-preview"><b>Resultado:</b> <span id="promoResumoPreview">Preencha os dados da campanha.</span></div>
+    <div id="promoFormError" class="promo-form-error" role="alert"></div>
+    <div class="modal-actions"><button class="btn" type="button" onclick="closePromocao()">Cancelar</button><button class="btn primary" id="salvarPromocaoBtn" type="button" onclick="submitPromocao()">Salvar rascunho</button></div>
   </div>
 </div>
 
@@ -882,6 +943,7 @@
 <script src="/assets/js/pedidos-utils.js"></script>
 <script src="/assets/js/pedidos.js"></script>
 <script src="/assets/js/produtos-categorias.js"></script>
+<script src="/assets/js/promocoes.js"></script>
 <script src="/assets/js/clientes-entregadores.js"></script>
 <script src="/assets/js/financeiro-caixa.js"></script>
 <script src="/assets/js/relatorio-financeiro.js"></script>
@@ -1028,7 +1090,7 @@
     if (view === 'relatorio' && currentUser?.role !== 'dono') return;
 
     currentView = view;
-    const views = ['pedidos', 'financeiro', 'relatorio', 'produtos', 'categorias', 'clientes', 'entregadores', 'equipe', 'marca'];
+    const views = ['pedidos', 'financeiro', 'relatorio', 'produtos', 'promocoes', 'categorias', 'clientes', 'entregadores', 'equipe', 'marca'];
     views.forEach(v => {
       const viewEl = document.getElementById('view' + capitalize(v));
       if (viewEl) viewEl.classList.toggle('active', view === v);
@@ -1039,6 +1101,7 @@
     if (view === 'financeiro') { loadMovimentacoes(); loadCaixaAtual(); }
     if (view === 'relatorio') loadRelatorioFinanceiro();
     if (view === 'produtos') loadProdutosAdmin();
+    if (view === 'promocoes') loadPromocoes();
     if (view === 'categorias') loadCategoriasAdmin();
     if (view === 'clientes') loadClientes();
     if (view === 'entregadores') loadEntregadores();
