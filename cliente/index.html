@@ -803,10 +803,27 @@
   // =====================================================================
   function chaveSessao() { return 'eaf_cliente_' + restauranteSlug; }
 
+  function dadosClienteParaCache(c) {
+    return { id: c.id, nome: c.nome, telefone: c.telefone };
+  }
+
+  function limparSessaoCliente() {
+    cliente = null;
+    localStorage.removeItem(chaveSessao());
+    atualizarSaudacao();
+  }
+
+  function erroSessaoInvalida(error) {
+    return error?.code === '28000' || error?.code === 'PGRST301' || error?.status === 401;
+  }
+
   async function carregarSessaoCliente() {
     cliente = null;
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) return;
+    const { data: { session }, error: sessionError } = await sb.auth.getSession();
+    if (sessionError || !session) {
+      limparSessaoCliente();
+      return;
+    }
 
     // sessão anônima ativa nesse aparelho: verifica se já existe cadastro pra ESTE restaurante
     const { data, error } = await sb.from('clientes')
@@ -816,13 +833,15 @@
       .maybeSingle();
 
     if (!error && data) {
-      cliente = data;
-      localStorage.setItem(chaveSessao(), JSON.stringify(data));
+      salvarSessaoCliente(data);
+    } else if (!error || erroSessaoInvalida(error)) {
+      limparSessaoCliente();
     }
   }
   function salvarSessaoCliente(c) {
-    cliente = c;
-    localStorage.setItem(chaveSessao(), JSON.stringify(c));
+    const dadosSeguros = dadosClienteParaCache(c);
+    cliente = dadosSeguros;
+    localStorage.setItem(chaveSessao(), JSON.stringify(dadosSeguros));
     atualizarSaudacao();
   }
 
@@ -1205,30 +1224,40 @@
     btn.disabled = true; btn.textContent = 'Só um instante...';
 
     try {
-      let { data: { session } } = await sb.auth.getSession();
+      let { data: { session }, error: sessionError } = await sb.auth.getSession();
+      if (sessionError) limparSessaoCliente();
       if (!session) {
-        let { data, error } = await sb.auth.signInAnonymously();
-        if (error) {
-          // Tenta mais uma vez antes de desistir (falha passageira de rede/servidor)
-          await new Promise(r => setTimeout(r, 800));
-          ({ data, error } = await sb.auth.signInAnonymously());
-          if (error) throw error;
-        }
+        limparSessaoCliente();
+        const { data, error } = await sb.auth.signInAnonymously();
+        if (error) throw error;
         session = data.session;
       }
 
-      const { data: novoCliente, error: cliErr } = await sb.rpc('vincular_cliente_por_telefone', {
+      const identificarCliente = () => sb.rpc('criar_ou_atualizar_cliente_sessao_v2', {
         p_restaurante_id: restaurante.id,
-        p_telefone: telefone,
-        p_nome: nome
+        p_nome: nome,
+        p_telefone: telefone
       });
+
+      let { data: novoCliente, error: cliErr } = await identificarCliente();
+      if (cliErr?.code === '28000') {
+        limparSessaoCliente();
+        await sb.auth.signOut({ scope: 'local' });
+
+        const { error: renovarErro } = await sb.auth.signInAnonymously();
+        if (renovarErro) throw renovarErro;
+
+        ({ data: novoCliente, error: cliErr } = await identificarCliente());
+      }
       if (cliErr) throw cliErr;
 
       salvarSessaoCliente(novoCliente);
       irParaStep(2);
     } catch (e) {
-      console.error(e);
-      erroEl.textContent = 'Não foi possível continuar agora. Verifique sua internet e tente de novo.';
+      console.error('Falha ao identificar cliente:', e?.code || 'erro');
+      erroEl.textContent = e?.code === 'P0001' || e?.code === '28000'
+        ? 'Não foi possível concluir a identificação com os dados informados. Confira os dados ou utilize este dispositivo em que seus pedidos foram realizados.'
+        : 'Não foi possível continuar agora. Verifique sua internet e tente de novo.';
       erroEl.classList.remove('hidden');
     } finally {
       btn.disabled = false; btn.textContent = 'Continuar';
