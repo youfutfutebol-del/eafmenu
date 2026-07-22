@@ -75,7 +75,7 @@ async function avaliarSessaoPainel() {
 
 function iniciarControleSessaoPainel() {
   if (sessionGuardStarted) return;
-  const appAberto = document.getElementById('app')?.style.display === 'block';
+  const appAberto = document.getElementById('app')?.hidden === false;
   if (!appAberto || !currentUser) return;
 
   prepararSessionGuardPainel(false);
@@ -168,8 +168,7 @@ async function enviarRecuperacaoSenha() {
 }
 
 function mostrarTelaNovaSenhaRecuperacao() {
-  document.getElementById('initialLoading').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'flex';
+  showScreen(APP_SCREEN.LOGIN);
   document.getElementById('stepLogin').style.display = 'none';
   document.getElementById('stepEsqueciSenha').style.display = 'none';
   document.getElementById('stepNovaSenha').style.display = 'block';

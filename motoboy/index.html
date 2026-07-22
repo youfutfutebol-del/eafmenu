@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="app-booting">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -12,6 +12,11 @@
 <meta name="apple-mobile-web-app-title" content="EAF Motoboy">
 <link rel="apple-touch-icon" href="/icons/icon192.png">
 <link rel="icon" href="/icons/icon192.png">
+<style>
+  [hidden] { display:none !important; }
+  html.app-booting body > :not(#initialLoading) { display:none !important; }
+  html.app-booting #initialLoading { display:flex !important; }
+</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -67,8 +72,8 @@
   .initial-loading__actions button.secondary { background:transparent; color:#fff; }
   @keyframes initial-spin { to { transform:rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .initial-loading__spinner { animation:none; border-top-color:rgba(255,255,255,.25); } }
-  #loginScreen { display:none; }
-  #primeiroAcessoScreen { display:none; }
+  #loginScreen { display:flex; }
+  #primeiroAcessoScreen { display:flex; }
   .login-card { background: var(--surface); border-radius:20px; padding: 36px 28px; width: 340px; max-width:100%; text-align:center; box-shadow: var(--shadow-lg); }
   .login-card .badge { width:58px; height:58px; border-radius:16px; margin: 0 auto 16px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
   .login-card .badge img { width:100%; height:100%; object-fit:contain; }
@@ -93,7 +98,7 @@
   .install-btn.show { display:inline-flex; }
 
   /* ---------- App ---------- */
-  #app { display:none; min-height:100vh; padding-bottom: 40px; }
+  #app { display:block; min-height:100vh; padding-bottom: 40px; }
 
   .topbar {
     background: var(--chrome-escuro); color:#fff; padding: max(18px, env(safe-area-inset-top)) 20px 18px;
@@ -208,7 +213,7 @@
   </div>
 </div>
 
-<div id="loginScreen">
+<div id="loginScreen" hidden>
   <div class="login-card">
     <div class="badge"><img src="/icons/icon512.png" alt="EAF Menu"></div>
     <h2>EAF Menu — Motoboy</h2>
@@ -240,7 +245,7 @@
   </div>
 </div>
 
-<div id="primeiroAcessoScreen">
+<div id="primeiroAcessoScreen" hidden>
   <div class="login-card">
     <div class="badge"><img src="/icons/icon512.png" alt="EAF Menu"></div>
     <h2>Defina sua senha</h2>
@@ -252,7 +257,7 @@
   </div>
 </div>
 
-<div id="app">
+<div id="app" hidden>
   <div class="topbar">
     <div class="topbar__row">
       <div>
@@ -273,8 +278,8 @@
   </div>
 
   <div class="stats-row">
-    <div class="stat-card"><div class="num" id="statHoje">0</div><div class="label">Hoje</div></div>
-    <div class="stat-card"><div class="num" id="statTotal">0</div><div class="label">Total</div></div>
+    <div class="stat-card"><div class="num" id="statHoje">—</div><div class="label">Hoje</div></div>
+    <div class="stat-card"><div class="num" id="statTotal">—</div><div class="label">Total</div></div>
   </div>
 
   <div class="tabs-seg">
@@ -287,8 +292,8 @@
       <div id="entregasList">
         <div class="empty-state">
           <div class="ic">🛵</div>
-          <h4>Nenhuma entrega no momento</h4>
-          <p>Assim que o restaurante atribuir uma entrega a você, ela aparece aqui.</p>
+          <h4>Carregando entregas...</h4>
+          <p>A estrutura da rota já está pronta.</p>
         </div>
       </div>
     </div>
@@ -353,42 +358,49 @@
     sb = supabase.createClient(url, anonKey, { auth: { storageKey: 'eaf-motoboy-auth' } });
   }
 
-  const AUTH_STATE = Object.freeze({ LOADING: 'authLoading', AUTHENTICATED: 'authenticated', UNAUTHENTICATED: 'unauthenticated' });
-  let authState = AUTH_STATE.LOADING;
+  const APP_SCREEN = Object.freeze({ LOADING: 'loading', LOGIN: 'login', APP: 'app', ERROR: 'error', FIRST_ACCESS: 'firstAccess' });
+  const SCREEN_IDS = Object.freeze({
+    loading: 'initialLoading', error: 'initialLoading', login: 'loginScreen', app: 'app', firstAccess: 'primeiroAcessoScreen'
+  });
   const STARTUP_TIMEOUT_MS = 15000;
+  let currentScreen = APP_SCREEN.LOADING;
+  let bootPromise = null;
+  let bootSequence = 0;
 
-  function setInitialScreen(state, message = 'Carregando...') {
-    authState = state;
-    document.getElementById('initialLoading').style.display = state === AUTH_STATE.LOADING ? 'flex' : 'none';
-    document.getElementById('loginScreen').style.display = state === AUTH_STATE.UNAUTHENTICATED ? 'flex' : 'none';
-    if (state !== AUTH_STATE.AUTHENTICATED) document.getElementById('app').style.display = 'none';
+  function showScreen(screen, message = 'Carregando...') {
+    currentScreen = screen;
+    document.documentElement.classList.remove('app-booting');
+    const targetId = SCREEN_IDS[screen];
+    new Set(Object.values(SCREEN_IDS)).forEach(id => {
+      document.getElementById(id).hidden = id !== targetId;
+    });
     document.getElementById('initialLoadingMessage').textContent = message;
-    document.getElementById('initialLoadingActions').classList.remove('show');
+    document.getElementById('initialLoadingActions').classList.toggle('show', screen === APP_SCREEN.ERROR);
   }
 
   function showStartupError(message) {
-    document.getElementById('initialLoading').style.display = 'flex';
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('initialLoadingMessage').textContent = message;
-    document.getElementById('initialLoadingActions').classList.add('show');
+    showScreen(APP_SCREEN.ERROR, message);
   }
 
-  function withStartupTimeout(promise) {
-    return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('STARTUP_TIMEOUT')), STARTUP_TIMEOUT_MS))]);
+  function withStartupTimeout(promise, onTimeout) {
+    return Promise.race([promise, new Promise((_, reject) => setTimeout(() => {
+      onTimeout?.();
+      reject(new Error('STARTUP_TIMEOUT'));
+    }, STARTUP_TIMEOUT_MS))]);
   }
 
   async function sairDaInicializacao() {
     if (sb) await sb.auth.signOut().catch(() => {});
-    setInitialScreen(AUTH_STATE.UNAUTHENTICATED);
+    showScreen(APP_SCREEN.LOGIN);
   }
 
   async function bootSeguro() {
-    try {
-      await withStartupTimeout(boot());
-      return true;
-    } catch (e) {
-      console.error(e);
+    if (bootPromise) return bootPromise;
+    const sequence = ++bootSequence;
+    const run = withStartupTimeout(boot(sequence), () => {
+      if (bootSequence === sequence) bootSequence++;
+    }).then(() => true).catch(e => {
+      if (e.message === 'BOOT_ABORTED') return false;
       const message = e.message === 'ROLE_INVALID'
         ? 'Esta conta não é de um motoboy. Use o painel da equipe.'
         : e.message === 'USER_INACTIVE'
@@ -398,7 +410,15 @@
             : 'Não foi possível carregar seus dados. Verifique sua conexão e tente novamente.';
       showStartupError(message);
       return false;
-    }
+    }).finally(() => {
+      if (bootPromise === run) bootPromise = null;
+    });
+    bootPromise = run;
+    return run;
+  }
+
+  function assertBootActive(sequence) {
+    if (sequence !== bootSequence) throw new Error('BOOT_ABORTED');
   }
 
   let currentUser = null;
@@ -486,7 +506,7 @@
 
   function iniciarControleSessaoMotoboy() {
     if (sessionGuardStarted) return;
-    const appAberto = document.getElementById('app')?.style.display === 'block';
+    const appAberto = document.getElementById('app')?.hidden === false;
     if (!appAberto || !currentUser) return;
 
     prepararSessionGuardMotoboy(false);
@@ -573,8 +593,7 @@
   }
 
   function mostrarTelaNovaSenhaRecuperacao() {
-    document.getElementById('initialLoading').style.display = 'none';
-    document.getElementById('loginScreen').style.display = 'flex';
+    showScreen(APP_SCREEN.LOGIN);
     document.getElementById('stepLogin').style.display = 'none';
     document.getElementById('stepEsqueciSenha').style.display = 'none';
     document.getElementById('stepNovaSenha').style.display = 'block';
@@ -608,12 +627,13 @@
   // =====================================================================
   // BOOT
   // =====================================================================
-  async function boot() {
-    setInitialScreen(AUTH_STATE.LOADING, 'Verificando sua sessão...');
+  async function boot(sequence) {
+    showScreen(APP_SCREEN.LOADING, 'Verificando sua sessão...');
     const { data: { session }, error: sessionError } = await sb.auth.getSession();
+    assertBootActive(sequence);
     if (sessionError) throw new Error('SESSION_CHECK_FAILED');
     if (!session) {
-      setInitialScreen(AUTH_STATE.UNAUTHENTICATED);
+      showScreen(APP_SCREEN.LOGIN);
       return;
     }
 
@@ -622,6 +642,7 @@
       .select('id, nome, role, restaurante_id, primeiro_acesso, ativo, restaurantes(nome, whatsapp)')
       .eq('id', session.user.id)
       .single();
+    assertBootActive(sequence);
 
     if (userErr) throw new Error('PROFILE_LOAD_FAILED');
     if (!userRow || !userRow.restaurante_id || !userRow.restaurantes) throw new Error('PROFILE_INVALID');
@@ -631,25 +652,24 @@
     currentUser = userRow;
 
     if (userRow.primeiro_acesso) {
-      document.getElementById('initialLoading').style.display = 'none';
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('primeiroAcessoScreen').style.display = 'flex';
+      showScreen(APP_SCREEN.FIRST_ACCESS);
       return;
     }
-    document.getElementById('primeiroAcessoScreen').style.display = 'none';
     document.getElementById('topNome').textContent = 'Olá, ' + userRow.nome.split(' ')[0];
     document.getElementById('topSub').textContent = userRow.restaurantes?.nome || '';
     document.getElementById('btnContatoRestaurante').classList.toggle('show', !!userRow.restaurantes?.whatsapp);
 
-    await Promise.all([
+    assertBootActive(sequence);
+    showScreen(APP_SCREEN.APP);
+    void carregarDadosIniciaisSecundarios();
+  }
+
+  async function carregarDadosIniciaisSecundarios() {
+    await Promise.allSettled([
       carregarDisponibilidade(),
       carregarEntregas(),
       carregarStatsEntregas()
     ]);
-    authState = AUTH_STATE.AUTHENTICATED;
-    document.getElementById('initialLoading').style.display = 'none';
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
     subscribeTrackingEntregas();
     iniciarRefreshEntregasMotoboy();
     iniciarControleSessaoMotoboy();
@@ -694,9 +714,11 @@
   // DISPONIBILIDADE
   // =====================================================================
   async function carregarDisponibilidade() {
-    const { data } = await sb.from('motoboys').select('disponivel').eq('id', currentUser.id).maybeSingle();
+    const { data, error } = await sb.from('motoboys').select('disponivel').eq('id', currentUser.id).maybeSingle();
+    if (error) return false;
     disponivel = data?.disponivel ?? true;
     document.getElementById('dispSwitch').classList.toggle('on', disponivel);
+    return true;
   }
 
   async function toggleDisponivel() {
@@ -725,7 +747,10 @@
       .not('status', 'in', '(entregue,retirado,cancelado)')
       .order('criado_em', { ascending: true });
 
-    if (error) { console.error(error); return; }
+    if (error) {
+      document.getElementById('entregasList').innerHTML = `<div class="empty-state"><div class="ic">⚠️</div><h4>Não foi possível carregar as entregas</h4><p>Verifique sua conexão e tente novamente.</p><button class="btn" type="button" onclick="carregarEntregas()">Tentar novamente</button></div>`;
+      return false;
+    }
     entregas = data || [];
 
     // Só toca som se já tinha carregado antes (nunca ao abrir o app com entregas já existentes)
@@ -737,6 +762,7 @@
     motoboyJaCarregouEntregasUmaVez = true;
 
     renderEntregas();
+    return true;
   }
 
   function codigoEntrega(o) {
@@ -903,12 +929,18 @@
 
   async function carregarStatsEntregas() {
     const dataHoje = dataDiaComercialAtual();
-    const [{ count: hoje }, { count: total }] = await Promise.all([
+    const [hojeResult, totalResult] = await Promise.all([
       sb.from('pedidos').select('id', { count: 'exact', head: true }).eq('motoboy_id', currentUser.id).eq('status', 'entregue').eq('data_pedido', dataHoje),
       sb.from('pedidos').select('id', { count: 'exact', head: true }).eq('motoboy_id', currentUser.id).eq('status', 'entregue')
     ]);
-    document.getElementById('statHoje').textContent = hoje || 0;
-    document.getElementById('statTotal').textContent = total || 0;
+    if (hojeResult.error || totalResult.error) {
+      document.getElementById('statHoje').textContent = '—';
+      document.getElementById('statTotal').textContent = '—';
+      return false;
+    }
+    document.getElementById('statHoje').textContent = hojeResult.count || 0;
+    document.getElementById('statTotal').textContent = totalResult.count || 0;
+    return true;
   }
 
   // =====================================================================
@@ -1045,22 +1077,21 @@
   }
 
   (async function start() {
-    setInitialScreen(AUTH_STATE.LOADING);
+    showScreen(APP_SCREEN.LOADING);
     try {
       await withStartupTimeout(initSupabase());
     } catch (e) {
-      console.error(e);
       showStartupError('Não foi possível iniciar o app. Verifique sua conexão e tente novamente.');
       return;
     }
 
     sb.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') { mostrarTelaNovaSenhaRecuperacao(); return; }
-      if (event === 'SIGNED_OUT' && document.getElementById('app').style.display === 'block') {
-        setTimeout(async () => {
-          const { data: { session } } = await sb.auth.getSession();
-          if (!session) location.reload();
-        }, 2500);
+      if (event === 'SIGNED_OUT' && currentScreen !== APP_SCREEN.LOGIN) {
+        bootSequence++;
+        bootPromise = null;
+        currentUser = null;
+        showScreen(APP_SCREEN.LOGIN);
       }
     });
 

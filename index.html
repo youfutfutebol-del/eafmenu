@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="app-booting">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -12,6 +12,11 @@
 <meta name="apple-mobile-web-app-title" content="EAF Menu">
 <link rel="apple-touch-icon" href="/icons/icon192.png">
 <link rel="icon" href="/icons/icon192.png">
+<style>
+  [hidden] { display:none !important; }
+  html.app-booting body > :not(#initialLoading) { display:none !important; }
+  html.app-booting #initialLoading { display:flex !important; }
+</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <link rel="stylesheet" href="/assets/css/painel.css">
 </head>
@@ -30,7 +35,7 @@
   </div>
 </div>
 
-<div id="loginScreen">
+<div id="loginScreen" hidden>
   <div class="login-card">
     <div class="badge"><img src="/icons/icon512.png" alt="EAF Menu"></div>
     <h2>EAF Menu</h2>
@@ -61,7 +66,7 @@
   </div>
 </div>
 
-<div id="primeiroAcessoScreen" style="display:none; min-height:100vh; align-items:center; justify-content:center; background: var(--sidebar);">
+<div id="primeiroAcessoScreen" hidden style="display:flex; min-height:100vh; align-items:center; justify-content:center; background: var(--sidebar);">
   <div class="login-card">
     <div class="badge"><img src="/icons/icon512.png" alt="EAF Menu"></div>
     <h2>Defina sua senha</h2>
@@ -73,7 +78,7 @@
   </div>
 </div>
 
-<div id="motoboyBloqueadoScreen" style="display:none; min-height:100vh; align-items:center; justify-content:center; background: var(--sidebar);">
+<div id="motoboyBloqueadoScreen" hidden style="display:flex; min-height:100vh; align-items:center; justify-content:center; background: var(--sidebar);">
   <div class="login-card">
     <div class="badge">🛵</div>
     <h2>Use o app de entregas</h2>
@@ -82,7 +87,7 @@
   </div>
 </div>
 
-<div id="app">
+<div id="app" hidden>
   <div class="mobile-topbar">
     <button class="hamburger-btn" onclick="openDrawer()" aria-label="Abrir menu">☰</button>
     <div class="mobile-topbar__brand">
@@ -161,8 +166,8 @@
         <div class="order-list" id="orderList">
           <div class="empty-state">
             <div class="ic">📋</div>
-            <h4>Nenhum pedido recebido ainda</h4>
-            <p>Os pedidos dos clientes enviados pela página pública aparecerão aqui instantaneamente.</p>
+            <h4>Carregando pedidos...</h4>
+            <p>A estrutura do painel já está pronta.</p>
           </div>
         </div>
       </div>
@@ -987,48 +992,66 @@
     sb = supabase.createClient(url, anonKey, { auth: { storageKey: 'eaf-painel-auth' } });
   }
 
-  const AUTH_STATE = Object.freeze({ LOADING: 'authLoading', AUTHENTICATED: 'authenticated', UNAUTHENTICATED: 'unauthenticated' });
-  let authState = AUTH_STATE.LOADING;
+  const APP_SCREEN = Object.freeze({
+    LOADING: 'loading', LOGIN: 'login', APP: 'app', ERROR: 'error',
+    FIRST_ACCESS: 'firstAccess', MOTOBOY_BLOCKED: 'motoboyBlocked'
+  });
+  const SCREEN_IDS = Object.freeze({
+    loading: 'initialLoading', error: 'initialLoading', login: 'loginScreen', app: 'app',
+    firstAccess: 'primeiroAcessoScreen', motoboyBlocked: 'motoboyBloqueadoScreen'
+  });
   const STARTUP_TIMEOUT_MS = 15000;
+  let currentScreen = APP_SCREEN.LOADING;
+  let bootPromise = null;
+  let bootSequence = 0;
 
-  function setInitialScreen(state, message = 'Carregando...') {
-    authState = state;
-    document.getElementById('initialLoading').style.display = state === AUTH_STATE.LOADING ? 'flex' : 'none';
-    document.getElementById('loginScreen').style.display = state === AUTH_STATE.UNAUTHENTICATED ? 'flex' : 'none';
-    if (state !== AUTH_STATE.AUTHENTICATED) document.getElementById('app').style.display = 'none';
+  function showScreen(screen, message = 'Carregando...') {
+    currentScreen = screen;
+    document.documentElement.classList.remove('app-booting');
+    const targetId = SCREEN_IDS[screen];
+    new Set(Object.values(SCREEN_IDS)).forEach(id => {
+      document.getElementById(id).hidden = id !== targetId;
+    });
     document.getElementById('initialLoadingMessage').textContent = message;
-    document.getElementById('initialLoadingActions').classList.remove('show');
+    document.getElementById('initialLoadingActions').classList.toggle('show', screen === APP_SCREEN.ERROR);
   }
 
   function showStartupError(message) {
-    authState = AUTH_STATE.LOADING;
-    document.getElementById('initialLoading').style.display = 'flex';
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('initialLoadingMessage').textContent = message;
-    document.getElementById('initialLoadingActions').classList.add('show');
+    showScreen(APP_SCREEN.ERROR, message);
   }
 
-  function withStartupTimeout(promise) {
-    return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('STARTUP_TIMEOUT')), STARTUP_TIMEOUT_MS))]);
+  function withStartupTimeout(promise, onTimeout) {
+    return Promise.race([promise, new Promise((_, reject) => setTimeout(() => {
+      onTimeout?.();
+      reject(new Error('STARTUP_TIMEOUT'));
+    }, STARTUP_TIMEOUT_MS))]);
   }
 
   async function sairDaInicializacao() {
     if (sb) await sb.auth.signOut().catch(() => {});
-    setInitialScreen(AUTH_STATE.UNAUTHENTICATED);
+    showScreen(APP_SCREEN.LOGIN);
   }
 
   async function bootSeguro() {
-    try {
-      await withStartupTimeout(boot());
-      return true;
-    } catch (e) {
-      console.error(e);
+    if (bootPromise) return bootPromise;
+    const sequence = ++bootSequence;
+    const run = withStartupTimeout(boot(sequence), () => {
+      if (bootSequence === sequence) bootSequence++;
+    }).then(() => true).catch(e => {
+      if (e.message === 'BOOT_ABORTED') return false;
       showStartupError(e.message === 'PROFILE_INVALID'
         ? 'Seu perfil não está completo para acessar este painel.'
         : 'Não foi possível carregar seus dados. Verifique sua conexão e tente novamente.');
       return false;
-    }
+    }).finally(() => {
+      if (bootPromise === run) bootPromise = null;
+    });
+    bootPromise = run;
+    return run;
+  }
+
+  function assertBootActive(sequence) {
+    if (sequence !== bootSequence) throw new Error('BOOT_ABORTED');
   }
 
   let currentUser = null;
@@ -1078,12 +1101,13 @@
 
 // Chega aqui pelo link do e-mail de recuperação (Supabase dispara o evento PASSWORD_RECOVERY)
 
-  async function boot() {
-    setInitialScreen(AUTH_STATE.LOADING, 'Verificando sua sessão...');
+  async function boot(sequence) {
+    showScreen(APP_SCREEN.LOADING, 'Verificando sua sessão...');
     const { data: { session }, error: sessionError } = await sb.auth.getSession();
+    assertBootActive(sequence);
     if (sessionError) throw new Error('SESSION_CHECK_FAILED');
     if (!session) {
-      setInitialScreen(AUTH_STATE.UNAUTHENTICATED);
+      showScreen(APP_SCREEN.LOGIN);
       return;
     }
 
@@ -1092,6 +1116,7 @@
       .select('id, nome, email, role, restaurante_id, primeiro_acesso, restaurantes(nome, slug, horarios_semana, endereco, whatsapp, taxa_entrega_padrao, prazo_entrega_min_minutos, prazo_entrega_max_minutos, prazo_retirada_min_minutos, prazo_retirada_max_minutos)')
       .eq('id', session.user.id)
       .single();
+    assertBootActive(sequence);
 
     if (userErr) throw new Error('PROFILE_LOAD_FAILED');
     if (!userRow || !userRow.restaurante_id || !userRow.role || !userRow.restaurantes) {
@@ -1105,21 +1130,15 @@
 
     // Primeiro acesso: bloqueia o painel até a pessoa trocar a senha provisória.
     if (userRow.primeiro_acesso) {
-      document.getElementById('initialLoading').style.display = 'none';
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('primeiroAcessoScreen').style.display = 'flex';
+      showScreen(APP_SCREEN.FIRST_ACCESS);
       return;
     }
-    document.getElementById('primeiroAcessoScreen').style.display = 'none';
 
     // Motoboy não tem acesso ao painel administrativo — só ao App de entregas.
     if (userRow.role === 'motoboy') {
-      document.getElementById('initialLoading').style.display = 'none';
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('motoboyBloqueadoScreen').style.display = 'flex';
+      showScreen(APP_SCREEN.MOTOBOY_BLOCKED);
       return;
     }
-    document.getElementById('motoboyBloqueadoScreen').style.display = 'none';
 
     document.getElementById('userNome').textContent = userRow.nome;
     document.getElementById('userRole').textContent = userRow.role.toUpperCase();
@@ -1137,18 +1156,19 @@
     }
 
     horariosLojaAtual = userRow.restaurantes?.horarios_semana || null;
+    assertBootActive(sequence);
+    showScreen(APP_SCREEN.APP);
+    void carregarDadosIniciaisSecundarios();
+  }
 
-    await Promise.all([
+  async function carregarDadosIniciaisSecundarios() {
+    await Promise.allSettled([
       loadProdutos(),
       loadCategorias(),
       loadGruposTamanho(),
       loadMotoboysAtivos(),
       loadPedidos()
     ]);
-    authState = AUTH_STATE.AUTHENTICATED;
-    document.getElementById('initialLoading').style.display = 'none';
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
     subscribeRealtime();
     iniciarResetDiarioPedidos();
     iniciarStatusLoja();
@@ -1238,11 +1258,10 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
   }
 
   (async function start() {
-    setInitialScreen(AUTH_STATE.LOADING);
+    showScreen(APP_SCREEN.LOADING);
     try {
       await withStartupTimeout(initSupabase());
     } catch (e) {
-      console.error(e);
       showStartupError('Não foi possível iniciar o painel. Verifique sua conexão e tente novamente.');
       return;
     }
@@ -1252,11 +1271,13 @@ const STATUS_FINAIS = ['entregue', 'retirado', 'cancelado'];
         mostrarTelaNovaSenhaRecuperacao();
         return;
       }
-      if (event === 'SIGNED_OUT' && document.getElementById('app').style.display === 'block') {
-        setTimeout(async () => {
-          const { data: { session } } = await sb.auth.getSession();
-          if (!session) location.reload();
-        }, 2500);
+      if (event === 'SIGNED_OUT' && currentScreen !== APP_SCREEN.LOGIN) {
+        bootSequence++;
+        bootPromise = null;
+        currentUser = null;
+        restauranteInfo = null;
+        restauranteId = null;
+        showScreen(APP_SCREEN.LOGIN);
       }
     });
 

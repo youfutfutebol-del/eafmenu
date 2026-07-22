@@ -27,7 +27,7 @@
   .initial-loading__actions button.secondary { background:transparent; color:#fff; }
   @keyframes initial-spin { to { transform:rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .initial-loading__spinner { animation:none; border-top-color:rgba(255,255,255,.25); } }
-  #loginScreen { min-height:100vh; display:none; align-items:center; justify-content:center; background: var(--sidebar); }
+  #loginScreen { min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--sidebar); }
   .login-card { background:#fff; border-radius:14px; padding: 34px 30px; width: 340px; text-align:center; }
   .login-card .badge { width:56px; height:56px; margin: 0 auto 14px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
   .login-card .badge img { width:100%; height:100%; object-fit:contain; }
@@ -38,7 +38,7 @@
   .login-card button.primary:disabled { opacity:.5; }
   .login-msg { font-size:12px; margin-top:12px; color: var(--muted); min-height:16px; }
   .login-msg.error { color: var(--red); }
-  #app { display:none; min-height:100vh; }
+  #app { display:block; min-height:100vh; }
   .layout { display:flex; min-height:100vh; }
   .sidebar { width: 240px; background: var(--sidebar); color:#fff; flex-shrink:0; display:flex; flex-direction:column; padding: 18px 14px; }
   .sidebar__brand { display:flex; align-items:center; gap:10px; padding: 4px 8px 20px; }

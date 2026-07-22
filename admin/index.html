@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="app-booting">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +12,11 @@
 <meta name="apple-mobile-web-app-title" content="Super Admin">
 <link rel="apple-touch-icon" href="/admin/icons/admin-icon-192.png">
 <link rel="icon" href="/admin/icons/admin-icon-192.png">
+<style>
+  [hidden] { display:none !important; }
+  html.app-booting body > :not(#initialLoading) { display:none !important; }
+  html.app-booting #initialLoading { display:flex !important; }
+</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   :root {
@@ -43,7 +48,7 @@
   .initial-loading__actions button.secondary { background:transparent; color:#fff; }
   @keyframes initial-spin { to { transform:rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .initial-loading__spinner { animation:none; border-top-color:rgba(255,255,255,.25); } }
-  #loginScreen { min-height:100vh; display:none; align-items:center; justify-content:center; background: var(--ink); }
+  #loginScreen { min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--ink); }
   .login-card { background: var(--surface); border-radius:16px; padding: 36px 32px; width: 360px; max-width:calc(100% - 24px); text-align:center; }
   .login-card .tag { display:inline-block; background: var(--accent); color:#fff; font-size:10.5px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; padding:4px 10px; border-radius:20px; margin-bottom:14px; }
   .login-card h2 { margin: 0 0 6px; font-size:19px; }
@@ -53,7 +58,7 @@
   .login-msg { font-size:12px; margin-top:12px; color: var(--muted); min-height:16px; }
   .login-msg.error { color: var(--accent); }
 
-  #app { display:none; }
+  #app { display:block; }
   .topbar { width:100%; background: var(--panel); color:#fff; padding: 18px 32px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
   .topbar__brand { display:flex; align-items:center; gap:10px; min-width:0; }
   .topbar__brand .tag { background: var(--accent); font-size:10px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; padding:3px 8px; border-radius:20px; }
@@ -156,7 +161,7 @@
   </div>
 </div>
 
-<div id="loginScreen">
+<div id="loginScreen" hidden>
   <div class="login-card">
     <span class="tag">Plataforma EAF Menu</span>
     <h2>Acesso restrito</h2>
@@ -168,7 +173,7 @@
   </div>
 </div>
 
-<div id="app">
+<div id="app" hidden>
   <div class="topbar">
     <div class="topbar__brand">
       <span class="tag">Plataforma</span>
@@ -237,47 +242,60 @@
     sb = supabase.createClient(url, anonKey, { auth: { storageKey: 'eaf-superadmin-auth' } });
   }
 
-  const AUTH_STATE = Object.freeze({ LOADING: 'authLoading', AUTHENTICATED: 'authenticated', UNAUTHENTICATED: 'unauthenticated' });
-  let authState = AUTH_STATE.LOADING;
+  const APP_SCREEN = Object.freeze({ LOADING: 'loading', LOGIN: 'login', APP: 'app', ERROR: 'error' });
+  const SCREEN_IDS = Object.freeze({ loading: 'initialLoading', error: 'initialLoading', login: 'loginScreen', app: 'app' });
   const STARTUP_TIMEOUT_MS = 15000;
+  let currentScreen = APP_SCREEN.LOADING;
+  let bootPromise = null;
+  let bootSequence = 0;
 
-  function setInitialScreen(state, message = 'Carregando...') {
-    authState = state;
-    document.getElementById('initialLoading').style.display = state === AUTH_STATE.LOADING ? 'flex' : 'none';
-    document.getElementById('loginScreen').style.display = state === AUTH_STATE.UNAUTHENTICATED ? 'flex' : 'none';
-    if (state !== AUTH_STATE.AUTHENTICATED) document.getElementById('app').style.display = 'none';
+  function showScreen(screen, message = 'Carregando...') {
+    currentScreen = screen;
+    document.documentElement.classList.remove('app-booting');
+    const targetId = SCREEN_IDS[screen];
+    new Set(Object.values(SCREEN_IDS)).forEach(id => {
+      document.getElementById(id).hidden = id !== targetId;
+    });
     document.getElementById('initialLoadingMessage').textContent = message;
-    document.getElementById('initialLoadingActions').classList.remove('show');
+    document.getElementById('initialLoadingActions').classList.toggle('show', screen === APP_SCREEN.ERROR);
   }
 
   function showStartupError(message) {
-    document.getElementById('initialLoading').style.display = 'flex';
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('initialLoadingMessage').textContent = message;
-    document.getElementById('initialLoadingActions').classList.add('show');
+    showScreen(APP_SCREEN.ERROR, message);
   }
 
-  function withStartupTimeout(promise) {
-    return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('STARTUP_TIMEOUT')), STARTUP_TIMEOUT_MS))]);
+  function withStartupTimeout(promise, onTimeout) {
+    return Promise.race([promise, new Promise((_, reject) => setTimeout(() => {
+      onTimeout?.();
+      reject(new Error('STARTUP_TIMEOUT'));
+    }, STARTUP_TIMEOUT_MS))]);
   }
 
   async function sairDaInicializacao() {
     if (sb) await sb.auth.signOut().catch(() => {});
-    setInitialScreen(AUTH_STATE.UNAUTHENTICATED);
+    showScreen(APP_SCREEN.LOGIN);
   }
 
   async function bootSeguro() {
-    try {
-      await withStartupTimeout(boot());
-      return true;
-    } catch (e) {
-      console.error(e);
+    if (bootPromise) return bootPromise;
+    const sequence = ++bootSequence;
+    const run = withStartupTimeout(boot(sequence), () => {
+      if (bootSequence === sequence) bootSequence++;
+    }).then(() => true).catch(e => {
+      if (e.message === 'BOOT_ABORTED') return false;
       showStartupError(e.message === 'PROFILE_INVALID'
         ? 'Esta conta não tem acesso à administração da plataforma.'
         : 'Não foi possível carregar seus dados. Verifique sua conexão e tente novamente.');
       return false;
-    }
+    }).finally(() => {
+      if (bootPromise === run) bootPromise = null;
+    });
+    bootPromise = run;
+    return run;
+  }
+
+  function assertBootActive(sequence) {
+    if (sequence !== bootSequence) throw new Error('BOOT_ABORTED');
   }
 
   async function fazerLogin() {
@@ -313,24 +331,23 @@
     location.reload();
   }
 
-  async function boot() {
-    setInitialScreen(AUTH_STATE.LOADING, 'Verificando sua sessão...');
+  async function boot(sequence) {
+    showScreen(APP_SCREEN.LOADING, 'Verificando sua sessão...');
     const { data: { session }, error: sessionError } = await sb.auth.getSession();
+    assertBootActive(sequence);
     if (sessionError) throw new Error('SESSION_CHECK_FAILED');
     if (!session) {
-      setInitialScreen(AUTH_STATE.UNAUTHENTICATED);
+      showScreen(APP_SCREEN.LOGIN);
       return;
     }
 
     const { data: ehAdmin, error } = await sb.rpc('eh_super_admin');
+    assertBootActive(sequence);
     if (error) throw new Error('PROFILE_LOAD_FAILED');
     if (!ehAdmin) throw new Error('PROFILE_INVALID');
 
-    await carregarRestaurantes();
-    authState = AUTH_STATE.AUTHENTICATED;
-    document.getElementById('initialLoading').style.display = 'none';
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
+    showScreen(APP_SCREEN.APP);
+    void carregarRestaurantes();
   }
 
   async function carregarRestaurantes() {
@@ -468,21 +485,19 @@
       navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' }).catch(() => {});
     }
 
-    setInitialScreen(AUTH_STATE.LOADING);
+    showScreen(APP_SCREEN.LOADING);
     try {
       await withStartupTimeout(initSupabase());
     } catch (e) {
-      console.error(e);
       showStartupError('Não foi possível iniciar a administração. Verifique sua conexão e tente novamente.');
       return;
     }
 
     sb.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT' && document.getElementById('app').style.display === 'block') {
-        setTimeout(async () => {
-          const { data: { session } } = await sb.auth.getSession();
-          if (!session) location.reload();
-        }, 2500);
+      if (event === 'SIGNED_OUT' && currentScreen !== APP_SCREEN.LOGIN) {
+        bootSequence++;
+        bootPromise = null;
+        showScreen(APP_SCREEN.LOGIN);
       }
     });
 

@@ -30,10 +30,20 @@
       .gte('criado_em', inicio)
       .order('criado_em', { ascending: false })
       .limit(200);
-    if (error) { console.error(error); return; }
+    if (error) {
+      document.getElementById('orderList').innerHTML = `
+        <div class="empty-state">
+          <div class="ic">⚠️</div>
+          <h4>Não foi possível carregar os pedidos</h4>
+          <p>Verifique sua conexão e tente novamente.</p>
+          <button class="btn" type="button" onclick="loadPedidos()">Tentar novamente</button>
+        </div>`;
+      return false;
+    }
     orders = data || [];
     atualizarSubtituloPedidos();
     renderOrders();
+    return true;
   }
 
   function subscribeRealtime() {
