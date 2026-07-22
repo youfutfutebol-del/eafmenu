@@ -53,9 +53,21 @@
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
   /* ---------- Login / telas cheias ---------- */
-  #loginScreen, #primeiroAcessoScreen {
+  #initialLoading, #loginScreen, #primeiroAcessoScreen {
     min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--chrome-escuro); padding:24px;
   }
+  #initialLoading { min-height:100dvh; }
+  .initial-loading__card { color:#fff; text-align:center; width:min(320px, 100%); }
+  .initial-loading__logo { width:68px; height:68px; object-fit:contain; border-radius:18px; margin-bottom:18px; }
+  .initial-loading__spinner { width:28px; height:28px; border:3px solid rgba(255,255,255,.25); border-top-color:var(--route); border-radius:50%; margin:0 auto 14px; animation:initial-spin .8s linear infinite; }
+  .initial-loading__message { margin:0; color:#D5D8DB; font-size:13px; line-height:1.5; }
+  .initial-loading__actions { display:none; gap:8px; justify-content:center; margin-top:18px; }
+  .initial-loading__actions.show { display:flex; }
+  .initial-loading__actions button { border:1px solid rgba(255,255,255,.25); border-radius:9px; padding:10px 14px; background:#fff; color:var(--chrome-escuro); font-weight:700; }
+  .initial-loading__actions button.secondary { background:transparent; color:#fff; }
+  @keyframes initial-spin { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .initial-loading__spinner { animation:none; border-top-color:rgba(255,255,255,.25); } }
+  #loginScreen { display:none; }
   #primeiroAcessoScreen { display:none; }
   .login-card { background: var(--surface); border-radius:20px; padding: 36px 28px; width: 340px; max-width:100%; text-align:center; box-shadow: var(--shadow-lg); }
   .login-card .badge { width:58px; height:58px; border-radius:16px; margin: 0 auto 16px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
@@ -183,6 +195,18 @@
 </style>
 </head>
 <body>
+
+<div id="initialLoading" role="status" aria-live="polite">
+  <div class="initial-loading__card">
+    <img class="initial-loading__logo" src="/icons/icon512.png" alt="EAF Menu">
+    <div class="initial-loading__spinner" aria-hidden="true"></div>
+    <p class="initial-loading__message" id="initialLoadingMessage">Carregando...</p>
+    <div class="initial-loading__actions" id="initialLoadingActions">
+      <button type="button" onclick="location.reload()">Tentar novamente</button>
+      <button type="button" class="secondary" onclick="sairDaInicializacao()">Sair da conta</button>
+    </div>
+  </div>
+</div>
 
 <div id="loginScreen">
   <div class="login-card">
@@ -329,6 +353,54 @@
     sb = supabase.createClient(url, anonKey, { auth: { storageKey: 'eaf-motoboy-auth' } });
   }
 
+  const AUTH_STATE = Object.freeze({ LOADING: 'authLoading', AUTHENTICATED: 'authenticated', UNAUTHENTICATED: 'unauthenticated' });
+  let authState = AUTH_STATE.LOADING;
+  const STARTUP_TIMEOUT_MS = 15000;
+
+  function setInitialScreen(state, message = 'Carregando...') {
+    authState = state;
+    document.getElementById('initialLoading').style.display = state === AUTH_STATE.LOADING ? 'flex' : 'none';
+    document.getElementById('loginScreen').style.display = state === AUTH_STATE.UNAUTHENTICATED ? 'flex' : 'none';
+    if (state !== AUTH_STATE.AUTHENTICATED) document.getElementById('app').style.display = 'none';
+    document.getElementById('initialLoadingMessage').textContent = message;
+    document.getElementById('initialLoadingActions').classList.remove('show');
+  }
+
+  function showStartupError(message) {
+    document.getElementById('initialLoading').style.display = 'flex';
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('initialLoadingMessage').textContent = message;
+    document.getElementById('initialLoadingActions').classList.add('show');
+  }
+
+  function withStartupTimeout(promise) {
+    return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('STARTUP_TIMEOUT')), STARTUP_TIMEOUT_MS))]);
+  }
+
+  async function sairDaInicializacao() {
+    if (sb) await sb.auth.signOut().catch(() => {});
+    setInitialScreen(AUTH_STATE.UNAUTHENTICATED);
+  }
+
+  async function bootSeguro() {
+    try {
+      await withStartupTimeout(boot());
+      return true;
+    } catch (e) {
+      console.error(e);
+      const message = e.message === 'ROLE_INVALID'
+        ? 'Esta conta não é de um motoboy. Use o painel da equipe.'
+        : e.message === 'USER_INACTIVE'
+          ? 'Sua conta está inativa. Fale com o restaurante.'
+          : e.message === 'PROFILE_INVALID'
+            ? 'Seu perfil não está completo para acessar o app.'
+            : 'Não foi possível carregar seus dados. Verifique sua conexão e tente novamente.';
+      showStartupError(message);
+      return false;
+    }
+  }
+
   let currentUser = null;
   let entregas = [];
   let disponivel = true;
@@ -462,7 +534,7 @@
     if (error) { setLoginMsg('Telefone/e-mail ou senha incorretos.', true); return; }
 
     prepararSessionGuardMotoboy(true);
-    await boot();
+    await bootSeguro();
   }
 
   function setLoginMsg(msg, isError) {
@@ -501,6 +573,8 @@
   }
 
   function mostrarTelaNovaSenhaRecuperacao() {
+    document.getElementById('initialLoading').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('stepLogin').style.display = 'none';
     document.getElementById('stepEsqueciSenha').style.display = 'none';
     document.getElementById('stepNovaSenha').style.display = 'block';
@@ -520,7 +594,7 @@
 
     history.replaceState(null, '', location.pathname);
     setLoginMsg('Senha redefinida! Entrando...', false);
-    await boot();
+    await bootSeguro();
   }
 
   async function logout() {
@@ -535,8 +609,13 @@
   // BOOT
   // =====================================================================
   async function boot() {
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) return;
+    setInitialScreen(AUTH_STATE.LOADING, 'Verificando sua sessão...');
+    const { data: { session }, error: sessionError } = await sb.auth.getSession();
+    if (sessionError) throw new Error('SESSION_CHECK_FAILED');
+    if (!session) {
+      setInitialScreen(AUTH_STATE.UNAUTHENTICATED);
+      return;
+    }
 
     const { data: userRow, error: userErr } = await sb
       .from('usuarios')
@@ -544,40 +623,33 @@
       .eq('id', session.user.id)
       .single();
 
-    if (userErr || !userRow) {
-      setLoginMsg('Esta conta não está cadastrada.', true);
-      await sb.auth.signOut();
-      return;
-    }
-    if (userRow.role !== 'motoboy') {
-      setLoginMsg('Esta conta não é de um motoboy. Use o painel da equipe.', true);
-      await sb.auth.signOut();
-      return;
-    }
-    if (!userRow.ativo) {
-      setLoginMsg('Sua conta está inativa. Fale com o restaurante.', true);
-      await sb.auth.signOut();
-      return;
-    }
+    if (userErr) throw new Error('PROFILE_LOAD_FAILED');
+    if (!userRow || !userRow.restaurante_id || !userRow.restaurantes) throw new Error('PROFILE_INVALID');
+    if (userRow.role !== 'motoboy') throw new Error('ROLE_INVALID');
+    if (!userRow.ativo) throw new Error('USER_INACTIVE');
 
     currentUser = userRow;
 
     if (userRow.primeiro_acesso) {
+      document.getElementById('initialLoading').style.display = 'none';
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('primeiroAcessoScreen').style.display = 'flex';
       return;
     }
     document.getElementById('primeiroAcessoScreen').style.display = 'none';
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-
     document.getElementById('topNome').textContent = 'Olá, ' + userRow.nome.split(' ')[0];
     document.getElementById('topSub').textContent = userRow.restaurantes?.nome || '';
     document.getElementById('btnContatoRestaurante').classList.toggle('show', !!userRow.restaurantes?.whatsapp);
 
-    await carregarDisponibilidade();
-    await carregarEntregas();
-    await carregarStatsEntregas();
+    await Promise.all([
+      carregarDisponibilidade(),
+      carregarEntregas(),
+      carregarStatsEntregas()
+    ]);
+    authState = AUTH_STATE.AUTHENTICATED;
+    document.getElementById('initialLoading').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
     subscribeTrackingEntregas();
     iniciarRefreshEntregasMotoboy();
     iniciarControleSessaoMotoboy();
@@ -600,7 +672,7 @@
     }
     await sb.from('usuarios').update({ primeiro_acesso: false }).eq('id', currentUser.id);
     document.getElementById('paBtn').disabled = false;
-    await boot();
+    await bootSeguro();
   }
 
   // =====================================================================
@@ -973,10 +1045,12 @@
   }
 
   (async function start() {
+    setInitialScreen(AUTH_STATE.LOADING);
     try {
-      await initSupabase();
+      await withStartupTimeout(initSupabase());
     } catch (e) {
       console.error(e);
+      showStartupError('Não foi possível iniciar o app. Verifique sua conexão e tente novamente.');
       return;
     }
 
@@ -995,7 +1069,7 @@
       return;
     }
 
-    await boot();
+    await bootSeguro();
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/motoboy/sw.js').catch(() => {});

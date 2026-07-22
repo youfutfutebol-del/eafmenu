@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eaf-super-admin-v2';
+const CACHE_NAME = 'eaf-super-admin-v3';
 const CACHE_PREFIX = 'eaf-super-admin-';
 const APP_SHELL = [
   '/admin/',

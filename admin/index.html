@@ -32,7 +32,18 @@
   button { font-family: inherit; cursor: pointer; }
   input { font-family: inherit; }
 
-  #loginScreen { min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--ink); }
+  #initialLoading { min-height:100dvh; display:flex; align-items:center; justify-content:center; background:var(--ink); padding:24px; }
+  .initial-loading__card { color:#fff; text-align:center; width:min(320px, 100%); }
+  .initial-loading__logo { width:68px; height:68px; object-fit:contain; border-radius:16px; margin-bottom:18px; }
+  .initial-loading__spinner { width:28px; height:28px; border:3px solid rgba(255,255,255,.25); border-top-color:var(--accent); border-radius:50%; margin:0 auto 14px; animation:initial-spin .8s linear infinite; }
+  .initial-loading__message { margin:0; color:#D1D5DB; font-size:13px; line-height:1.5; }
+  .initial-loading__actions { display:none; gap:8px; justify-content:center; margin-top:18px; }
+  .initial-loading__actions.show { display:flex; }
+  .initial-loading__actions button { border:1px solid rgba(255,255,255,.25); border-radius:9px; padding:10px 14px; background:#fff; color:var(--ink); font-weight:700; }
+  .initial-loading__actions button.secondary { background:transparent; color:#fff; }
+  @keyframes initial-spin { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .initial-loading__spinner { animation:none; border-top-color:rgba(255,255,255,.25); } }
+  #loginScreen { min-height:100vh; display:none; align-items:center; justify-content:center; background: var(--ink); }
   .login-card { background: var(--surface); border-radius:16px; padding: 36px 32px; width: 360px; max-width:calc(100% - 24px); text-align:center; }
   .login-card .tag { display:inline-block; background: var(--accent); color:#fff; font-size:10.5px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; padding:4px 10px; border-radius:20px; margin-bottom:14px; }
   .login-card h2 { margin: 0 0 6px; font-size:19px; }
@@ -133,6 +144,18 @@
 </head>
 <body>
 
+<div id="initialLoading" role="status" aria-live="polite">
+  <div class="initial-loading__card">
+    <img class="initial-loading__logo" src="/admin/icons/admin-icon-192.png" alt="EAF Menu">
+    <div class="initial-loading__spinner" aria-hidden="true"></div>
+    <p class="initial-loading__message" id="initialLoadingMessage">Carregando...</p>
+    <div class="initial-loading__actions" id="initialLoadingActions">
+      <button type="button" onclick="location.reload()">Tentar novamente</button>
+      <button type="button" class="secondary" onclick="sairDaInicializacao()">Sair da conta</button>
+    </div>
+  </div>
+</div>
+
 <div id="loginScreen">
   <div class="login-card">
     <span class="tag">Plataforma EAF Menu</span>
@@ -214,6 +237,49 @@
     sb = supabase.createClient(url, anonKey, { auth: { storageKey: 'eaf-superadmin-auth' } });
   }
 
+  const AUTH_STATE = Object.freeze({ LOADING: 'authLoading', AUTHENTICATED: 'authenticated', UNAUTHENTICATED: 'unauthenticated' });
+  let authState = AUTH_STATE.LOADING;
+  const STARTUP_TIMEOUT_MS = 15000;
+
+  function setInitialScreen(state, message = 'Carregando...') {
+    authState = state;
+    document.getElementById('initialLoading').style.display = state === AUTH_STATE.LOADING ? 'flex' : 'none';
+    document.getElementById('loginScreen').style.display = state === AUTH_STATE.UNAUTHENTICATED ? 'flex' : 'none';
+    if (state !== AUTH_STATE.AUTHENTICATED) document.getElementById('app').style.display = 'none';
+    document.getElementById('initialLoadingMessage').textContent = message;
+    document.getElementById('initialLoadingActions').classList.remove('show');
+  }
+
+  function showStartupError(message) {
+    document.getElementById('initialLoading').style.display = 'flex';
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('initialLoadingMessage').textContent = message;
+    document.getElementById('initialLoadingActions').classList.add('show');
+  }
+
+  function withStartupTimeout(promise) {
+    return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('STARTUP_TIMEOUT')), STARTUP_TIMEOUT_MS))]);
+  }
+
+  async function sairDaInicializacao() {
+    if (sb) await sb.auth.signOut().catch(() => {});
+    setInitialScreen(AUTH_STATE.UNAUTHENTICATED);
+  }
+
+  async function bootSeguro() {
+    try {
+      await withStartupTimeout(boot());
+      return true;
+    } catch (e) {
+      console.error(e);
+      showStartupError(e.message === 'PROFILE_INVALID'
+        ? 'Esta conta não tem acesso à administração da plataforma.'
+        : 'Não foi possível carregar seus dados. Verifique sua conexão e tente novamente.');
+      return false;
+    }
+  }
+
   async function fazerLogin() {
     const email = document.getElementById('emailInput').value.trim();
     const senha = document.getElementById('senhaInput').value;
@@ -224,7 +290,7 @@
     document.getElementById('loginBtn').disabled = false;
     if (error) { setLoginMsg('E-mail ou senha incorretos.', true); return; }
 
-    await boot();
+    await bootSeguro();
   }
 
   function setLoginMsg(msg, isError) {
@@ -248,19 +314,23 @@
   }
 
   async function boot() {
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) return;
-
-    const { data: ehAdmin, error } = await sb.rpc('eh_super_admin');
-    if (error || !ehAdmin) {
-      setLoginMsg('Esta conta não tem acesso à administração da plataforma.', true);
-      await sb.auth.signOut();
+    setInitialScreen(AUTH_STATE.LOADING, 'Verificando sua sessão...');
+    const { data: { session }, error: sessionError } = await sb.auth.getSession();
+    if (sessionError) throw new Error('SESSION_CHECK_FAILED');
+    if (!session) {
+      setInitialScreen(AUTH_STATE.UNAUTHENTICATED);
       return;
     }
 
+    const { data: ehAdmin, error } = await sb.rpc('eh_super_admin');
+    if (error) throw new Error('PROFILE_LOAD_FAILED');
+    if (!ehAdmin) throw new Error('PROFILE_INVALID');
+
+    await carregarRestaurantes();
+    authState = AUTH_STATE.AUTHENTICATED;
+    document.getElementById('initialLoading').style.display = 'none';
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
-    await carregarRestaurantes();
   }
 
   async function carregarRestaurantes() {
@@ -398,10 +468,12 @@
       navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' }).catch(() => {});
     }
 
+    setInitialScreen(AUTH_STATE.LOADING);
     try {
-      await initSupabase();
+      await withStartupTimeout(initSupabase());
     } catch (e) {
       console.error(e);
+      showStartupError('Não foi possível iniciar a administração. Verifique sua conexão e tente novamente.');
       return;
     }
 
@@ -414,7 +486,7 @@
       }
     });
 
-    await boot();
+    await bootSeguro();
   })();
 </script>
 </body>

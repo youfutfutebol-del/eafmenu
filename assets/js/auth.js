@@ -126,7 +126,7 @@ async function fazerLogin() {
   if (error) { setLoginMsg('Telefone/e-mail ou senha incorretos.', true); return; }
 
   prepararSessionGuardPainel(true);
-  await boot();
+  await bootSeguro();
 }
 
 function setLoginMsg(msg, isError) {
@@ -168,6 +168,8 @@ async function enviarRecuperacaoSenha() {
 }
 
 function mostrarTelaNovaSenhaRecuperacao() {
+  document.getElementById('initialLoading').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('stepLogin').style.display = 'none';
   document.getElementById('stepEsqueciSenha').style.display = 'none';
   document.getElementById('stepNovaSenha').style.display = 'block';
@@ -190,7 +192,7 @@ async function salvarNovaSenhaRecuperacao() {
   history.replaceState(null, '', location.pathname);
 
   setLoginMsg('Senha redefinida! Entrando...', false);
-  await boot();
+  await bootSeguro();
 }
 
   function abrirTrocarMinhaSenha() {
@@ -237,5 +239,5 @@ async function salvarNovaSenhaRecuperacao() {
 
     await sb.from('usuarios').update({ primeiro_acesso: false }).eq('id', currentUser.id);
     document.getElementById('paBtn').disabled = false;
-    await boot();
+    await bootSeguro();
   }

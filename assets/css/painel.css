@@ -15,7 +15,19 @@
   body { margin:0; background: var(--bg); color: var(--ink); }
   button { font-family: inherit; cursor: pointer; }
   input, select { font-family: inherit; }
-  #loginScreen { min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--sidebar); }
+  #initialLoading { min-height:100dvh; display:flex; align-items:center; justify-content:center; background:var(--sidebar); padding:24px; }
+  .initial-loading__card { color:#fff; text-align:center; width:min(320px, 100%); }
+  .initial-loading__logo { width:68px; height:68px; object-fit:contain; border-radius:18px; margin-bottom:18px; }
+  .initial-loading__spinner { width:28px; height:28px; border:3px solid rgba(255,255,255,.25); border-top-color:var(--red); border-radius:50%; margin:0 auto 14px; animation:initial-spin .8s linear infinite; }
+  .initial-loading__title { margin:0 0 6px; font-size:16px; }
+  .initial-loading__message { margin:0; color:#D4D4D8; font-size:13px; line-height:1.5; }
+  .initial-loading__actions { display:none; gap:8px; justify-content:center; margin-top:18px; }
+  .initial-loading__actions.show { display:flex; }
+  .initial-loading__actions button { border:1px solid rgba(255,255,255,.25); border-radius:9px; padding:10px 14px; background:#fff; color:var(--sidebar); font-weight:700; }
+  .initial-loading__actions button.secondary { background:transparent; color:#fff; }
+  @keyframes initial-spin { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .initial-loading__spinner { animation:none; border-top-color:rgba(255,255,255,.25); } }
+  #loginScreen { min-height:100vh; display:none; align-items:center; justify-content:center; background: var(--sidebar); }
   .login-card { background:#fff; border-radius:14px; padding: 34px 30px; width: 340px; text-align:center; }
   .login-card .badge { width:56px; height:56px; margin: 0 auto 14px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
   .login-card .badge img { width:100%; height:100%; object-fit:contain; }
