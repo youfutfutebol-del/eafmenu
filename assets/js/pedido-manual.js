@@ -36,6 +36,16 @@
     box.classList.add('hidden');
   }
 
+  function limparSenhaAutorizadorManual() {
+    const senha = document.getElementById('mDescontoSenhaAutorizador');
+    if (senha) senha.value = '';
+  }
+
+  function descartarCredencialDescontoManual(desconto) {
+    if (desconto?.senhaAutorizador) desconto.senhaAutorizador = '';
+    limparSenhaAutorizadorManual();
+  }
+
   function erroFluxoPedidoManual(titulo, mensagem) {
     const erro = new Error(mensagem);
     erro.titulo = titulo;
@@ -70,6 +80,7 @@
     document.getElementById('mDescontoAtivo').checked = false;
     document.getElementById('mDescontoValor').value = '';
     document.getElementById('mDescontoMotivo').value = '';
+    limparSenhaAutorizadorManual();
     document.getElementById('mDescontoCampos').classList.add('hidden');
     document.getElementById('mDescontoEquipeErro').classList.add('hidden');
     document.getElementById('mDescontoAplicadoPor').textContent = currentUser?.nome || 'Usuário atual';
@@ -92,6 +103,7 @@
 
   function closeManualOrder() {
     if (pedidoManualSubmetendo) return;
+    limparSenhaAutorizadorManual();
     limparCombinacaoPedidoManual();
     document.getElementById('manualModalBg').classList.remove('show');
   }
@@ -477,6 +489,7 @@
     if (!pedidoManualDescontoAtivo) {
       document.getElementById('mDescontoValor').value = '';
       document.getElementById('mDescontoMotivo').value = '';
+      limparSenhaAutorizadorManual();
       setTipoDescontoManual('valor');
     }
     atualizarResumoFinanceiroManual();
@@ -498,11 +511,37 @@
     erroEl.classList.add('hidden');
     pedidoManualEquipeErro = null;
 
+    const papelAtual = currentUser?.role;
+    if (['dono', 'gerente'].includes(papelAtual)) {
+      pedidoManualEquipe = currentUser?.id
+        ? [{ id: currentUser.id, nome: currentUser.nome || 'Usuário atual', role: papelAtual }]
+        : [];
+      select.disabled = false;
+      select.innerHTML = pedidoManualEquipe.length
+        ? pedidoManualEquipe.map(usuario => {
+            const cargo = usuario.role === 'dono' ? 'Dono' : 'Gerente';
+            return `<option value="${escapeHtml(usuario.id)}">${escapeHtml(usuario.nome)} — ${cargo}</option>`;
+          }).join('')
+        : '<option value="">Usuário indisponível</option>';
+      if (pedidoManualEquipe.length) select.value = currentUser.id;
+      return;
+    }
+
+    if (papelAtual !== 'atendente') {
+      pedidoManualEquipe = [];
+      pedidoManualEquipeErro = new Error('Papel sem permissão para aplicar desconto.');
+      select.innerHTML = '<option value="">Sem autorizadores disponíveis</option>';
+      erroEl.textContent = 'Seu usuário não pode aplicar desconto.';
+      erroEl.classList.remove('hidden');
+      return;
+    }
+
     const { data, error } = await sb.from('usuarios')
       .select('id, nome, role')
       .eq('restaurante_id', restauranteId)
       .eq('ativo', true)
-      .neq('role', 'motoboy')
+      .in('role', ['dono', 'gerente'])
+      .neq('id', currentUser.id)
       .order('nome');
 
     if (error) {
@@ -521,7 +560,6 @@
       const cargoLabel = cargo ? cargo.charAt(0).toUpperCase() + cargo.slice(1) : 'Equipe';
       return `<option value="${escapeHtml(usuario.id)}">${escapeHtml(usuario.nome)} — ${escapeHtml(cargoLabel)}</option>`;
     }).join('');
-    if (currentUser?.id && pedidoManualEquipe.some(usuario => usuario.id === currentUser.id)) select.value = currentUser.id;
   }
 
   function setFormaPagamentoManual(forma) {
@@ -561,7 +599,14 @@
     if (!motivo) return { valido: false, titulo: 'Motivo obrigatório', mensagem: 'Informe o motivo do desconto.' };
     const autorizadoPor = document.getElementById('mDescontoAutorizadoPor').value;
     if (!autorizadoPor || !pedidoManualEquipe.some(usuario => usuario.id === autorizadoPor)) {
-      return { valido: false, titulo: 'Autorizador inválido', mensagem: 'Selecione um integrante ativo da equipe para autorizar o desconto.' };
+      return { valido: false, titulo: 'Autorizador inválido', mensagem: 'Selecione um dono ou gerente ativo para autorizar o desconto.' };
+    }
+    if (currentUser?.role === 'atendente' && autorizadoPor === currentUser.id) {
+      return { valido: false, titulo: 'Autorizador inválido', mensagem: 'O atendente não pode autorizar o próprio desconto.' };
+    }
+    const senhaAutorizador = document.getElementById('mDescontoSenhaAutorizador').value;
+    if (!senhaAutorizador.trim()) {
+      return { valido: false, titulo: 'Senha obrigatória', mensagem: 'Informe a senha do autorizador.' };
     }
     const valorCalculado = pedidoManualDescontoTipo === 'percentual'
       ? arredondarMoedaManual(subtotal * valor / 100)
@@ -573,7 +618,7 @@
         mensagem: 'O percentual informado resulta em desconto de R$ 0,00. Aumente o percentual.'
       };
     }
-    return { valido: true, ativo: true, tipo: pedidoManualDescontoTipo, valorInformado: valor, valorCalculado, motivo, autorizadoPor };
+    return { valido: true, ativo: true, tipo: pedidoManualDescontoTipo, valorInformado: valor, valorCalculado, motivo, autorizadoPor, senhaAutorizador };
   }
 
   function validarTrocoManual(totalFinal) {
@@ -751,17 +796,18 @@
   async function submitManualOrder() {
     if (pedidoManualSubmetendo) return;
     if (pedidoManualPedidoCriado) {
+      limparSenhaAutorizadorManual();
       mostrarErroPedidoManual('Pedido já criado', `O pedido #${pedidoManualPedidoCriado.numero_diario || pedidoManualPedidoCriado.id} já foi criado. Recarregue a lista antes de tentar novamente.`);
       await loadPedidos();
       return;
     }
-    if (!validarEtapaPedidoManual()) { irParaEtapaPedidoManual(1); return; }
+    if (!validarEtapaPedidoManual()) { limparSenhaAutorizadorManual(); irParaEtapaPedidoManual(1); return; }
 
     const desconto = validarDescontoManual();
-    if (!desconto.valido) { mostrarErroPedidoManual(desconto.titulo, desconto.mensagem); return; }
+    if (!desconto.valido) { limparSenhaAutorizadorManual(); mostrarErroPedidoManual(desconto.titulo, desconto.mensagem); return; }
     const financeiro = financeiroPreviewManual();
     const troco = validarTrocoManual(financeiro.total);
-    if (!troco.valido) { mostrarErroPedidoManual(troco.titulo, troco.mensagem); return; }
+    if (!troco.valido) { descartarCredencialDescontoManual(desconto); mostrarErroPedidoManual(troco.titulo, troco.mensagem); return; }
 
     const btn = document.getElementById('mConfirmarBtn');
     pedidoManualSubmetendo = true;
@@ -816,12 +862,13 @@
 
       let resultadoFinanceiro;
       if (desconto.ativo) {
-        const { data: rpcData, error: rpcErro } = await sb.rpc('aplicar_desconto_manual', {
+        const { data: rpcData, error: rpcErro } = await sb.rpc('aplicar_desconto_manual_v2', {
           p_pedido_id: pedido.id,
           p_tipo: desconto.tipo,
           p_valor: desconto.valorInformado,
           p_motivo: desconto.motivo,
-          p_autorizado_por: desconto.autorizadoPor
+          p_autorizado_por: desconto.autorizadoPor,
+          p_senha_autorizador: desconto.senhaAutorizador
         });
         if (rpcErro) {
           const detalhe = mensagemErroRpcDesconto(rpcErro);
@@ -878,6 +925,7 @@
       mostrarErroPedidoManual(titulo, prefixo + (error.message || 'Tente novamente.'));
       if (pedido) await loadPedidos();
     } finally {
+      descartarCredencialDescontoManual(desconto);
       pedidoManualSubmetendo = false;
       btn.disabled = false;
       btn.textContent = 'Confirmar e lançar pedido';
