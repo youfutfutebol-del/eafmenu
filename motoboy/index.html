@@ -123,14 +123,7 @@
   .stat-card .num { font-family: var(--font-display); font-weight:800; font-size:24px; line-height:1; }
   .stat-card .label { font-size:10.5px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.4px; margin-top:5px; }
 
-  /* Segmented control */
-  .tabs-seg { display:flex; gap:4px; margin: 16px 20px 6px; background:#EAE5DC; border-radius:12px; padding:4px; }
-  .tabs-seg button { flex:1; padding:10px; border-radius:9px; font-size:12.5px; font-weight:700; color:var(--muted); }
-  .tabs-seg button.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
-
-  .main { padding: 6px 20px 20px; max-width:560px; margin:0 auto; }
-  .view-pane { display:none; }
-  .view-pane.active { display:block; }
+  .main { padding: 12px 20px 20px; max-width:560px; margin:0 auto; }
 
   .empty-state { padding: 60px 16px; text-align:center; color: var(--muted); }
   .empty-state .ic { font-size:32px; margin-bottom:12px; }
@@ -170,25 +163,6 @@
   .btn { flex:1; text-align:center; border-radius:11px; padding:12px; font-size:12.5px; font-weight:700; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px; }
   .btn.primary { background: var(--route); border-color: var(--route); color:#fff; }
   .btn.primary:disabled { opacity:.45; }
-
-  /* ---------- Histórico ---------- */
-  .hist-busca { display:flex; gap:8px; margin-bottom:16px; }
-  .hist-busca input[type="date"] {
-    flex:1; padding:12px 13px; border:1.5px solid var(--line); border-radius:12px; font-size:13.5px; background: var(--surface); color: var(--ink);
-  }
-  .hist-busca button { background: var(--chrome-escuro); color:#fff; border-radius:12px; padding:0 18px; font-weight:700; font-size:12.5px; }
-
-  .hist-resumo { background: var(--surface); border-radius:14px; padding:14px 16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; box-shadow: var(--shadow); }
-  .hist-resumo .txt { font-size:12.5px; color:var(--muted); font-weight:600; }
-  .hist-resumo .num { font-family: var(--font-display); font-weight:800; font-size:22px; }
-
-  .hist-item { background: var(--surface); border-radius:14px; padding:14px 16px; margin-bottom:10px; box-shadow: var(--shadow); }
-  .hist-item__top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
-  .hist-item__codigo { font-family: 'SF Mono', ui-monospace, Menlo, monospace; font-size:11.5px; color:var(--muted); font-weight:700; }
-  .hist-item__hora { font-size:11.5px; color:var(--muted); }
-  .hist-item__cliente { font-weight:700; font-size:13.5px; margin-bottom:3px; }
-  .hist-item__endereco { font-size:12px; color:var(--muted); margin-bottom:6px; }
-  .hist-item__total { font-family: var(--font-display); font-weight:800; font-size:14px; color: var(--done); }
 
   .toast {
     position:fixed; top:16px; right:16px; left:16px; z-index:100; background: var(--surface); border-left:3px solid var(--route);
@@ -282,34 +256,12 @@
     <div class="stat-card"><div class="num" id="statTotal">—</div><div class="label">Total</div></div>
   </div>
 
-  <div class="tabs-seg">
-    <button class="active" id="tabRotaBtn" onclick="mostrarAba('rota')">Rota de hoje</button>
-    <button id="tabHistBtn" onclick="mostrarAba('historico')">Histórico</button>
-  </div>
-
   <div class="main">
-    <div class="view-pane active" id="paneRota">
-      <div id="entregasList">
-        <div class="empty-state">
-          <div class="ic">🛵</div>
-          <h4>Carregando entregas...</h4>
-          <p>A estrutura da rota já está pronta.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="view-pane" id="paneHistorico">
-      <div class="hist-busca">
-        <input type="date" id="histData">
-        <button onclick="buscarHistorico()">Buscar</button>
-      </div>
-      <div id="histResumo"></div>
-      <div id="histLista">
-        <div class="empty-state">
-          <div class="ic">📖</div>
-          <h4>Escolha um dia</h4>
-          <p>Selecione uma data pra ver as entregas concluídas naquele dia.</p>
-        </div>
+    <div id="entregasList">
+      <div class="empty-state">
+        <div class="ic">🛵</div>
+        <h4>Carregando entregas...</h4>
+        <p>A estrutura da rota já está pronta.</p>
       </div>
     </div>
 
@@ -430,7 +382,6 @@
   };
 
   let trackingChannel = null;
-  let abaAtual = 'rota';
   let entregasRefreshInterval = null;
   let visibilityListenerRegistrado = false;
   const SESSION_GUARD_MOTOBOY_KEY = 'eaf_motoboy_session_guard';
@@ -696,21 +647,6 @@
   }
 
   // =====================================================================
-  // ABAS
-  // =====================================================================
-  function mostrarAba(aba) {
-    abaAtual = aba;
-    document.getElementById('tabRotaBtn').classList.toggle('active', aba === 'rota');
-    document.getElementById('tabHistBtn').classList.toggle('active', aba === 'historico');
-    document.getElementById('paneRota').classList.toggle('active', aba === 'rota');
-    document.getElementById('paneHistorico').classList.toggle('active', aba === 'historico');
-    if (aba === 'historico' && !document.getElementById('histData').value) {
-      document.getElementById('histData').value = dataDiaComercialAtual();
-      buscarHistorico();
-    }
-  }
-
-  // =====================================================================
   // DISPONIBILIDADE
   // =====================================================================
   async function carregarDisponibilidade() {
@@ -941,63 +877,6 @@
     document.getElementById('statHoje').textContent = hojeResult.count || 0;
     document.getElementById('statTotal').textContent = totalResult.count || 0;
     return true;
-  }
-
-  // =====================================================================
-  // HISTÓRICO (busca por data)
-  // =====================================================================
-  async function buscarHistorico() {
-    const data = document.getElementById('histData').value;
-    const resumoEl = document.getElementById('histResumo');
-    const listaEl = document.getElementById('histLista');
-    if (!data) { showToast('Escolha uma data', 'Selecione o dia que quer consultar.'); return; }
-
-    listaEl.innerHTML = `<div class="empty-state"><div class="ic">⏳</div><h4>Buscando...</h4></div>`;
-    resumoEl.innerHTML = '';
-
-    const { data: pedidos, error } = await sb.from('pedidos')
-      .select(`
-        id, numero_diario, tipo, status, total, criado_em,
-        clientes ( nome ),
-        enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento )
-      `)
-      .eq('motoboy_id', currentUser.id)
-      .eq('status', 'entregue')
-      .eq('data_pedido', data)
-      .order('criado_em', { ascending: true });
-
-    if (error) { listaEl.innerHTML = `<div class="empty-state"><div class="ic">⚠️</div><h4>Erro ao buscar</h4><p>${error.message}</p></div>`; return; }
-
-    const lista = pedidos || [];
-    const totalDia = lista.reduce((s, p) => s + Number(p.total), 0);
-
-    if (lista.length === 0) {
-      resumoEl.innerHTML = '';
-      listaEl.innerHTML = `<div class="empty-state"><div class="ic">📭</div><h4>Nenhuma entrega nesse dia</h4><p>Não encontramos entregas concluídas na data selecionada.</p></div>`;
-      return;
-    }
-
-    resumoEl.innerHTML = `
-      <div class="hist-resumo">
-        <span class="txt">${lista.length} entrega${lista.length > 1 ? 's' : ''} nesse dia</span>
-        <span class="num">R$ ${totalDia.toFixed(2).replace('.', ',')}</span>
-      </div>`;
-
-    listaEl.innerHTML = lista.map(o => {
-      const end = o.enderecos_cliente;
-      const enderecoStr = enderecoTexto(end);
-      const hora = new Date(o.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      return `
-        <div class="hist-item">
-          <div class="hist-item__top">
-            <span class="hist-item__codigo">${codigoEntrega(o)}</span>
-            <span class="hist-item__hora">${hora}</span>
-          </div>
-          <div class="hist-item__cliente">${o.clientes?.nome || 'Cliente'}</div>
-          ${enderecoStr ? `<div class="hist-item__endereco">📍 ${enderecoStr}</div>` : ''}
-          <div class="hist-item__total">R$ ${Number(o.total).toFixed(2).replace('.', ',')}</div>
-        </div>`;
-    }).join('');
   }
 
   function beep() {
