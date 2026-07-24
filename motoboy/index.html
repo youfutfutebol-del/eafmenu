@@ -82,8 +82,28 @@
   .login-card input {
     width:100%; padding:13px 14px; border:1.5px solid var(--line); border-radius:12px; font-size:14px; margin-bottom:10px;
     background: var(--paper); transition: border-color .15s ease;
+    color: var(--ink); caret-color: var(--route);
   }
+  .login-card input::placeholder {
+    color: var(--muted);
+    opacity: 1;
+  }
+
+  .login-card input:-webkit-autofill,
+  .login-card input:-webkit-autofill:hover,
+  .login-card input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--ink);
+    caret-color: var(--route);
+    -webkit-box-shadow: 0 0 0 1000px var(--paper) inset;
+    box-shadow: 0 0 0 1000px var(--paper) inset;
+  }
+
   .login-card input:focus { outline:none; border-color: var(--route); background: var(--surface); }
+
+  .login-card input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+    box-shadow: 0 0 0 1000px var(--surface) inset;
+  }
   .login-card button.primary {
     width:100%; background: var(--route); color:#fff; border:none; padding:14px; border-radius:12px; font-weight:700; font-size:14px;
     box-shadow: 0 8px 20px rgba(229,52,42,.3);
