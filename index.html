@@ -440,10 +440,10 @@
             <button class="switch" id="roteirizacaoSwitch" onclick="toggleRoteirizacaoMotoboy()" aria-label="Ativar ou desativar roteirização de entregas"></button>
           </div>
         </div>
-        <table class="data-table">
-          <thead><tr><th>Nome</th><th>Telefone</th><th>Veículo / Placa</th><th>Status</th><th>Disponível</th><th>Entregas (hoje/total)</th><th>Ações</th></tr></thead>
+        <table class="data-table sem-liberacao-diaria" id="tabelaEntregadores">
+          <thead><tr><th>Nome</th><th>Telefone</th><th>Veículo / Placa</th><th>Status</th><th class="col-liberacao-hoje">Liberação de hoje</th><th>Disponível</th><th>Entregas (hoje/total)</th><th>Ações</th></tr></thead>
           <tbody id="entregadoresTableBody">
-            <tr><td colspan="7"><div class="empty-state"><div class="ic">🚚</div><h4>Nenhum entregador cadastrado</h4></div></td></tr>
+            <tr><td colspan="8"><div class="empty-state"><div class="ic">🚚</div><h4>Nenhum entregador cadastrado</h4></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -1159,6 +1159,7 @@
     if (userRow.role === 'dono' || userRow.role === 'gerente') {
       document.getElementById('navFinanceiro').style.display = 'flex';
       document.getElementById('navEquipe').style.display = 'flex';
+      document.getElementById('tabelaEntregadores').classList.remove('sem-liberacao-diaria');
     }
     if (userRow.role === 'dono') {
       document.getElementById('navMarca').style.display = 'flex';

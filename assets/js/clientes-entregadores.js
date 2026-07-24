@@ -76,7 +76,7 @@
 
   async function loadEntregadores() {
     const { data, error } = await sb.from('usuarios')
-      .select('id, nome, telefone, ativo, motoboys ( veiculo, placa, disponivel )')
+      .select('id, nome, telefone, ativo, motoboys ( veiculo, placa, disponivel, liberado_em, liberado_por )')
       .eq('restaurante_id', restauranteId)
       .eq('role', 'motoboy')
       .order('nome', { ascending: true });
@@ -111,19 +111,71 @@
         <td data-label="Nome"><b>${e.nome}</b></td>
         <td data-label="Telefone">${e.telefone || '—'}</td>
         <td data-label="Veículo / Placa">${VEICULO_LABEL[mb.veiculo] || mb.veiculo || '—'}${mb.placa ? ' · ' + mb.placa : ''}</td>
-        <td data-label="Status"><span class="status-pill ${e.ativo ? 'ativo' : 'inativo'}">${e.ativo ? 'Ativo' : 'Desligado'}</span></td>
+        <td data-label="Status"><span class="status-pill ${e.ativo ? 'ativo' : 'inativo'}">${e.ativo ? 'Conta ativa' : 'Conta desativada'}</span></td>
+        <td class="col-liberacao-hoje" data-label="Liberação de hoje">${celulaLiberacaoHoje(e, mb)}</td>
         <td data-label="Disponível">${mb.disponivel ? '🟢 Sim' : '⚪ Não'}</td>
         <td data-label="Entregas">${e.entregasHoje ?? 0} / ${e.entregasTotal ?? 0}</td>
         <td data-label="Ações">
           <div class="row-actions">
             <button onclick='openEntregador(${JSON.stringify({ id: e.id, nome: e.nome, telefone: e.telefone, veiculo: mb.veiculo, placa: mb.placa })})'>Editar</button>
-            <button onclick="toggleEntregadorAtivo('${e.id}', ${e.ativo})">${e.ativo ? 'Desligar acesso' : 'Liberar acesso'}</button>
+            <button onclick="toggleEntregadorAtivo('${e.id}', ${e.ativo})">${e.ativo ? 'Desativar conta' : 'Reativar conta'}</button>
             <button onclick="abrirResetSenhaEntregador('${e.id}', '${e.nome.replace(/'/g, "\\'")}')">Redefinir senha</button>
             <button class="danger" onclick="removerEntregador('${e.id}', '${e.nome.replace(/'/g, "\\'")}')">Remover</button>
           </div>
         </td>
       </tr>`;
     }).join('');
+  }
+
+  // "Liberação de hoje" — usa a mesma função de dia comercial já usada no painel só pra
+  // renderizar o estado. A segurança real é a RPC (e, na próxima etapa, as policies).
+  function liberacaoDiariaValida(liberadoEm) {
+    return !!liberadoEm && new Date(liberadoEm) >= inicioDiaComercial();
+  }
+
+  function celulaLiberacaoHoje(e, mb) {
+    if (!e.ativo) return `<span class="liberacao-status inativa">Conta desativada</span>`;
+
+    if (liberacaoDiariaValida(mb.liberado_em)) {
+      const horario = new Date(mb.liberado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+      return `
+        <div class="liberacao-hoje">
+          <span class="liberacao-status ligada">🟢 Ligado hoje</span>
+          <span class="liberacao-horario">desde ${horario}</span>
+          <button class="btn" onclick="toggleLiberacaoDiariaMotoboy('${e.id}', false, this)">Desligar hoje</button>
+        </div>`;
+    }
+
+    return `
+      <div class="liberacao-hoje">
+        <span class="liberacao-status desligada">⚪ Não ligado hoje</span>
+        <button class="btn primary" onclick="toggleLiberacaoDiariaMotoboy('${e.id}', true, this)">Ligar hoje</button>
+      </div>`;
+  }
+
+  const liberacaoDiariaSalvandoIds = new Set();
+
+  async function toggleLiberacaoDiariaMotoboy(motoboyId, liberar, btnEl) {
+    if (liberacaoDiariaSalvandoIds.has(motoboyId)) return;
+    if (currentUser?.role !== 'dono' && currentUser?.role !== 'gerente') return;
+
+    if (!liberar && !confirm('Desligar este motoboy hoje? Ele perderá imediatamente o acesso às entregas até ser ligado novamente.')) return;
+
+    liberacaoDiariaSalvandoIds.add(motoboyId);
+    if (btnEl) btnEl.disabled = true;
+
+    const { error } = await sb.rpc('definir_liberacao_diaria_motoboy', { p_motoboy_id: motoboyId, p_liberado: liberar });
+
+    liberacaoDiariaSalvandoIds.delete(motoboyId);
+    if (btnEl) btnEl.disabled = false;
+
+    if (error) { showToast('Erro ao atualizar liberação', error.message); return; }
+
+    showToast(
+      liberar ? 'Motoboy ligado' : 'Motoboy desligado',
+      liberar ? 'Ele já pode acessar as entregas de hoje.' : 'O acesso às entregas de hoje foi removido até a próxima liberação.'
+    );
+    await loadEntregadores();
   }
 
   function openEntregador(e) {

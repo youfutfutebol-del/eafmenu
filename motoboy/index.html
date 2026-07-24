@@ -224,6 +224,14 @@
   }
   .toast.show { transform: translateY(0); }
   .toast b { display:block; font-size:12px; color: var(--route); margin-bottom:2px; font-family: var(--font-display); }
+
+  /* ---------- Aguardando liberação diária ---------- */
+  .bloqueado-card { background: var(--surface); border-radius:20px; padding:40px 24px; text-align:center; box-shadow: var(--shadow); margin-top:8px; }
+  .bloqueado-card__ic { font-size:36px; margin-bottom:14px; }
+  .bloqueado-card__titulo { margin:0 0 8px; font-family: var(--font-display); font-size:18px; }
+  .bloqueado-card__texto { margin:0 0 10px; font-size:13px; color: var(--ink); line-height:1.5; }
+  .bloqueado-card__nota { margin:0; font-size:12px; color: var(--muted); line-height:1.5; }
+  .bloqueado-card__verificando { margin:16px 0 0; font-size:11.5px; color: var(--muted-soft); font-style:italic; }
 </style>
 </head>
 <body>
@@ -292,14 +300,14 @@
         <div class="topbar__sub" id="topSub">—</div>
       </div>
       <div class="topbar__right">
-        <div class="disp-toggle">
+        <div class="disp-toggle" id="dispToggleWrap" hidden>
           Disponível
           <button class="switch on" id="dispSwitch" onclick="toggleDisponivel()"></button>
         </div>
         <div class="menu-wrap" id="menuWrap">
           <button class="menu-trigger" id="menuTrigger" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="appMenu" onclick="toggleMenu(event)">☰</button>
           <div class="app-menu" id="appMenu" role="menu" aria-hidden="true">
-            <button class="menu-item" type="button" role="menuitem" onclick="abrirMeuControle()"><span class="menu-item__icon">▦</span> Meu controle</button>
+            <button class="menu-item" id="menuItemControle" type="button" role="menuitem" onclick="abrirMeuControle()" hidden><span class="menu-item__icon">▦</span> Meu controle</button>
             <button class="menu-item contato-rest-btn" id="btnContatoRestaurante" type="button" role="menuitem" onclick="falarComRestaurantePeloMenu()"><span class="menu-item__icon">💬</span> Falar com o restaurante</button>
             <button class="menu-item" type="button" role="menuitem" onclick="alternarTemaPeloMenu()"><span class="menu-item__icon">◐</span> <span id="temaMenuLabel">Modo noturno</span></button>
             <button class="menu-item danger" type="button" role="menuitem" onclick="sairPeloMenu()"><span class="menu-item__icon">⎋</span> Sair</button>
@@ -310,7 +318,7 @@
   </div>
 
   <div class="main">
-    <div class="view-pane active" id="paneEntregas">
+    <div class="view-pane" id="paneEntregas">
       <div id="rotaBotaoWrap"></div>
       <div id="entregasList">
         <div class="empty-state">
@@ -322,7 +330,7 @@
     </div>
 
     <div class="view-pane" id="paneControle">
-      <button class="controle-voltar" type="button" onclick="mostrarAba('entregas')">← Voltar para Entregas</button>
+      <button class="controle-voltar" id="btnVoltarEntregas" type="button" onclick="mostrarAba('entregas')" hidden>← Voltar para Entregas</button>
       <div class="controle-grid">
         <div class="controle-card">
           <div class="controle-card__label">Entregas concluídas hoje</div>
@@ -334,6 +342,16 @@
           <div class="controle-card__valor" id="controleTotal">—</div>
           <p class="controle-card__nota" id="controleTotalNota" hidden></p>
         </div>
+      </div>
+    </div>
+
+    <div class="view-pane active" id="paneBloqueado">
+      <div class="bloqueado-card">
+        <div class="bloqueado-card__ic">⏳</div>
+        <h2 class="bloqueado-card__titulo">Aguardando liberação</h2>
+        <p class="bloqueado-card__texto">O restaurante ainda não liberou seu acesso para o dia de hoje.</p>
+        <p class="bloqueado-card__nota">Assim que o restaurante ligar seu acesso, o aplicativo será liberado automaticamente.</p>
+        <p class="bloqueado-card__verificando" id="bloqueadoVerificando" hidden>Verificando novamente…</p>
       </div>
     </div>
 
@@ -513,6 +531,10 @@
   let roteirizacaoAtiva = false;
   let rotaModalAberto = false;
   let rotaOrdemIds = [];
+  let liberadoHoje = false;
+  let verificandoLiberacao = false;
+  let liberacaoJaChecadaUmaVez = false;
+  let abaAnteriorAoBloqueio = 'entregas';
   const STATUS_LABEL = {
     recebido: 'Recebido', aceito: 'Aceito', em_preparo: 'Em preparo',
     saiu_para_entrega: 'Saiu p/ entrega', entregue: 'Entregue', retirado: 'Retirado', cancelado: 'Cancelado'
@@ -521,6 +543,8 @@
   let trackingChannel = null;
   let entregasRefreshInterval = null;
   let visibilityListenerRegistrado = false;
+  let focusLiberacaoListenerRegistrado = false;
+  let liberacaoVersao = 0;
   let abaAtual = 'entregas';
   const SESSION_GUARD_MOTOBOY_KEY = 'eaf_motoboy_session_guard';
   const SESSION_MAX_MS = 12 * 60 * 60 * 1000;
@@ -755,11 +779,11 @@
   }
 
   async function carregarDadosIniciaisSecundarios() {
-    await Promise.allSettled([
-      carregarDisponibilidade(),
-      carregarEntregas()
-    ]);
-    subscribeTrackingEntregas();
+    // Não carrega fila/disponibilidade/Realtime aqui — isso só acontece dentro de
+    // aplicarEstadoLiberacao(), depois de confirmar a liberação diária pela RPC
+    // (fonte de verdade, não o relógio do aparelho). O shell do app já abre com
+    // paneBloqueado ativa por padrão no HTML, então não há flash de área operacional.
+    await verificarLiberacaoDiaria();
     iniciarRefreshEntregasMotoboy();
     iniciarControleSessaoMotoboy();
   }
@@ -784,16 +808,97 @@
     await bootSeguro();
   }
 
+  // =====================================================================
+  // LIBERAÇÃO DIÁRIA — fonte de verdade é sempre motoboy_esta_liberado_hoje() no banco,
+  // nunca o relógio do aparelho. Controla só o acesso operacional (fila, comanda, rota,
+  // controle, disponibilidade) — login, primeiro acesso e usuarios.ativo continuam à parte.
+  // =====================================================================
+
+  async function verificarLiberacaoDiaria() {
+    if (verificandoLiberacao) return liberadoHoje;
+    verificandoLiberacao = true;
+    const indicador = document.getElementById('bloqueadoVerificando');
+    if (indicador && !liberadoHoje && liberacaoJaChecadaUmaVez) indicador.hidden = false;
+
+    let novoEstado = false;
+    try {
+      const { data, error } = await sb.rpc('motoboy_esta_liberado_hoje');
+      if (error) {
+        console.error('Falha ao verificar liberação diária (bloqueando por segurança):', error);
+        novoEstado = false;
+      } else {
+        novoEstado = data === true;
+      }
+    } catch (e) {
+      console.error('Falha ao verificar liberação diária (bloqueando por segurança):', e);
+      novoEstado = false;
+    }
+
+    verificandoLiberacao = false;
+    if (indicador) indicador.hidden = true;
+    await aplicarEstadoLiberacao(novoEstado);
+    return novoEstado;
+  }
+
+  async function aplicarEstadoLiberacao(novoEstado) {
+    const primeiraChecagem = !liberacaoJaChecadaUmaVez;
+    const mudou = novoEstado !== liberadoHoje;
+    const mudouParaLiberado = novoEstado === true && liberadoHoje === false && !primeiraChecagem;
+    const mudouParaBloqueado = novoEstado === false && liberadoHoje === true;
+    if (mudou) liberacaoVersao++; // invalida qualquer consulta em voo de antes da mudança
+    liberacaoJaChecadaUmaVez = true;
+    liberadoHoje = novoEstado;
+
+    const dispWrap = document.getElementById('dispToggleWrap');
+    if (dispWrap) dispWrap.hidden = !liberadoHoje;
+    const menuControle = document.getElementById('menuItemControle');
+    if (menuControle) menuControle.hidden = !liberadoHoje;
+    const btnVoltar = document.getElementById('btnVoltarEntregas');
+    if (btnVoltar) btnVoltar.hidden = !liberadoHoje;
+
+    if (!novoEstado) {
+      // Realtime não deve existir enquanto bloqueado, em nenhuma hipótese.
+      if (trackingChannel) { sb.removeChannel(trackingChannel); trackingChannel = null; }
+      if (mudouParaBloqueado) {
+        fecharModal('comandaModal');
+        fecharModal('confirmacaoModal');
+        fecharModal('rotaModal');
+        fecharMenu();
+        entregas = [];
+        document.getElementById('entregasList').innerHTML = '';
+        document.getElementById('rotaBotaoWrap').innerHTML = '';
+      }
+      mostrarAba('bloqueado');
+      return;
+    }
+
+    mostrarAba(abaAnteriorAoBloqueio || 'entregas');
+    if (primeiraChecagem || mudouParaLiberado) {
+      await Promise.allSettled([carregarDisponibilidade(), carregarEntregas()]);
+      // Realtime inicia só ao liberar — subscribeTrackingEntregas() já remove o canal
+      // anterior antes de criar um novo, então nunca duplica mesmo se chamado de novo.
+      if (liberadoHoje) subscribeTrackingEntregas();
+    }
+    if (mudouParaLiberado) {
+      showToast('Acesso liberado', 'Você já pode iniciar as entregas.');
+    }
+  }
+
   function mostrarAba(aba) {
+    if (!liberadoHoje) aba = 'bloqueado';
+    else if (aba === 'bloqueado') aba = abaAnteriorAoBloqueio || 'entregas';
+    if (aba !== 'bloqueado') abaAnteriorAoBloqueio = aba;
+
     abaAtual = aba;
-    const mostrandoEntregas = aba === 'entregas';
-    document.getElementById('paneEntregas').classList.toggle('active', mostrandoEntregas);
-    document.getElementById('paneControle').classList.toggle('active', !mostrandoEntregas);
-    if (!mostrandoEntregas) void carregarControle();
+    document.getElementById('paneEntregas').classList.toggle('active', aba === 'entregas');
+    document.getElementById('paneControle').classList.toggle('active', aba === 'controle');
+    document.getElementById('paneBloqueado').classList.toggle('active', aba === 'bloqueado');
+    if (aba === 'controle') void carregarControle();
   }
 
   async function carregarControle() {
-    if (!currentUser) return;
+    if (!currentUser || !liberadoHoje) return;
+    const versaoInicio = liberacaoVersao;
     const hojeEl = document.getElementById('controleHoje');
     const totalEl = document.getElementById('controleTotal');
     const hojeNotaEl = document.getElementById('controleHojeNota');
@@ -820,6 +925,8 @@
         .in('status', ['entregue', 'retirado'])
     ]);
 
+    if (!liberadoHoje || versaoInicio !== liberacaoVersao) return;
+
     const hojeResultado = hojeResposta.status === 'fulfilled' ? hojeResposta.value : { error: hojeResposta.reason };
     const totalResultado = totalResposta.status === 'fulfilled' ? totalResposta.value : { error: totalResposta.reason };
     hojeEl.textContent = hojeResultado.error ? '—' : String(hojeResultado.count ?? 0);
@@ -834,7 +941,10 @@
   // DISPONIBILIDADE
   // =====================================================================
   async function carregarDisponibilidade() {
+    if (!liberadoHoje) return false;
+    const versaoInicio = liberacaoVersao;
     const { data, error } = await sb.from('motoboys').select('disponivel').eq('id', currentUser.id).maybeSingle();
+    if (!liberadoHoje || versaoInicio !== liberacaoVersao) return false;
     if (error) return false;
     disponivel = data?.disponivel ?? true;
     document.getElementById('dispSwitch').classList.toggle('on', disponivel);
@@ -842,6 +952,7 @@
   }
 
   async function toggleDisponivel() {
+    if (!liberadoHoje) return;
     disponivel = !disponivel;
     document.getElementById('dispSwitch').classList.toggle('on', disponivel);
     const { error } = await sb.from('motoboys').update({ disponivel }).eq('id', currentUser.id);
@@ -854,6 +965,8 @@
   let motoboyJaCarregouEntregasUmaVez = false;
 
   async function carregarEntregas() {
+    if (!liberadoHoje) return false;
+    const versaoInicio = liberacaoVersao;
     const idsAntes = new Set(entregas.map(e => e.id));
 
     const { data, error } = await sb.from('pedidos')
@@ -872,6 +985,8 @@
       .eq('motoboy_id', currentUser.id)
       .not('status', 'in', '(entregue,retirado,cancelado)')
       .order('criado_em', { ascending: true });
+
+    if (!liberadoHoje || versaoInicio !== liberacaoVersao) return false;
 
     if (error) {
       document.getElementById('entregasList').innerHTML = `<div class="empty-state"><div class="ic">⚠️</div><h4>Não foi possível carregar as entregas</h4><p>Verifique sua conexão e tente novamente.</p><button class="btn" type="button" onclick="carregarEntregas()">Tentar novamente</button></div>`;
@@ -1132,6 +1247,7 @@
   }
 
   function abrirRotaModal() {
+    if (!liberadoHoje) return;
     const elegiveis = entregasElegiveisRota();
     if (elegiveis.length < 2) { showToast('Rota indisponível', 'É preciso ter pelo menos 2 entregas para abrir a rota.'); return; }
     rotaOrdemIds = elegiveis.map(o => o.id);
@@ -1209,8 +1325,10 @@
   // Não depende de Realtime da tabela restaurantes — recarrega junto do refresh de 30s / foco.
   // Controla só a reorganização; a rota em si (atualizarBotaoRota) nunca é escondida por causa dela.
   async function carregarPermissaoRoteirizacao() {
-    if (!currentUser) return;
+    if (!currentUser || !liberadoHoje) return;
+    const versaoInicio = liberacaoVersao;
     const { data, error } = await sb.from('restaurantes').select('roteirizacao_motoboy_ativa').eq('id', currentUser.restaurante_id).maybeSingle();
+    if (!liberadoHoje || versaoInicio !== liberacaoVersao) return;
     if (error) return;
     roteirizacaoAtiva = !!data?.roteirizacao_motoboy_ativa;
     atualizarBotaoRota();
@@ -1247,6 +1365,7 @@
   }
 
   function abrirComanda(pedidoId) {
+    if (!liberadoHoje) return;
     const o = pedidoPorId(pedidoId);
     if (!o) return showToast('Aviso', 'Pedido não encontrado na fila atual.');
     const end=o.enderecos_cliente, tel=telefoneParaLink(o.clientes?.telefone);
@@ -1296,6 +1415,7 @@
   }
 
   function abrirConfirmacaoEntrega(pedidoId) {
+    if (!liberadoHoje) return;
     const o=pedidoPorId(pedidoId);
     if (!o) return showToast('Aviso','Pedido não encontrado na fila atual.');
     pedidoEmConfirmacaoId=o.id;
@@ -1313,7 +1433,7 @@
   }
 
   async function finalizarEntregaConfirmada() {
-    if (finalizacaoEmAndamento) return;
+    if (finalizacaoEmAndamento || !liberadoHoje) return;
     const o=pedidoPorId(pedidoEmConfirmacaoId);
     if (!o) return showToast('Aviso','Pedido não está mais disponível.');
     const check=document.getElementById('confirmarPagamentoCheck');
@@ -1381,6 +1501,8 @@
   async function refreshEntregasMotoboy() {
     if (!currentUser) return;
     try {
+      const liberado = await verificarLiberacaoDiaria();
+      if (!liberado) return;
       await carregarEntregas();
       await carregarControle();
       await carregarPermissaoRoteirizacao();
@@ -1399,6 +1521,21 @@
       });
       visibilityListenerRegistrado = true;
     }
+
+    iniciarListenerFocusLiberacao();
+  }
+
+  // window.focus é um evento distinto de visibilitychange (cobre voltar de outro app/janela
+  // no desktop) — mantido além do visibilitychange existente, não como substituto dele.
+  function iniciarListenerFocusLiberacao() {
+    if (focusLiberacaoListenerRegistrado) return;
+    window.addEventListener('focus', async () => {
+      if (!currentUser) return;
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) return;
+      await verificarLiberacaoDiaria();
+    });
+    focusLiberacaoListenerRegistrado = true;
   }
 
   function beep() {
