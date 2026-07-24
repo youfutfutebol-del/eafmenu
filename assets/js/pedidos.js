@@ -12,44 +12,30 @@
   let pedidosCriadosManualmente = new Set();
   let pedidosHistorico = [];
   let erroHistoricoPedidos = null;
+  let estadoHistoricoPedidos = 'inicial';
   let modoListaPedidos = 'andamento';
-  let buscaHistoricoPedidos = '';
   const renderOrdersEmAndamento = window.renderOrders;
   const STATUS_HISTORICO_PEDIDOS = ['entregue', 'retirado', 'cancelado'];
+  const CAMPOS_PEDIDOS = `
+    id, numero_diario, tipo, status, pago, forma_pagamento, subtotal, taxa_entrega, total, desconto_tipo, desconto_valor_informado, desconto_manual, desconto_motivo, criado_em, motoboy_id, troco_para, observacoes, previsao_inicio, previsao_fim,
+    clientes ( nome, telefone ),
+    enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento, referencia ),
+    itens_pedido (
+      produto_id, nome_grupo_snapshot, nome_tamanho_snapshot, sabores_esperados, precificacao_finalizada_em,
+      preco_unitario, quantidade, observacoes,
+      produtos ( nome ),
+      itens_pedido_sabores ( produto_id, nome_produto_snapshot, preco_unitario, ordem, produtos ( nome ) )
+    )
+  `;
 
   async function loadPedidos() {
-    const campos = `
-      id, numero_diario, tipo, status, pago, forma_pagamento, subtotal, taxa_entrega, total, desconto_tipo, desconto_valor_informado, desconto_manual, desconto_motivo, criado_em, motoboy_id, troco_para, observacoes, previsao_inicio, previsao_fim,
-      clientes ( nome, telefone ),
-      enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento, referencia ),
-      itens_pedido (
-        produto_id, nome_grupo_snapshot, nome_tamanho_snapshot, sabores_esperados, precificacao_finalizada_em,
-        preco_unitario, quantidade, observacoes,
-        produtos ( nome ),
-        itens_pedido_sabores ( produto_id, nome_produto_snapshot, preco_unitario, ordem, produtos ( nome ) )
-      )
-    `;
-    const [abertosResposta, historicoResposta] = await Promise.allSettled([
-      sb.from('pedidos')
-        .select(campos)
-        .eq('restaurante_id', restauranteId)
-        .not('status', 'in', '(entregue,retirado,cancelado)')
-        .order('criado_em', { ascending: false })
-        .limit(200),
-      sb.from('pedidos')
-        .select(campos)
-        .eq('restaurante_id', restauranteId)
-        .in('status', STATUS_HISTORICO_PEDIDOS)
-        .order('criado_em', { ascending: false })
-        .limit(200)
-    ]);
-    const abertosResultado = abertosResposta.status === 'fulfilled'
-      ? abertosResposta.value
-      : { data: null, error: abertosResposta.reason };
-    const historicoResultado = historicoResposta.status === 'fulfilled'
-      ? historicoResposta.value
-      : { data: null, error: historicoResposta.reason };
-    if (abertosResultado.error) {
+    const { data, error } = await sb.from('pedidos')
+      .select(CAMPOS_PEDIDOS)
+      .eq('restaurante_id', restauranteId)
+      .not('status', 'in', '(entregue,retirado,cancelado)')
+      .order('criado_em', { ascending: false })
+      .limit(200);
+    if (error) {
       document.getElementById('orderList').innerHTML = `
         <div class="empty-state">
           <div class="ic">⚠️</div>
@@ -60,12 +46,10 @@
       return false;
     }
     const inicio = inicioDiaComercial();
-    const abertos = abertosResultado.data || [];
+    const abertos = data || [];
     const anteriores = abertos.filter(pedido => new Date(pedido.criado_em) < inicio);
     const atuais = abertos.filter(pedido => new Date(pedido.criado_em) >= inicio);
     orders = [...anteriores, ...atuais];
-    erroHistoricoPedidos = historicoResultado.error || null;
-    if (!erroHistoricoPedidos) pedidosHistorico = historicoResultado.data || [];
     garantirInterfaceHistoricoPedidos();
     atualizarSubtituloPedidos();
     renderOrders();
@@ -85,17 +69,22 @@
       <button class="tab active" type="button" data-modo-pedidos="andamento" onclick="setModoListaPedidos('andamento')">Em andamento</button>
       <button class="tab" type="button" data-modo-pedidos="historico" onclick="setModoListaPedidos('historico')">Histórico</button>`;
     linhaFiltro.parentNode.insertBefore(modos, linhaFiltro);
-    const busca = document.createElement('input');
-    busca.id = 'buscaHistoricoPedidos';
-    busca.type = 'search';
-    busca.placeholder = 'Buscar por número, cliente ou telefone';
-    busca.setAttribute('aria-label', 'Buscar no histórico de pedidos');
-    busca.style.cssText = 'display:none; min-width:min(320px,100%); padding:7px 10px; border:1px solid var(--border); border-radius:8px; font:inherit;';
-    busca.addEventListener('input', event => {
-      buscaHistoricoPedidos = event.target.value;
-      renderOrders();
-    });
-    linhaFiltro.insertBefore(busca, document.getElementById('filterCountPedidos'));
+    const formulario = document.createElement('div');
+    formulario.id = 'filtrosHistoricoPedidos';
+    formulario.style.cssText = 'display:none; width:100%; gap:8px; align-items:end; flex-wrap:wrap;';
+    formulario.innerHTML = `
+      <label style="display:grid; gap:4px; font-size:11px; font-weight:700;">Data inicial
+        <input id="historicoDataInicial" type="date" style="padding:7px 9px; border:1px solid var(--border); border-radius:8px; font:inherit;">
+      </label>
+      <label style="display:grid; gap:4px; font-size:11px; font-weight:700;">Data final
+        <input id="historicoDataFinal" type="date" style="padding:7px 9px; border:1px solid var(--border); border-radius:8px; font:inherit;">
+      </label>
+      <label style="display:grid; gap:4px; min-width:210px; flex:1; font-size:11px; font-weight:700;">Telefone do cliente
+        <input id="historicoTelefone" type="tel" placeholder="(41) 99999-9999" style="padding:7px 9px; border:1px solid var(--border); border-radius:8px; font:inherit;">
+      </label>
+      <button class="btn primary" type="button" onclick="buscarHistoricoPedidos()">Buscar</button>
+      <button class="btn" type="button" onclick="limparFiltrosHistoricoPedidos()">Limpar filtros</button>`;
+    linhaFiltro.parentNode.insertBefore(formulario, linhaFiltro.nextSibling);
   }
 
   function setModoListaPedidos(modo) {
@@ -103,47 +92,152 @@
     document.querySelectorAll('[data-modo-pedidos]').forEach(botao => {
       botao.classList.toggle('active', botao.dataset.modoPedidos === modoListaPedidos);
     });
-    const busca = document.getElementById('buscaHistoricoPedidos');
+    const formulario = document.getElementById('filtrosHistoricoPedidos');
     const filtrosPagamento = document.getElementById('filterTabsPedidos');
     const rotuloPagamento = filtrosPagamento?.previousElementSibling;
-    if (busca) busca.style.display = modoListaPedidos === 'historico' ? 'block' : 'none';
+    if (formulario) formulario.style.display = modoListaPedidos === 'historico' ? 'flex' : 'none';
     if (filtrosPagamento) filtrosPagamento.style.display = modoListaPedidos === 'historico' ? 'none' : '';
     if (rotuloPagamento) rotuloPagamento.style.display = modoListaPedidos === 'historico' ? 'none' : '';
     renderOrders();
   }
 
-  function pedidoCorrespondeBuscaHistorico(pedido, termo) {
-    if (!termo.trim()) return true;
-    const normalizado = termo.trim().toLocaleLowerCase('pt-BR');
-    const somenteDigitos = normalizado.replace(/\D/g, '');
-    const numero = String(pedido.numero_diario ?? '');
-    const cliente = String(pedido.clientes?.nome || '').toLocaleLowerCase('pt-BR');
-    const telefone = String(pedido.clientes?.telefone || '');
-    return Boolean(numero.includes(normalizado.replace(/^#/, ''))
-      || cliente.includes(normalizado)
-      || (somenteDigitos && telefone.replace(/\D/g, '').includes(somenteDigitos)));
+  function normalizarTelefoneHistorico(telefone) {
+    const digitos = String(telefone || '').replace(/\D/g, '');
+    return digitos.startsWith('55') && digitos.length > 11 ? digitos.slice(2) : digitos;
+  }
+
+  function limitesPeriodoHistorico(dataInicial, dataFinal) {
+    const inicio = new Date(`${dataInicial}T00:00:00-03:00`);
+    const fimExclusivo = new Date(`${dataFinal}T00:00:00-03:00`);
+    fimExclusivo.setUTCDate(fimExclusivo.getUTCDate() + 1);
+    return { inicio: inicio.toISOString(), fimExclusivo: fimExclusivo.toISOString() };
+  }
+
+  function definirMensagemHistorico(mensagem, erro = false) {
+    erroHistoricoPedidos = erro ? mensagem : null;
+    estadoHistoricoPedidos = erro ? 'erro' : 'inicial';
+    document.getElementById('filterCountPedidos').textContent = '';
+    document.getElementById('orderList').innerHTML = `<div class="empty-state"><div class="ic">${erro ? '⚠️' : '🕘'}</div><p>${escapeHtml(mensagem)}</p></div>`;
+  }
+
+  async function buscarIdsClientesPorTelefoneHistorico(telefone) {
+    const telefoneNormalizado = normalizarTelefoneHistorico(telefone);
+    const ultimosQuatro = telefoneNormalizado.slice(-4);
+    const { data, error } = await sb.from('clientes')
+      .select('id, telefone')
+      .eq('restaurante_id', restauranteId)
+      .ilike('telefone', `%${ultimosQuatro}%`)
+      .limit(50);
+    if (error) throw error;
+    return (data || [])
+      .filter(cliente => normalizarTelefoneHistorico(cliente.telefone) === telefoneNormalizado)
+      .map(cliente => cliente.id);
+  }
+
+  async function buscarHistoricoPedidos() {
+    const dataInicial = document.getElementById('historicoDataInicial').value;
+    const dataFinal = document.getElementById('historicoDataFinal').value;
+    const telefone = document.getElementById('historicoTelefone').value;
+    const telefoneNormalizado = normalizarTelefoneHistorico(telefone);
+    const temAlgumaData = Boolean(dataInicial || dataFinal);
+    if (!temAlgumaData && !telefoneNormalizado) {
+      definirMensagemHistorico('Informe um período ou telefone para consultar pedidos anteriores.', true);
+      return;
+    }
+    if (temAlgumaData && (!dataInicial || !dataFinal)) {
+      definirMensagemHistorico('Informe a data inicial e a data final.', true);
+      return;
+    }
+    if (dataInicial && dataFinal && dataInicial > dataFinal) {
+      definirMensagemHistorico('O período informado é inválido.', true);
+      return;
+    }
+
+    estadoHistoricoPedidos = 'carregando';
+    erroHistoricoPedidos = null;
+    document.getElementById('filterCountPedidos').textContent = 'Buscando…';
+    document.getElementById('orderList').innerHTML = '<div class="empty-state"><div class="ic">🕘</div><p>Buscando pedidos anteriores…</p></div>';
+    try {
+      let clientesIds = null;
+      if (telefoneNormalizado) {
+        clientesIds = await buscarIdsClientesPorTelefoneHistorico(telefoneNormalizado);
+        if (!clientesIds.length) {
+          pedidosHistorico = [];
+          estadoHistoricoPedidos = 'carregado';
+          renderHistoricoPedidos();
+          return;
+        }
+      }
+      let consulta = sb.from('pedidos')
+        .select(CAMPOS_PEDIDOS)
+        .eq('restaurante_id', restauranteId)
+        .in('status', STATUS_HISTORICO_PEDIDOS);
+      if (dataInicial && dataFinal) {
+        const periodo = limitesPeriodoHistorico(dataInicial, dataFinal);
+        consulta = consulta.gte('criado_em', periodo.inicio).lt('criado_em', periodo.fimExclusivo);
+      }
+      if (clientesIds) consulta = consulta.in('cliente_id', clientesIds);
+      const { data, error } = await consulta
+        .order('criado_em', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      pedidosHistorico = data || [];
+      estadoHistoricoPedidos = 'carregado';
+      renderHistoricoPedidos();
+    } catch (error) {
+      definirMensagemHistorico('Não foi possível carregar o histórico. Tente novamente.', true);
+    }
+  }
+
+  function limparFiltrosHistoricoPedidos() {
+    document.getElementById('historicoDataInicial').value = '';
+    document.getElementById('historicoDataFinal').value = '';
+    document.getElementById('historicoTelefone').value = '';
+    pedidosHistorico = [];
+    erroHistoricoPedidos = null;
+    estadoHistoricoPedidos = 'inicial';
+    renderHistoricoPedidos();
   }
 
   function renderHistoricoPedidos() {
     const list = document.getElementById('orderList');
-    if (erroHistoricoPedidos) {
-      document.getElementById('filterCountPedidos').textContent = 'Histórico indisponível';
-      list.innerHTML = `<div class="empty-state"><div class="ic">⚠️</div><h4>Não foi possível carregar o histórico</h4><p>A fila em andamento continua disponível. Tente novamente.</p><button class="btn" type="button" onclick="loadPedidos()">Tentar novamente</button></div>`;
+    if (estadoHistoricoPedidos === 'inicial') {
+      document.getElementById('filterCountPedidos').textContent = '';
+      list.innerHTML = '<div class="empty-state"><div class="ic">🕘</div><p>Informe um período ou telefone para consultar pedidos anteriores.</p></div>';
       return;
     }
-    const filtrados = pedidosHistorico.filter(pedido => pedidoCorrespondeBuscaHistorico(pedido, buscaHistoricoPedidos));
+    if (estadoHistoricoPedidos === 'erro') {
+      document.getElementById('filterCountPedidos').textContent = '';
+      list.innerHTML = `<div class="empty-state"><div class="ic">⚠️</div><p>${escapeHtml(erroHistoricoPedidos || 'Não foi possível carregar o histórico.')}</p></div>`;
+      return;
+    }
+    if (estadoHistoricoPedidos === 'carregando') {
+      document.getElementById('filterCountPedidos').textContent = 'Buscando…';
+      list.innerHTML = '<div class="empty-state"><div class="ic">🕘</div><p>Buscando pedidos anteriores…</p></div>';
+      return;
+    }
     const ordersAtuais = orders;
     const filtroAtual = filtroPedidos;
-    orders = filtrados;
+    orders = pedidosHistorico;
     filtroPedidos = 'todos';
     renderOrdersEmAndamento();
     orders = ordersAtuais;
     filtroPedidos = filtroAtual;
-    document.getElementById('filterCountPedidos').textContent = `Mostrando ${filtrados.length} de ${pedidosHistorico.length} pedidos no histórico`;
+    document.getElementById('filterCountPedidos').textContent = `${pedidosHistorico.length} pedido${pedidosHistorico.length === 1 ? '' : 's'} no histórico`;
     list.querySelectorAll('button[onclick^="marcarPago"], button[onclick^="abrirCancelarPedido"]').forEach(botao => botao.remove());
-    if (!filtrados.length && buscaHistoricoPedidos.trim()) {
-      list.innerHTML = `<div class="empty-state"><div class="ic">🔎</div><h4>Nenhum pedido encontrado</h4><p>Busque por número, cliente ou telefone.</p></div>`;
-    }
+    [...list.querySelectorAll('.order-row')].forEach((linha, indice) => {
+      const pedido = pedidosHistorico[indice];
+      const data = new Date(pedido.criado_em).toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+      });
+      const codigo = linha.querySelector('.order-code');
+      if (codigo) codigo.textContent = `${codigoPedido(pedido)} · ${data}`;
+      const cliente = linha.querySelector('.order-cliente');
+      if (cliente && pedido.clientes?.telefone) {
+        cliente.insertAdjacentHTML('afterend', `<div class="order-itens">${escapeHtml(pedido.clientes.telefone)}</div>`);
+      }
+    });
   }
 
   function agruparPendenciasAnteriores() {
