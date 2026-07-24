@@ -14,6 +14,9 @@
   let erroHistoricoPedidos = null;
   let estadoHistoricoPedidos = 'inicial';
   let modoListaPedidos = 'andamento';
+  let historicoPaginaAtual = 0;
+  let historicoTotalResultados = 0;
+  const HISTORICO_TAMANHO_PAGINA = 200;
   const renderOrdersEmAndamento = window.renderOrders;
   const STATUS_HISTORICO_PEDIDOS = ['entregue', 'retirado', 'cancelado'];
   const CAMPOS_PEDIDOS = `
@@ -134,12 +137,13 @@
       .map(cliente => cliente.id);
   }
 
-  async function buscarHistoricoPedidos() {
+  async function buscarHistoricoPedidos(manterPagina = false) {
     const dataInicial = document.getElementById('historicoDataInicial').value;
     const dataFinal = document.getElementById('historicoDataFinal').value;
     const telefone = document.getElementById('historicoTelefone').value;
     const telefoneNormalizado = normalizarTelefoneHistorico(telefone);
     const temAlgumaData = Boolean(dataInicial || dataFinal);
+    if (!manterPagina) historicoPaginaAtual = 0;
     if (!temAlgumaData && !telefoneNormalizado) {
       definirMensagemHistorico('Informe um período ou telefone para consultar pedidos anteriores.', true);
       return;
@@ -163,13 +167,14 @@
         clientesIds = await buscarIdsClientesPorTelefoneHistorico(telefoneNormalizado);
         if (!clientesIds.length) {
           pedidosHistorico = [];
+          historicoTotalResultados = 0;
           estadoHistoricoPedidos = 'carregado';
           renderHistoricoPedidos();
           return;
         }
       }
       let consulta = sb.from('pedidos')
-        .select(CAMPOS_PEDIDOS)
+        .select(CAMPOS_PEDIDOS, { count: 'exact' })
         .eq('restaurante_id', restauranteId)
         .in('status', STATUS_HISTORICO_PEDIDOS);
       if (dataInicial && dataFinal) {
@@ -177,16 +182,27 @@
         consulta = consulta.gte('criado_em', periodo.inicio).lt('criado_em', periodo.fimExclusivo);
       }
       if (clientesIds) consulta = consulta.in('cliente_id', clientesIds);
-      const { data, error } = await consulta
+      const inicioPagina = historicoPaginaAtual * HISTORICO_TAMANHO_PAGINA;
+      const fimPagina = inicioPagina + HISTORICO_TAMANHO_PAGINA - 1;
+      const { data, error, count } = await consulta
         .order('criado_em', { ascending: false })
-        .limit(200);
+        .range(inicioPagina, fimPagina);
       if (error) throw error;
       pedidosHistorico = data || [];
+      historicoTotalResultados = Number(count || 0);
       estadoHistoricoPedidos = 'carregado';
       renderHistoricoPedidos();
     } catch (error) {
       definirMensagemHistorico('Não foi possível carregar o histórico. Tente novamente.', true);
     }
+  }
+
+  async function mudarPaginaHistorico(delta) {
+    const totalPaginas = Math.ceil(historicoTotalResultados / HISTORICO_TAMANHO_PAGINA);
+    const novaPagina = historicoPaginaAtual + delta;
+    if (estadoHistoricoPedidos === 'carregando' || novaPagina < 0 || novaPagina >= totalPaginas) return;
+    historicoPaginaAtual = novaPagina;
+    await buscarHistoricoPedidos(true);
   }
 
   function limparFiltrosHistoricoPedidos() {
@@ -196,6 +212,8 @@
     pedidosHistorico = [];
     erroHistoricoPedidos = null;
     estadoHistoricoPedidos = 'inicial';
+    historicoPaginaAtual = 0;
+    historicoTotalResultados = 0;
     renderHistoricoPedidos();
   }
 
@@ -223,7 +241,11 @@
     renderOrdersEmAndamento();
     orders = ordersAtuais;
     filtroPedidos = filtroAtual;
-    document.getElementById('filterCountPedidos').textContent = `${pedidosHistorico.length} pedido${pedidosHistorico.length === 1 ? '' : 's'} no histórico`;
+    const inicioResultado = historicoTotalResultados ? historicoPaginaAtual * HISTORICO_TAMANHO_PAGINA + 1 : 0;
+    const fimResultado = Math.min((historicoPaginaAtual + 1) * HISTORICO_TAMANHO_PAGINA, historicoTotalResultados);
+    document.getElementById('filterCountPedidos').textContent = historicoTotalResultados
+      ? `Mostrando ${inicioResultado}–${fimResultado} de ${historicoTotalResultados} pedidos`
+      : 'Nenhum pedido encontrado';
     list.querySelectorAll('button[onclick^="marcarPago"], button[onclick^="abrirCancelarPedido"]').forEach(botao => botao.remove());
     [...list.querySelectorAll('.order-row')].forEach((linha, indice) => {
       const pedido = pedidosHistorico[indice];
@@ -238,6 +260,15 @@
         cliente.insertAdjacentHTML('afterend', `<div class="order-itens">${escapeHtml(pedido.clientes.telefone)}</div>`);
       }
     });
+    if (historicoTotalResultados) {
+      const totalPaginas = Math.ceil(historicoTotalResultados / HISTORICO_TAMANHO_PAGINA);
+      list.insertAdjacentHTML('beforeend', `
+        <div id="paginacaoHistoricoPedidos" style="display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; padding:18px 0 6px;">
+          <button class="btn" type="button" onclick="mudarPaginaHistorico(-1)" ${historicoPaginaAtual === 0 ? 'disabled' : ''}>← Anterior</button>
+          <span style="font-size:12px; font-weight:700;">Página ${historicoPaginaAtual + 1} de ${totalPaginas}</span>
+          <button class="btn" type="button" onclick="mudarPaginaHistorico(1)" ${historicoPaginaAtual + 1 >= totalPaginas ? 'disabled' : ''}>Próxima →</button>
+        </div>`);
+    }
   }
 
   function agruparPendenciasAnteriores() {
