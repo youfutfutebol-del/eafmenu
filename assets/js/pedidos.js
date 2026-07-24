@@ -10,27 +10,46 @@
   // Limitacao conhecida: so funciona na mesma aba que criou o pedido manual (sem coluna no banco
   // pra diferenciar a origem, nao da pra saber isso em outra aba/dispositivo).
   let pedidosCriadosManualmente = new Set();
+  let pedidosHistorico = [];
+  let erroHistoricoPedidos = null;
+  let modoListaPedidos = 'andamento';
+  let buscaHistoricoPedidos = '';
+  const renderOrdersEmAndamento = window.renderOrders;
+  const STATUS_HISTORICO_PEDIDOS = ['entregue', 'retirado', 'cancelado'];
 
   async function loadPedidos() {
-    const inicio = inicioDiaComercial().toISOString();
-    const { data, error } = await sb
-      .from('pedidos')
-      .select(`
-        id, numero_diario, tipo, status, pago, forma_pagamento, subtotal, taxa_entrega, total, desconto_tipo, desconto_valor_informado, desconto_manual, desconto_motivo, criado_em, motoboy_id, troco_para, observacoes, previsao_inicio, previsao_fim,
-        clientes ( nome, telefone ),
-        enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento, referencia ),
-        itens_pedido (
-          produto_id, nome_grupo_snapshot, nome_tamanho_snapshot, sabores_esperados, precificacao_finalizada_em,
-          preco_unitario, quantidade, observacoes,
-          produtos ( nome ),
-          itens_pedido_sabores ( produto_id, nome_produto_snapshot, preco_unitario, ordem, produtos ( nome ) )
-        )
-      `)
-      .eq('restaurante_id', restauranteId)
-      .gte('criado_em', inicio)
-      .order('criado_em', { ascending: false })
-      .limit(200);
-    if (error) {
+    const campos = `
+      id, numero_diario, tipo, status, pago, forma_pagamento, subtotal, taxa_entrega, total, desconto_tipo, desconto_valor_informado, desconto_manual, desconto_motivo, criado_em, motoboy_id, troco_para, observacoes, previsao_inicio, previsao_fim,
+      clientes ( nome, telefone ),
+      enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento, referencia ),
+      itens_pedido (
+        produto_id, nome_grupo_snapshot, nome_tamanho_snapshot, sabores_esperados, precificacao_finalizada_em,
+        preco_unitario, quantidade, observacoes,
+        produtos ( nome ),
+        itens_pedido_sabores ( produto_id, nome_produto_snapshot, preco_unitario, ordem, produtos ( nome ) )
+      )
+    `;
+    const [abertosResposta, historicoResposta] = await Promise.allSettled([
+      sb.from('pedidos')
+        .select(campos)
+        .eq('restaurante_id', restauranteId)
+        .not('status', 'in', '(entregue,retirado,cancelado)')
+        .order('criado_em', { ascending: false })
+        .limit(200),
+      sb.from('pedidos')
+        .select(campos)
+        .eq('restaurante_id', restauranteId)
+        .in('status', STATUS_HISTORICO_PEDIDOS)
+        .order('criado_em', { ascending: false })
+        .limit(200)
+    ]);
+    const abertosResultado = abertosResposta.status === 'fulfilled'
+      ? abertosResposta.value
+      : { data: null, error: abertosResposta.reason };
+    const historicoResultado = historicoResposta.status === 'fulfilled'
+      ? historicoResposta.value
+      : { data: null, error: historicoResposta.reason };
+    if (abertosResultado.error) {
       document.getElementById('orderList').innerHTML = `
         <div class="empty-state">
           <div class="ic">⚠️</div>
@@ -40,11 +59,119 @@
         </div>`;
       return false;
     }
-    orders = data || [];
+    const inicio = inicioDiaComercial();
+    const abertos = abertosResultado.data || [];
+    const anteriores = abertos.filter(pedido => new Date(pedido.criado_em) < inicio);
+    const atuais = abertos.filter(pedido => new Date(pedido.criado_em) >= inicio);
+    orders = [...anteriores, ...atuais];
+    erroHistoricoPedidos = historicoResultado.error || null;
+    if (!erroHistoricoPedidos) pedidosHistorico = historicoResultado.data || [];
+    garantirInterfaceHistoricoPedidos();
     atualizarSubtituloPedidos();
     renderOrders();
     return true;
   }
+
+  function garantirInterfaceHistoricoPedidos() {
+    if (document.getElementById('modoListaPedidos')) return;
+    const filtrosPagamento = document.getElementById('filterTabsPedidos');
+    const linhaFiltro = filtrosPagamento?.closest('.filter-row');
+    if (!linhaFiltro) return;
+    const modos = document.createElement('div');
+    modos.id = 'modoListaPedidos';
+    modos.className = 'tabs';
+    modos.style.marginBottom = '10px';
+    modos.innerHTML = `
+      <button class="tab active" type="button" data-modo-pedidos="andamento" onclick="setModoListaPedidos('andamento')">Em andamento</button>
+      <button class="tab" type="button" data-modo-pedidos="historico" onclick="setModoListaPedidos('historico')">Histórico</button>`;
+    linhaFiltro.parentNode.insertBefore(modos, linhaFiltro);
+    const busca = document.createElement('input');
+    busca.id = 'buscaHistoricoPedidos';
+    busca.type = 'search';
+    busca.placeholder = 'Buscar por número, cliente ou telefone';
+    busca.setAttribute('aria-label', 'Buscar no histórico de pedidos');
+    busca.style.cssText = 'display:none; min-width:min(320px,100%); padding:7px 10px; border:1px solid var(--border); border-radius:8px; font:inherit;';
+    busca.addEventListener('input', event => {
+      buscaHistoricoPedidos = event.target.value;
+      renderOrders();
+    });
+    linhaFiltro.insertBefore(busca, document.getElementById('filterCountPedidos'));
+  }
+
+  function setModoListaPedidos(modo) {
+    modoListaPedidos = modo === 'historico' ? 'historico' : 'andamento';
+    document.querySelectorAll('[data-modo-pedidos]').forEach(botao => {
+      botao.classList.toggle('active', botao.dataset.modoPedidos === modoListaPedidos);
+    });
+    const busca = document.getElementById('buscaHistoricoPedidos');
+    const filtrosPagamento = document.getElementById('filterTabsPedidos');
+    const rotuloPagamento = filtrosPagamento?.previousElementSibling;
+    if (busca) busca.style.display = modoListaPedidos === 'historico' ? 'block' : 'none';
+    if (filtrosPagamento) filtrosPagamento.style.display = modoListaPedidos === 'historico' ? 'none' : '';
+    if (rotuloPagamento) rotuloPagamento.style.display = modoListaPedidos === 'historico' ? 'none' : '';
+    renderOrders();
+  }
+
+  function pedidoCorrespondeBuscaHistorico(pedido, termo) {
+    if (!termo.trim()) return true;
+    const normalizado = termo.trim().toLocaleLowerCase('pt-BR');
+    const somenteDigitos = normalizado.replace(/\D/g, '');
+    const numero = String(pedido.numero_diario ?? '');
+    const cliente = String(pedido.clientes?.nome || '').toLocaleLowerCase('pt-BR');
+    const telefone = String(pedido.clientes?.telefone || '');
+    return Boolean(numero.includes(normalizado.replace(/^#/, ''))
+      || cliente.includes(normalizado)
+      || (somenteDigitos && telefone.replace(/\D/g, '').includes(somenteDigitos)));
+  }
+
+  function renderHistoricoPedidos() {
+    const list = document.getElementById('orderList');
+    if (erroHistoricoPedidos) {
+      document.getElementById('filterCountPedidos').textContent = 'Histórico indisponível';
+      list.innerHTML = `<div class="empty-state"><div class="ic">⚠️</div><h4>Não foi possível carregar o histórico</h4><p>A fila em andamento continua disponível. Tente novamente.</p><button class="btn" type="button" onclick="loadPedidos()">Tentar novamente</button></div>`;
+      return;
+    }
+    const filtrados = pedidosHistorico.filter(pedido => pedidoCorrespondeBuscaHistorico(pedido, buscaHistoricoPedidos));
+    const ordersAtuais = orders;
+    const filtroAtual = filtroPedidos;
+    orders = filtrados;
+    filtroPedidos = 'todos';
+    renderOrdersEmAndamento();
+    orders = ordersAtuais;
+    filtroPedidos = filtroAtual;
+    document.getElementById('filterCountPedidos').textContent = `Mostrando ${filtrados.length} de ${pedidosHistorico.length} pedidos no histórico`;
+    list.querySelectorAll('button[onclick^="marcarPago"], button[onclick^="abrirCancelarPedido"]').forEach(botao => botao.remove());
+    if (!filtrados.length && buscaHistoricoPedidos.trim()) {
+      list.innerHTML = `<div class="empty-state"><div class="ic">🔎</div><h4>Nenhum pedido encontrado</h4><p>Busque por número, cliente ou telefone.</p></div>`;
+    }
+  }
+
+  function agruparPendenciasAnteriores() {
+    const filtrados = orders.filter(pedido => filtroPedidos === 'todos'
+      ? true
+      : (filtroPedidos === 'pago' ? pedido.pago : !pedido.pago));
+    const linhas = [...document.querySelectorAll('#orderList .order-row')];
+    const inicio = inicioDiaComercial();
+    let grupoAnteriorInserido = false;
+    let grupoAtualInserido = false;
+    linhas.forEach((linha, indice) => {
+      const anterior = new Date(filtrados[indice]?.criado_em) < inicio;
+      if (anterior && !grupoAnteriorInserido) {
+        linha.insertAdjacentHTML('beforebegin', '<h3 style="margin:8px 0 10px; font-size:13px;">Pendências anteriores</h3>');
+        grupoAnteriorInserido = true;
+      }
+      if (!anterior && !grupoAtualInserido) {
+        linha.insertAdjacentHTML('beforebegin', '<h3 style="margin:18px 0 10px; font-size:13px;">Em andamento</h3>');
+        grupoAtualInserido = true;
+      }
+    });
+  }
+
+  window.renderOrders = function renderOrdersComHistorico() {
+    if (modoListaPedidos === 'historico') return renderHistoricoPedidos();
+    renderOrdersEmAndamento();
+    agruparPendenciasAnteriores();
+  };
 
   function subscribeRealtime() {
     sb.channel('pedidos-restaurante-' + restauranteId)
@@ -73,26 +200,32 @@
   async function advanceStatus(id, status, tipo) {
     let next = FLOW[FLOW.indexOf(status) + 1];
     if (status === 'em_preparo' && tipo === 'retirada') next = 'retirado';
-    const { error } = await sb.from('pedidos').update({ status: next }).eq('id', id);
+    const { error } = await sb.from('pedidos').update({ status: next })
+      .eq('id', id)
+      .eq('restaurante_id', restauranteId);
     if (error) { showToast('Erro', error.message); return; }
     await loadPedidos();
   }
 
   async function atribuirMotoboy(pedidoId, motoboyId) {
-    const { error } = await sb.from('pedidos').update({ motoboy_id: motoboyId || null }).eq('id', pedidoId);
+    const { error } = await sb.from('pedidos').update({ motoboy_id: motoboyId || null })
+      .eq('id', pedidoId)
+      .eq('restaurante_id', restauranteId);
     if (error) { showToast('Erro ao atribuir motoboy', error.message); await loadPedidos(); return; }
     await loadPedidos();
   }
 
   async function marcarPago(id) {
-    const { error } = await sb.from('pedidos').update({ pago: true }).eq('id', id);
+    const { error } = await sb.from('pedidos').update({ pago: true })
+      .eq('id', id)
+      .eq('restaurante_id', restauranteId);
     if (error) { showToast('Erro', error.message); return; }
     await loadPedidos();
     if (currentView === 'financeiro') { loadMovimentacoes(); loadCaixaAtual(); }
   }
 
   function imprimirComanda(pedidoId) {
-    const o = orders.find(x => x.id === pedidoId);
+    const o = orders.find(x => x.id === pedidoId) || pedidosHistorico.find(x => x.id === pedidoId);
     if (!o) { showToast('Erro', 'Pedido não encontrado na lista atual.'); return; }
 
     const moeda = valor => 'R$ ' + Number(valor || 0).toFixed(2).replace('.', ',');
