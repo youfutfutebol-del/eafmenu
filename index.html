@@ -430,6 +430,16 @@
             <button class="btn primary" onclick="openEntregador()">+ Novo Entregador</button>
           </div>
         </div>
+        <div class="roteirizacao-card" id="roteirizacaoDonoCard" style="display:none;">
+          <div class="roteirizacao-card__texto">
+            <h4>Permitir reorganização da rota</h4>
+            <p>Permite que os motoboys alterem a ordem das entregas antes de abrir a rota no Google Maps.</p>
+          </div>
+          <div class="roteirizacao-card__controle">
+            <span id="roteirizacaoStatusLabel">Desativada</span>
+            <button class="switch" id="roteirizacaoSwitch" onclick="toggleRoteirizacaoMotoboy()" aria-label="Ativar ou desativar roteirização de entregas"></button>
+          </div>
+        </div>
         <table class="data-table">
           <thead><tr><th>Nome</th><th>Telefone</th><th>Veículo / Placa</th><th>Status</th><th>Disponível</th><th>Entregas (hoje/total)</th><th>Ações</th></tr></thead>
           <tbody id="entregadoresTableBody">
@@ -1113,7 +1123,7 @@
 
     let { data: userRow, error: userErr } = await sb
       .from('usuarios')
-      .select('id, nome, email, role, restaurante_id, primeiro_acesso, restaurantes(nome, slug, horarios_semana, endereco, whatsapp, taxa_entrega_padrao, prazo_entrega_min_minutos, prazo_entrega_max_minutos, prazo_retirada_min_minutos, prazo_retirada_max_minutos)')
+      .select('id, nome, email, role, restaurante_id, primeiro_acesso, restaurantes(nome, slug, horarios_semana, endereco, whatsapp, taxa_entrega_padrao, prazo_entrega_min_minutos, prazo_entrega_max_minutos, prazo_retirada_min_minutos, prazo_retirada_max_minutos, roteirizacao_motoboy_ativa)')
       .eq('id', session.user.id)
       .single();
     assertBootActive(sequence);
@@ -1153,6 +1163,8 @@
     if (userRow.role === 'dono') {
       document.getElementById('navMarca').style.display = 'flex';
       document.getElementById('navRelatorio').style.display = 'flex';
+      document.getElementById('roteirizacaoDonoCard').style.display = 'flex';
+      renderRoteirizacaoSwitch();
     }
 
     horariosLojaAtual = userRow.restaurantes?.horarios_semana || null;

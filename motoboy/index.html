@@ -182,6 +182,18 @@
   .controle-card__valor { margin-top:7px; font-family:var(--font-display); font-size:28px; font-weight:800; }
   .controle-card__nota { margin:8px 0 0; color:var(--muted); font-size:11.5px; line-height:1.5; }
   .controle-voltar { width:100%; min-height:44px; margin-bottom:12px; border:1.5px solid var(--line); border-radius:11px; background:var(--surface); color:var(--ink); font-size:12.5px; font-weight:700; }
+  .rota-abrir-btn { width:100%; min-height:46px; margin-bottom:14px; border:none; border-radius:12px; background:var(--route); color:#fff; font-size:13px; font-weight:700; box-shadow: var(--shadow); }
+  .rota-lista { display:flex; flex-direction:column; gap:10px; }
+  .rota-parada { display:flex; align-items:center; gap:10px; background:var(--paper); border-radius:12px; padding:10px 12px; }
+  .rota-parada__num { width:26px; height:26px; border-radius:50%; background:var(--route); color:#fff; display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:800; font-size:12px; flex-shrink:0; }
+  .rota-parada__info { flex:1; min-width:0; }
+  .rota-parada__pedido { font-weight:700; font-size:12.5px; }
+  .rota-parada__endereco { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .rota-parada__acoes { display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
+  .rota-parada__btn { width:30px; height:30px; border-radius:8px; background:var(--surface); border:1.5px solid var(--line); color:var(--ink); font-size:13px; }
+  .rota-parada__btn:disabled { opacity:.35; }
+  .rota-nota { font-size:11.5px; color:var(--muted); margin:14px 0 0; font-style:italic; line-height:1.5; }
+  .rota-trechos { margin-top:16px; display:flex; flex-direction:column; gap:8px; }
   .modal-overlay { position:fixed; inset:0; z-index:300; display:none; align-items:flex-end; justify-content:center; padding:12px; background:rgba(10,13,16,.62); }
   .modal-overlay.open { display:flex; }
   .modal-sheet { width:min(560px,100%); max-height:min(88dvh,760px); display:flex; flex-direction:column; overflow:hidden; background:var(--surface); border-radius:20px 20px 14px 14px; box-shadow:var(--shadow-lg); }
@@ -299,6 +311,7 @@
 
   <div class="main">
     <div class="view-pane active" id="paneEntregas">
+      <div id="rotaBotaoWrap"></div>
       <div id="entregasList">
         <div class="empty-state">
           <div class="ic">🛵</div>
@@ -339,6 +352,13 @@
   <section class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="confirmacaoTitulo">
     <header class="modal-head"><h2 id="confirmacaoTitulo">Confirmar entrega</h2><button class="modal-close" type="button" aria-label="Fechar confirmação" data-fechar-modal="confirmacaoModal">×</button></header>
     <div class="modal-body" id="confirmacaoBody"></div>
+  </section>
+</div>
+
+<div class="modal-overlay" id="rotaModal" aria-hidden="true">
+  <section class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="rotaModalTitulo">
+    <header class="modal-head"><h2 id="rotaModalTitulo">Organizar rota</h2><button class="modal-close" type="button" aria-label="Fechar organizar rota" data-fechar-modal="rotaModal">×</button></header>
+    <div class="modal-body" id="rotaModalBody"></div>
   </section>
 </div>
 
@@ -490,6 +510,9 @@
   let currentUser = null;
   let entregas = [];
   let disponivel = true;
+  let roteirizacaoAtiva = false;
+  let rotaModalAberto = false;
+  let rotaOrdemIds = [];
   const STATUS_LABEL = {
     recebido: 'Recebido', aceito: 'Aceito', em_preparo: 'Em preparo',
     saiu_para_entrega: 'Saiu p/ entrega', entregue: 'Entregue', retirado: 'Retirado', cancelado: 'Cancelado'
@@ -705,7 +728,7 @@
 
     const { data: userRow, error: userErr } = await sb
       .from('usuarios')
-      .select('id, nome, role, restaurante_id, primeiro_acesso, ativo, restaurantes(nome, whatsapp)')
+      .select('id, nome, role, restaurante_id, primeiro_acesso, ativo, restaurantes(nome, whatsapp, roteirizacao_motoboy_ativa)')
       .eq('id', session.user.id)
       .single();
     assertBootActive(sequence);
@@ -716,6 +739,7 @@
     if (!userRow.ativo) throw new Error('USER_INACTIVE');
 
     currentUser = userRow;
+    roteirizacaoAtiva = !!userRow.restaurantes?.roteirizacao_motoboy_ativa;
 
     if (userRow.primeiro_acesso) {
       showScreen(APP_SCREEN.FIRST_ACCESS);
@@ -956,6 +980,7 @@
     const wrap = document.getElementById('entregasList');
     if (entregas.length === 0) {
       wrap.innerHTML = `<div class="empty-state"><div class="ic">🛵</div><h4>Nenhuma entrega no momento</h4><p>Assim que o restaurante atribuir uma entrega a você, ela aparece aqui.</p></div>`;
+      atualizarBotaoRota();
       return;
     }
 
@@ -1039,7 +1064,162 @@
     wrap.innerHTML =
       renderGrupo(anteriores, 'Pendências anteriores', true, 0) +
       renderGrupo(atuais, 'Entregas atuais', false, anteriores.length);
+
+    atualizarBotaoRota();
   }
+
+  // =====================================================================
+  // ROTA COM VÁRIAS ENTREGAS
+  // A rota (abrir Google Maps com várias paradas) fica sempre disponível a partir de
+  // 2 entregas elegíveis — não depende de roteirizacaoAtiva. Essa permissão do restaurante
+  // controla só se o motoboy pode ALTERAR A ORDEM das paradas antes de abrir a rota; a
+  // navegação individual ("Iniciar navegação" em cada card) também nunca depende dela.
+  // =====================================================================
+
+  // Endereço elegível pra rota exige logradouro, número, bairro e cidade preenchidos —
+  // usada no filtro, na contagem de ignorados e na geração da rota (mesma função nos três lugares).
+  function enderecoElegivelParaRota(endereco) {
+    return Boolean(
+      String(endereco?.logradouro || '').trim() &&
+      String(endereco?.numero || '').trim() &&
+      String(endereco?.bairro || '').trim() &&
+      String(endereco?.cidade || '').trim()
+    );
+  }
+
+  function entregasElegiveisRota() {
+    return entregas.filter(o => o.tipo !== 'retirada' && o.status === 'saiu_para_entrega' && enderecoElegivelParaRota(o.enderecos_cliente));
+  }
+
+  function entregasIgnoradasRota() {
+    return entregas.filter(o => o.tipo !== 'retirada' && o.status === 'saiu_para_entrega' && !enderecoElegivelParaRota(o.enderecos_cliente));
+  }
+
+  function atualizarBotaoRota() {
+    const wrap = document.getElementById('rotaBotaoWrap');
+    if (!wrap) return;
+    const elegiveis = entregasElegiveisRota();
+    const mostrar = elegiveis.length >= 2;
+    const rotulo = roteirizacaoAtiva ? 'Organizar rota' : 'Abrir rota';
+    wrap.innerHTML = mostrar
+      ? `<button class="rota-abrir-btn" type="button" onclick="abrirRotaModal()">🗺️ ${rotulo} (${elegiveis.length} entregas)</button>`
+      : '';
+    if (rotaModalAberto) {
+      if (!mostrar) fecharModal('rotaModal');
+      else renderRotaModal();
+    }
+  }
+
+  function gerarTrechosRota(paradas) {
+    const trechos = [];
+    for (let i = 0; i < paradas.length; i += 4) trechos.push(paradas.slice(i, i + 4));
+    return trechos;
+  }
+
+  // Usa a API de rotas do Google Maps (sem chave, sem chamada de API) — só monta a URL.
+  function urlTrechoRota(trecho) {
+    const enderecos = trecho.map(o => enderecoTexto(o.enderecos_cliente));
+    const destino = enderecos[enderecos.length - 1];
+    const waypoints = enderecos.slice(0, -1);
+    const params = new URLSearchParams({
+      api: '1',
+      destination: destino,
+      travelmode: 'driving',
+      dir_action: 'navigate'
+    });
+    if (waypoints.length) params.set('waypoints', waypoints.join('|'));
+    return `https://www.google.com/maps/dir/?${params.toString()}`;
+  }
+
+  function abrirRotaModal() {
+    const elegiveis = entregasElegiveisRota();
+    if (elegiveis.length < 2) { showToast('Rota indisponível', 'É preciso ter pelo menos 2 entregas para abrir a rota.'); return; }
+    rotaOrdemIds = elegiveis.map(o => o.id);
+    rotaModalAberto = true;
+    renderRotaModal();
+    abrirModal('rotaModal');
+  }
+
+  // Quando a reorganização não está liberada, a rota usa sempre a ordem atual da fila
+  // (recalculada a cada render — nunca a partir de rotaOrdemIds). Isso também garante que,
+  // se a permissão for desativada com o modal aberto, a ordem volta pra fila imediatamente.
+  function paradasOrdenadasRota() {
+    const elegiveis = entregasElegiveisRota();
+    if (!roteirizacaoAtiva) return elegiveis;
+
+    const idsElegiveis = new Set(elegiveis.map(o => o.id));
+    rotaOrdemIds = rotaOrdemIds.filter(id => idsElegiveis.has(id));
+    elegiveis.forEach(o => { if (!rotaOrdemIds.includes(o.id)) rotaOrdemIds.push(o.id); });
+    const mapaPedidos = new Map(elegiveis.map(o => [o.id, o]));
+    return rotaOrdemIds.map(id => mapaPedidos.get(id)).filter(Boolean);
+  }
+
+  function renderRotaModal() {
+    const paradas = paradasOrdenadasRota();
+    const corpo = document.getElementById('rotaModalBody');
+
+    if (paradas.length < 2) {
+      corpo.innerHTML = `<div class="empty-state"><div class="ic">🗺️</div><h4>Rota indisponível</h4><p>Restam menos de 2 entregas elegíveis para abrir a rota.</p></div>`;
+      return;
+    }
+
+    const ignoradas = entregasIgnoradasRota().length;
+
+    const listaHtml = paradas.map((o, i) => `
+      <div class="rota-parada">
+        <div class="rota-parada__num">${i + 1}</div>
+        <div class="rota-parada__info">
+          <div class="rota-parada__pedido">${escaparHtml(codigoEntrega(o))} — ${escaparHtml(o.clientes?.nome || 'Cliente')}</div>
+          <div class="rota-parada__endereco">${escaparHtml(enderecoTexto(o.enderecos_cliente))}</div>
+        </div>
+        ${roteirizacaoAtiva ? `
+        <div class="rota-parada__acoes">
+          <button type="button" class="rota-parada__btn" data-acao-parada="subir" data-parada-id="${escaparHtml(o.id)}" ${i === 0 ? 'disabled' : ''} aria-label="Subir parada">↑</button>
+          <button type="button" class="rota-parada__btn" data-acao-parada="descer" data-parada-id="${escaparHtml(o.id)}" ${i === paradas.length - 1 ? 'disabled' : ''} aria-label="Descer parada">↓</button>
+        </div>` : ''}
+      </div>`).join('');
+
+    const trechos = gerarTrechosRota(paradas);
+    const trechosHtml = trechos.map((trecho, i) =>
+      `<a class="btn primary" href="${urlTrechoRota(trecho)}" target="_blank" rel="noopener">Abrir trecho ${i + 1} no Google Maps</a>`
+    ).join('');
+
+    const intro = roteirizacaoAtiva
+      ? `Rota organizada com ${paradas.length} entregas. Reordene as paradas se quiser mudar a sequência antes de abrir no Google Maps.`
+      : `Rota com ${paradas.length} entregas, na ordem atual da fila.`;
+
+    corpo.innerHTML = `
+      <p style="font-size:12.5px; color:var(--muted); line-height:1.5; margin:0 0 14px;">${intro}</p>
+      <div class="rota-lista">${listaHtml}</div>
+      ${!roteirizacaoAtiva ? `<p class="rota-nota">A ordem atual das entregas não pode ser alterada.</p>` : ''}
+      ${ignoradas > 0 ? `<p class="rota-nota">${ignoradas} pedido${ignoradas === 1 ? '' : 's'} sem endereço não ${ignoradas === 1 ? 'entrou' : 'entraram'} nessa rota.</p>` : ''}
+      <div class="rota-trechos">${trechosHtml}</div>`;
+  }
+
+  function moverParadaRota(id, direcao) {
+    if (!roteirizacaoAtiva) return;
+    const idx = rotaOrdemIds.indexOf(id);
+    if (idx === -1) return;
+    const novoIdx = direcao === 'subir' ? idx - 1 : idx + 1;
+    if (novoIdx < 0 || novoIdx >= rotaOrdemIds.length) return;
+    [rotaOrdemIds[idx], rotaOrdemIds[novoIdx]] = [rotaOrdemIds[novoIdx], rotaOrdemIds[idx]];
+    renderRotaModal();
+  }
+
+  // Não depende de Realtime da tabela restaurantes — recarrega junto do refresh de 30s / foco.
+  // Controla só a reorganização; a rota em si (atualizarBotaoRota) nunca é escondida por causa dela.
+  async function carregarPermissaoRoteirizacao() {
+    if (!currentUser) return;
+    const { data, error } = await sb.from('restaurantes').select('roteirizacao_motoboy_ativa').eq('id', currentUser.restaurante_id).maybeSingle();
+    if (error) return;
+    roteirizacaoAtiva = !!data?.roteirizacao_motoboy_ativa;
+    atualizarBotaoRota();
+  }
+
+  document.addEventListener('click', event => {
+    const paradaBtn = event.target.closest('[data-acao-parada]');
+    if (paradaBtn) moverParadaRota(paradaBtn.dataset.paradaId, paradaBtn.dataset.acaoParada);
+  });
 
   let pedidoEmConfirmacaoId = null;
   let finalizacaoEmAndamento = false;
@@ -1063,6 +1243,7 @@
     modal.setAttribute('aria-hidden', 'true');
     if (!document.querySelector('.modal-overlay.open')) document.body.classList.remove('modal-aberto');
     if (id === 'confirmacaoModal') pedidoEmConfirmacaoId = null;
+    if (id === 'rotaModal') rotaModalAberto = false;
   }
 
   function abrirComanda(pedidoId) {
@@ -1180,6 +1361,7 @@
   document.addEventListener('keydown', event => {
     if (event.key==='Escape') {
       if (document.getElementById('confirmacaoModal').classList.contains('open')) fecharModal('confirmacaoModal');
+      else if (document.getElementById('rotaModal').classList.contains('open')) fecharModal('rotaModal');
       else if (document.getElementById('comandaModal').classList.contains('open')) fecharModal('comandaModal');
     }
   });
@@ -1201,6 +1383,7 @@
     try {
       await carregarEntregas();
       await carregarControle();
+      await carregarPermissaoRoteirizacao();
     } catch (e) {
       console.error('Falha ao atualizar entregas do motoboy:', e);
     }

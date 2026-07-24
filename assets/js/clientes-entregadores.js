@@ -206,3 +206,39 @@
     if (error) { showToast('Erro ao redefinir senha', error.message); return; }
     showToast('Senha redefinida', `Nova senha de ${nome} definida.`);
   }
+
+  // Permissão do restaurante para o motoboy reorganizar a ordem das entregas na rota (só dono altera).
+  // Não controla acesso a GPS/navegação nem à rota com várias entregas — essas ficam sempre disponíveis.
+  let roteirizacaoSalvando = false;
+
+  function renderRoteirizacaoSwitch() {
+    const switchEl = document.getElementById('roteirizacaoSwitch');
+    const labelEl = document.getElementById('roteirizacaoStatusLabel');
+    if (!switchEl) return;
+    const ativa = !!restauranteInfo?.roteirizacao_motoboy_ativa;
+    switchEl.classList.toggle('on', ativa);
+    if (labelEl) labelEl.textContent = ativa ? 'Ativada' : 'Desativada';
+  }
+
+  async function toggleRoteirizacaoMotoboy() {
+    if (roteirizacaoSalvando || currentUser?.role !== 'dono') return;
+
+    const ativoAtual = !!restauranteInfo?.roteirizacao_motoboy_ativa;
+    const novoValor = !ativoAtual;
+    if (ativoAtual && !confirm('Os motoboys continuarão usando a navegação, mas não poderão alterar a ordem das entregas. Continuar?')) return;
+
+    roteirizacaoSalvando = true;
+    const switchEl = document.getElementById('roteirizacaoSwitch');
+    switchEl.disabled = true;
+
+    const { error } = await sb.rpc('definir_roteirizacao_motoboy', { p_ativa: novoValor });
+
+    switchEl.disabled = false;
+    roteirizacaoSalvando = false;
+
+    if (error) { showToast('Erro ao atualizar', error.message); return; }
+
+    restauranteInfo.roteirizacao_motoboy_ativa = novoValor;
+    renderRoteirizacaoSwitch();
+    showToast('Roteirização atualizada', novoValor ? 'Os motoboys já podem reorganizar a ordem das entregas.' : 'Os motoboys não poderão mais alterar a ordem das entregas.');
+  }
