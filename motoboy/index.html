@@ -106,21 +106,28 @@
   .topbar__row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
   .topbar__titulo { font-family: var(--font-display); font-weight:700; font-size:19px; letter-spacing:-.3px; }
   .topbar__sub { font-size:12px; color:#9AA1AA; margin-top:2px; }
-  .topbar__right { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+  .topbar__right { display:flex; align-items:center; gap:12px; }
   .disp-toggle { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:700; color:#D5D8DB; }
   .switch { width:34px; height:19px; background:#33383E; border-radius:20px; position:relative; flex-shrink:0; }
   .switch.on { background: var(--done); }
   .switch::after { content:''; position:absolute; top:2px; left:2px; width:15px; height:15px; background:#fff; border-radius:50%; transition:.15s; }
   .switch.on::after { left:17px; }
-  .logout-btn { color:#EF7A70; font-size:11.5px; font-weight:700; padding:4px 0; }
-  .tema-toggle-btn { color:#D5D8DB; font-size:15px; padding:2px 0; }
-  .contato-rest-btn { display:none; margin-top:8px; align-items:center; gap:5px; font-size:11.5px; font-weight:700; color:#fff; background:rgba(255,255,255,.12); border-radius:8px; padding:7px 11px; }
-  .contato-rest-btn.show { display:inline-flex; }
-
-  .tabs-seg { display:flex; gap:4px; margin-bottom:14px; background:#EAE5DC; border-radius:12px; padding:4px; }
-  .tabs-seg button { flex:1; padding:10px; border-radius:9px; font-size:12.5px; font-weight:700; color:var(--muted); }
-  .tabs-seg button.active { background:var(--surface); color:var(--ink); box-shadow:var(--shadow); }
-  body.dark .tabs-seg { background:#252B31; }
+  .menu-wrap { position:relative; }
+  .menu-trigger { width:44px; height:44px; border-radius:12px; color:#fff; background:rgba(255,255,255,.1); font-size:22px; line-height:1; display:flex; align-items:center; justify-content:center; }
+  .menu-trigger[aria-expanded="true"] { background:rgba(255,255,255,.18); }
+  .app-menu {
+    position:absolute; z-index:200; top:calc(100% + 9px); right:0; width:min(260px, calc(100vw - 32px));
+    background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:14px; padding:6px;
+    box-shadow:var(--shadow-lg); opacity:0; visibility:hidden; pointer-events:none; transform:translateY(-6px) scale(.98);
+    transform-origin:top right; transition:opacity .15s ease, transform .15s ease, visibility .15s;
+  }
+  .app-menu.open { opacity:1; visibility:visible; pointer-events:auto; transform:translateY(0) scale(1); }
+  .menu-item { width:100%; min-height:44px; display:flex; align-items:center; gap:10px; border-radius:10px; padding:10px 12px; color:var(--ink); font-size:12.5px; font-weight:700; text-align:left; }
+  .menu-item:hover, .menu-item:focus-visible { background:var(--paper); outline:none; }
+  .menu-item__icon { width:20px; text-align:center; font-size:15px; }
+  .menu-item.danger { color:#C53A32; }
+  .menu-item.contato-rest-btn { display:none; }
+  .menu-item.contato-rest-btn.show { display:flex; }
   .view-pane { display:none; }
   .view-pane.active { display:block; }
 
@@ -174,6 +181,29 @@
   .controle-card__label { font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.35px; }
   .controle-card__valor { margin-top:7px; font-family:var(--font-display); font-size:28px; font-weight:800; }
   .controle-card__nota { margin:8px 0 0; color:var(--muted); font-size:11.5px; line-height:1.5; }
+  .controle-voltar { width:100%; min-height:44px; margin-bottom:12px; border:1.5px solid var(--line); border-radius:11px; background:var(--surface); color:var(--ink); font-size:12.5px; font-weight:700; }
+  .modal-overlay { position:fixed; inset:0; z-index:300; display:none; align-items:flex-end; justify-content:center; padding:12px; background:rgba(10,13,16,.62); }
+  .modal-overlay.open { display:flex; }
+  .modal-sheet { width:min(560px,100%); max-height:min(88dvh,760px); display:flex; flex-direction:column; overflow:hidden; background:var(--surface); border-radius:20px 20px 14px 14px; box-shadow:var(--shadow-lg); }
+  .modal-head { flex:none; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; border-bottom:1px solid var(--line); }
+  .modal-head h2 { margin:0; font-family:var(--font-display); font-size:16px; }
+  .modal-close { width:42px; height:42px; border-radius:10px; background:var(--paper); color:var(--ink); font-size:20px; }
+  .modal-body { overflow:auto; padding:16px 18px 22px; overscroll-behavior:contain; }
+  .comanda-secao { padding:0 0 14px; margin:0 0 14px; border-bottom:1px solid var(--line); }
+  .comanda-secao:last-child { border:0; margin:0; }
+  .comanda-secao h3 { margin:0 0 9px; font-family:var(--font-display); font-size:12px; text-transform:uppercase; letter-spacing:.35px; }
+  .comanda-linha { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; padding:3px 0; font-size:12.5px; line-height:1.45; }
+  .comanda-linha span:first-child { color:var(--muted); }
+  .comanda-linha b { text-align:right; overflow-wrap:anywhere; }
+  .comanda-item { padding:10px 0; border-bottom:1px dashed var(--line); font-size:12.5px; line-height:1.45; }
+  .comanda-item:last-child { border-bottom:0; }
+  .comanda-sabores,.comanda-obs { margin-top:4px; color:var(--muted); font-size:11.5px; }
+  .modal-actions { display:flex; gap:9px; margin-top:16px; }
+  .modal-actions .btn { min-height:46px; }
+  .confirm-alert { padding:12px; margin-bottom:12px; border-radius:12px; background:#FFF3D6; color:#785000; font-size:12.5px; line-height:1.5; font-weight:650; }
+  .confirm-check { display:flex; align-items:flex-start; gap:10px; margin:14px 0; font-size:12.5px; line-height:1.45; }
+  .confirm-check input { width:20px; height:20px; flex:none; }
+  body.modal-aberto { overflow:hidden; }
 
   .toast {
     position:fixed; top:16px; right:16px; left:16px; z-index:100; background: var(--surface); border-left:3px solid var(--route);
@@ -248,27 +278,27 @@
       <div>
         <div class="topbar__titulo" id="topNome">Olá</div>
         <div class="topbar__sub" id="topSub">—</div>
-        <button class="contato-rest-btn" id="btnContatoRestaurante" onclick="abrirWhatsappRestauranteMotoboy()">💬 Falar com o restaurante</button>
       </div>
       <div class="topbar__right">
-        <button class="logout-btn" onclick="logout()">⎋ Sair</button>
-        <button class="tema-toggle-btn" id="temaToggleBtn" onclick="toggleModoNoturno()" title="Alternar tema">🌙</button>
-        <button class="tema-toggle-btn" id="btnTestarSomDevMotoboy" style="display:none;" onclick="tocarNovaEntregaMotoboy()" title="Testar som (dev)">🔔</button>
         <div class="disp-toggle">
           Disponível
           <button class="switch on" id="dispSwitch" onclick="toggleDisponivel()"></button>
+        </div>
+        <div class="menu-wrap" id="menuWrap">
+          <button class="menu-trigger" id="menuTrigger" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="appMenu" onclick="toggleMenu(event)">☰</button>
+          <div class="app-menu" id="appMenu" role="menu" aria-hidden="true">
+            <button class="menu-item" type="button" role="menuitem" onclick="abrirMeuControle()"><span class="menu-item__icon">▦</span> Meu controle</button>
+            <button class="menu-item contato-rest-btn" id="btnContatoRestaurante" type="button" role="menuitem" onclick="falarComRestaurantePeloMenu()"><span class="menu-item__icon">💬</span> Falar com o restaurante</button>
+            <button class="menu-item" type="button" role="menuitem" onclick="alternarTemaPeloMenu()"><span class="menu-item__icon">◐</span> <span id="temaMenuLabel">Modo noturno</span></button>
+            <button class="menu-item danger" type="button" role="menuitem" onclick="sairPeloMenu()"><span class="menu-item__icon">⎋</span> Sair</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <div class="main">
-    <div class="tabs-seg" role="tablist" aria-label="Áreas do App do Motoboy">
-      <button class="active" id="tabEntregasBtn" role="tab" aria-selected="true" aria-controls="paneEntregas" onclick="mostrarAba('entregas')">Entregas</button>
-      <button id="tabControleBtn" role="tab" aria-selected="false" aria-controls="paneControle" onclick="mostrarAba('controle')">Meu controle</button>
-    </div>
-
-    <div class="view-pane active" id="paneEntregas" role="tabpanel" aria-labelledby="tabEntregasBtn">
+    <div class="view-pane active" id="paneEntregas">
       <div id="entregasList">
         <div class="empty-state">
           <div class="ic">🛵</div>
@@ -278,22 +308,38 @@
       </div>
     </div>
 
-    <div class="view-pane" id="paneControle" role="tabpanel" aria-labelledby="tabControleBtn">
+    <div class="view-pane" id="paneControle">
+      <button class="controle-voltar" type="button" onclick="mostrarAba('entregas')">← Voltar para Entregas</button>
       <div class="controle-grid">
         <div class="controle-card">
           <div class="controle-card__label">Entregas concluídas hoje</div>
-          <div class="controle-card__valor">—</div>
-          <p class="controle-card__nota">Aguardando um timestamp confiável de conclusão no banco para calcular este indicador.</p>
+          <div class="controle-card__valor" id="controleHoje">—</div>
+          <p class="controle-card__nota" id="controleHojeNota" hidden></p>
         </div>
         <div class="controle-card">
           <div class="controle-card__label">Total de entregas concluídas</div>
           <div class="controle-card__valor" id="controleTotal">—</div>
+          <p class="controle-card__nota" id="controleTotalNota" hidden></p>
         </div>
       </div>
     </div>
 
     <button class="install-btn" id="installBtnApp" onclick="installApp()">⬇ Instalar aplicativo</button>
   </div>
+</div>
+
+<div class="modal-overlay" id="comandaModal" aria-hidden="true">
+  <section class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="comandaTitulo">
+    <header class="modal-head"><h2 id="comandaTitulo">Comanda completa</h2><button class="modal-close" type="button" aria-label="Fechar comanda" data-fechar-modal="comandaModal">×</button></header>
+    <div class="modal-body" id="comandaBody"></div>
+  </section>
+</div>
+
+<div class="modal-overlay" id="confirmacaoModal" aria-hidden="true">
+  <section class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="confirmacaoTitulo">
+    <header class="modal-head"><h2 id="confirmacaoTitulo">Confirmar entrega</h2><button class="modal-close" type="button" aria-label="Fechar confirmação" data-fechar-modal="confirmacaoModal">×</button></header>
+    <div class="modal-body" id="confirmacaoBody"></div>
+  </section>
 </div>
 
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
@@ -311,8 +357,8 @@
   function aplicarModoNoturno() {
     const ativo = localStorage.getItem(TEMA_STORAGE_KEY) === '1';
     document.body.classList.toggle('dark', ativo);
-    const btn = document.getElementById('temaToggleBtn');
-    if (btn) btn.textContent = ativo ? '☀️' : '🌙';
+    const label = document.getElementById('temaMenuLabel');
+    if (label) label.textContent = ativo ? 'Modo claro' : 'Modo noturno';
   }
 
   function toggleModoNoturno() {
@@ -323,11 +369,52 @@
 
   aplicarModoNoturno();
 
-  // Botão temporário de teste de som real — só em ambiente local, remover depois de validar em produção.
-  if (location.hostname === 'localhost') {
-    const btnTestarSomMotoboy = document.getElementById('btnTestarSomDevMotoboy');
-    if (btnTestarSomMotoboy) btnTestarSomMotoboy.style.display = 'inline-flex';
+  function definirMenuAberto(aberto) {
+    const menu = document.getElementById('appMenu');
+    const trigger = document.getElementById('menuTrigger');
+    menu.classList.toggle('open', aberto);
+    menu.setAttribute('aria-hidden', String(!aberto));
+    trigger.setAttribute('aria-expanded', String(aberto));
+    trigger.setAttribute('aria-label', aberto ? 'Fechar menu' : 'Abrir menu');
   }
+
+  function toggleMenu(event) {
+    event?.stopPropagation();
+    definirMenuAberto(!document.getElementById('appMenu').classList.contains('open'));
+  }
+
+  function fecharMenu() {
+    definirMenuAberto(false);
+  }
+
+  function abrirMeuControle() {
+    fecharMenu();
+    mostrarAba('controle');
+  }
+
+  function falarComRestaurantePeloMenu() {
+    fecharMenu();
+    abrirWhatsappRestauranteMotoboy();
+  }
+
+  function alternarTemaPeloMenu() {
+    toggleModoNoturno();
+    fecharMenu();
+  }
+
+  function sairPeloMenu() {
+    fecharMenu();
+    void logout();
+  }
+
+  document.addEventListener('click', event => {
+    const menuWrap = document.getElementById('menuWrap');
+    if (!menuWrap.contains(event.target)) fecharMenu();
+  });
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') fecharMenu();
+  });
 
   async function initSupabase() {
     const res = await fetch('/api/config');
@@ -676,24 +763,47 @@
   function mostrarAba(aba) {
     abaAtual = aba;
     const mostrandoEntregas = aba === 'entregas';
-    document.getElementById('tabEntregasBtn').classList.toggle('active', mostrandoEntregas);
-    document.getElementById('tabEntregasBtn').setAttribute('aria-selected', String(mostrandoEntregas));
-    document.getElementById('tabControleBtn').classList.toggle('active', !mostrandoEntregas);
-    document.getElementById('tabControleBtn').setAttribute('aria-selected', String(!mostrandoEntregas));
     document.getElementById('paneEntregas').classList.toggle('active', mostrandoEntregas);
     document.getElementById('paneControle').classList.toggle('active', !mostrandoEntregas);
     if (!mostrandoEntregas) void carregarControle();
   }
 
   async function carregarControle() {
+    if (!currentUser) return;
+    const hojeEl = document.getElementById('controleHoje');
     const totalEl = document.getElementById('controleTotal');
+    const hojeNotaEl = document.getElementById('controleHojeNota');
+    const totalNotaEl = document.getElementById('controleTotalNota');
+    const inicio = inicioDiaComercialAtual();
+    const fim = new Date(inicio);
+    fim.setDate(fim.getDate() + 1);
+
+    hojeEl.textContent = '…';
     totalEl.textContent = '…';
-    const { count, error } = await sb.from('pedidos')
-      .select('id', { count: 'exact', head: true })
-      .eq('motoboy_id', currentUser.id)
-      .eq('status', 'entregue');
-    totalEl.textContent = error ? '—' : String(count || 0);
-    if (error) showToast('Erro', 'Não foi possível carregar o total de entregas.');
+    hojeNotaEl.hidden = true;
+    totalNotaEl.hidden = true;
+
+    const [hojeResposta, totalResposta] = await Promise.allSettled([
+      sb.from('pedidos')
+        .select('id', { count: 'exact', head: true })
+        .eq('motoboy_id', currentUser.id)
+        .in('status', ['entregue', 'retirado'])
+        .gte('finalizado_em', inicio.toISOString())
+        .lt('finalizado_em', fim.toISOString()),
+      sb.from('pedidos')
+        .select('id', { count: 'exact', head: true })
+        .eq('motoboy_id', currentUser.id)
+        .in('status', ['entregue', 'retirado'])
+    ]);
+
+    const hojeResultado = hojeResposta.status === 'fulfilled' ? hojeResposta.value : { error: hojeResposta.reason };
+    const totalResultado = totalResposta.status === 'fulfilled' ? totalResposta.value : { error: totalResposta.reason };
+    hojeEl.textContent = hojeResultado.error ? '—' : String(hojeResultado.count ?? 0);
+    hojeNotaEl.textContent = hojeResultado.error ? 'Não foi possível atualizar este indicador.' : '';
+    hojeNotaEl.hidden = !hojeResultado.error;
+    totalEl.textContent = totalResultado.error ? '—' : String(totalResultado.count ?? 0);
+    totalNotaEl.textContent = totalResultado.error ? 'Não foi possível atualizar este indicador.' : '';
+    totalNotaEl.hidden = !totalResultado.error;
   }
 
   // =====================================================================
@@ -724,10 +834,16 @@
 
     const { data, error } = await sb.from('pedidos')
       .select(`
-        id, numero_diario, tipo, status, total, criado_em, forma_pagamento, troco_para, observacoes,
+        id, numero_diario, tipo, status, pago, forma_pagamento, subtotal, taxa_entrega, total,
+        desconto_tipo, desconto_valor_informado, desconto_manual, desconto_motivo,
+        criado_em, previsao_inicio, previsao_fim, troco_para, observacoes,
         clientes ( nome, telefone ),
         enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento, referencia ),
-        itens_pedido ( quantidade, observacoes, produtos ( nome ), itens_pedido_sabores ( produtos ( nome ) ) )
+        itens_pedido (
+          produto_id, nome_grupo_snapshot, nome_tamanho_snapshot, sabores_esperados,
+          preco_unitario, quantidade, observacoes, produtos ( nome ),
+          itens_pedido_sabores ( nome_produto_snapshot, preco_unitario, ordem, produtos ( nome ) )
+        )
       `)
       .eq('motoboy_id', currentUser.id)
       .not('status', 'in', '(entregue,retirado,cancelado)')
@@ -753,6 +869,45 @@
 
   function codigoEntrega(o) {
     return o.numero_diario != null ? ('#' + o.numero_diario) : ('#' + o.id.slice(0, 8).toUpperCase());
+  }
+
+  function escaparHtml(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+
+  function moeda(valor) {
+    const numero = Number(valor);
+    return Number.isFinite(numero) ? `R$ ${numero.toFixed(2).replace('.', ',')}` : '—';
+  }
+
+  function formaPagamentoTexto(forma) {
+    return ({ dinheiro:'Dinheiro', pix:'PIX', cartao:'Cartão (maquininha)' })[forma] || String(forma || 'Não informada');
+  }
+
+  function pedidoPorId(id) {
+    return entregas.find(pedido => String(pedido.id) === String(id)) || null;
+  }
+
+  function normalizarItem(item) {
+    const sabores = (item?.itens_pedido_sabores || [])
+      .map((sabor, indice) => ({ nome:sabor?.nome_produto_snapshot || sabor?.produtos?.nome || 'Sabor', ordem:sabor?.ordem, indice }))
+      .sort((a,b) => {
+        const ao=Number(a.ordem), bo=Number(b.ordem);
+        if (Number.isFinite(ao) && Number.isFinite(bo) && ao !== bo) return ao-bo;
+        return a.indice-b.indice;
+      });
+    const quantidade = Number(item?.quantidade) > 0 ? Number(item.quantidade) : 1;
+    const preco = Number(item?.preco_unitario);
+    return {
+      quantidade,
+      preco: Number.isFinite(preco) ? preco : null,
+      total: Number.isFinite(preco) ? preco * quantidade : null,
+      grupo:String(item?.nome_grupo_snapshot || ''),
+      tamanho:String(item?.nome_tamanho_snapshot || ''),
+      nome:String(item?.produtos?.nome || item?.nome_grupo_snapshot || 'Item'),
+      sabores,
+      observacoes:String(item?.observacoes || '')
+    };
   }
 
   function enderecoTexto(end) {
@@ -819,7 +974,7 @@
       const podeEntregar = o.status === 'saiu_para_entrega' || o.tipo === 'retirada';
       const statusClasse = o.status === 'saiu_para_entrega' ? 'saiu' : '';
 
-      const cliente = o.clientes?.nome || 'Cliente';
+      const cliente = escaparHtml(o.clientes?.nome || 'Cliente');
       const telLink = telefoneParaLink(o.clientes?.telefone);
       const contatoHtml = telLink
         ? `<div class="entrega-card__contato">
@@ -833,12 +988,12 @@
         enderecoBlocoHtml = `<div class="entrega-card__retirada">🏠 Retirada no balcão</div>`;
       } else if (enderecoStr) {
         enderecoBlocoHtml = `
-          <div class="entrega-card__endereco">📍 <span>${enderecoStr}</span></div>
-          ${end.complemento ? `<div class="entrega-card__detalhe-endereco"><b>Complemento:</b> ${end.complemento}</div>` : ''}
-          ${end.referencia ? `<div class="entrega-card__detalhe-endereco"><b>Referência:</b> ${end.referencia}</div>` : ''}
+          <div class="entrega-card__endereco">📍 <span>${escaparHtml(enderecoStr)}</span></div>
+          ${end.complemento ? `<div class="entrega-card__detalhe-endereco"><b>Complemento:</b> ${escaparHtml(end.complemento)}</div>` : ''}
+          ${end.referencia ? `<div class="entrega-card__detalhe-endereco"><b>Referência:</b> ${escaparHtml(end.referencia)}</div>` : ''}
           <div class="entrega-card__contato">
             <a class="btn" href="${mapaUrl}" target="_blank" rel="noopener">🧭 Iniciar navegação</a>
-            <button type="button" class="btn" onclick="copiarEnderecoMotoboy('${enderecoStr.replace(/'/g, "\\'")}')">📋 Copiar endereço</button>
+            <button type="button" class="btn" data-acao="copiar-endereco" data-pedido-id="${escaparHtml(o.id)}">📋 Copiar endereço</button>
           </div>`;
       } else {
         enderecoBlocoHtml = `<div class="entrega-card__sem-endereco">⚠️ Sem endereço cadastrado — confirme com o restaurante</div>`;
@@ -847,11 +1002,11 @@
       const itensHtml = (o.itens_pedido || []).map(item => {
         const sabores = (item.itens_pedido_sabores || []).map(s => s.produtos?.nome).filter(Boolean);
         const nomeItem = sabores.length > 1 ? sabores.join(' + ') : (item.produtos?.nome || 'item');
-        const obsItem = item.observacoes ? `<div class="entrega-card__item-obs">Obs: ${item.observacoes}</div>` : '';
-        return `<div class="entrega-card__item-linha"><span>${item.quantidade}x ${nomeItem}</span></div>${obsItem}`;
+        const obsItem = item.observacoes ? `<div class="entrega-card__item-obs">Obs: ${escaparHtml(item.observacoes)}</div>` : '';
+        return `<div class="entrega-card__item-linha"><span>${escaparHtml(item.quantidade)}x ${escaparHtml(nomeItem)}</span></div>${obsItem}`;
       }).join('');
 
-      const obsPedidoHtml = o.observacoes ? `<div class="entrega-card__obs-pedido">📝 ${o.observacoes}</div>` : '';
+      const obsPedidoHtml = o.observacoes ? `<div class="entrega-card__obs-pedido">📝 ${escaparHtml(o.observacoes)}</div>` : '';
 
       return `
         <div class="rota-item">
@@ -873,7 +1028,8 @@
               <span class="entrega-card__total">R$ ${Number(o.total).toFixed(2).replace('.', ',')}</span>
             </div>
             <div class="entrega-card__actions">
-              <button class="btn primary" ${podeEntregar ? '' : 'disabled'} onclick="marcarEntregue('${o.id}', '${o.tipo}')">✓ Entregar</button>
+              <button class="btn" type="button" data-acao="ver-comanda" data-pedido-id="${escaparHtml(o.id)}">Ver comanda completa</button>
+              <button class="btn primary" type="button" ${podeEntregar ? '' : 'disabled'} data-acao="confirmar-entrega" data-pedido-id="${escaparHtml(o.id)}">✓ Entregar</button>
             </div>
           </div>
         </div>`;
@@ -885,14 +1041,148 @@
       renderGrupo(atuais, 'Entregas atuais', false, anteriores.length);
   }
 
-  async function marcarEntregue(pedidoId, tipo) {
-    const novoStatus = tipo === 'retirada' ? 'retirado' : 'entregue';
-    const { error } = await sb.from('pedidos').update({ status: novoStatus }).eq('id', pedidoId);
-    if (error) { showToast('Erro', error.message); return; }
-    showToast('Entrega concluída', 'Bom trabalho! 🎉');
-    await carregarEntregas();
-    if (abaAtual === 'controle') void carregarControle();
+  let pedidoEmConfirmacaoId = null;
+  let finalizacaoEmAndamento = false;
+
+  function linhaComanda(rotulo, valor) {
+    if (valor == null || valor === '') return '';
+    return `<div class="comanda-linha"><span>${escaparHtml(rotulo)}</span><b>${escaparHtml(valor)}</b></div>`;
   }
+
+  function abrirModal(id) {
+    const modal = document.getElementById(id);
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-aberto');
+  }
+
+  function fecharModal(id) {
+    if (finalizacaoEmAndamento && id === 'confirmacaoModal') return;
+    const modal = document.getElementById(id);
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    if (!document.querySelector('.modal-overlay.open')) document.body.classList.remove('modal-aberto');
+    if (id === 'confirmacaoModal') pedidoEmConfirmacaoId = null;
+  }
+
+  function abrirComanda(pedidoId) {
+    const o = pedidoPorId(pedidoId);
+    if (!o) return showToast('Aviso', 'Pedido não encontrado na fila atual.');
+    const end=o.enderecos_cliente, tel=telefoneParaLink(o.clientes?.telefone);
+    const anterior=new Date(o.criado_em)<inicioDiaComercialAtual();
+    const criado=new Date(o.criado_em);
+    const itens=(o.itens_pedido||[]).map(itemOriginal => {
+      const item=normalizarItem(itemOriginal);
+      return `<div class="comanda-item"><b>${escaparHtml(item.quantidade)}x ${escaparHtml(item.nome)}</b>
+        ${item.grupo?`<div>${escaparHtml(item.grupo)}</div>`:''}${item.tamanho?`<div>${escaparHtml(item.tamanho)}</div>`:''}
+        ${item.sabores.length?`<div class="comanda-sabores">${item.sabores.map(s=>`• ${escaparHtml(s.nome)}`).join('<br>')}</div>`:''}
+        ${item.preco!=null?linhaComanda('Preço unitário',moeda(item.preco)):''}${item.total!=null?linhaComanda('Total da linha',moeda(item.total)):''}
+        ${item.observacoes?`<div class="comanda-obs">Obs: ${escaparHtml(item.observacoes)}</div>`:''}</div>`;
+    }).join('');
+    const endereco=end?[
+      linhaComanda('Logradouro',end.logradouro),linhaComanda('Número',end.numero),linhaComanda('Bairro',end.bairro),
+      linhaComanda('Cidade',end.cidade),linhaComanda('Complemento',end.complemento),linhaComanda('Referência',end.referencia)
+    ].join(''):'';
+    const desconto=Number(o.desconto_manual);
+    const troco=Number(o.troco_para)-Number(o.total);
+    const previsao=o.previsao_fim?new Date(o.previsao_fim).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}):'';
+    document.getElementById('comandaTitulo').textContent=`Comanda ${codigoEntrega(o)}`;
+    document.getElementById('comandaBody').innerHTML=`
+      <section class="comanda-secao"><h3>Identificação</h3>${linhaComanda('Pedido',codigoEntrega(o))}${linhaComanda('Status',STATUS_LABEL[o.status]||o.status)}
+      ${linhaComanda('Criado em',criado.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}))}${linhaComanda('Tipo',o.tipo==='retirada'?'Retirada':'Entrega')}
+      ${linhaComanda('Tempo em aberto',tempoEmAberto(o.criado_em))}${anterior?'<div class="confirm-alert">Pendente do período anterior</div>':''}</section>
+      <section class="comanda-secao"><h3>Cliente</h3>${linhaComanda('Nome',o.clientes?.nome)}${linhaComanda('Telefone',o.clientes?.telefone)}
+      ${tel?`<div class="modal-actions"><a class="btn" href="tel:${tel}">Ligar</a><a class="btn" href="https://wa.me/${tel}" target="_blank" rel="noopener">WhatsApp</a></div>`:''}</section>
+      ${endereco?`<section class="comanda-secao"><h3>Endereço</h3>${endereco}<div class="modal-actions"><a class="btn" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoTexto(end))}" target="_blank" rel="noopener">Iniciar navegação</a><button class="btn" data-acao="copiar-endereco" data-pedido-id="${escaparHtml(o.id)}">Copiar endereço</button></div></section>`:''}
+      <section class="comanda-secao"><h3>Itens</h3>${itens||'<div class="comanda-obs">Sem itens detalhados.</div>'}</section>
+      <section class="comanda-secao"><h3>Pedido e pagamento</h3>${linhaComanda('Observação',o.observacoes)}${linhaComanda('Previsão',previsao)}
+      ${linhaComanda('Forma de pagamento',formaPagamentoTexto(o.forma_pagamento))}${linhaComanda('Situação',o.pago===true?'Pago':'Pagamento pendente')}
+      ${o.troco_para!=null?linhaComanda('Cliente paga com',moeda(o.troco_para)):''}${Number.isFinite(troco)&&o.troco_para!=null?linhaComanda('Troco',moeda(Math.max(0,troco))):''}</section>
+      <section class="comanda-secao"><h3>Resumo financeiro</h3>${o.subtotal!=null?linhaComanda('Subtotal',moeda(o.subtotal)):''}
+      ${o.desconto_valor_informado!=null?linhaComanda('Desconto informado',String(o.desconto_tipo||'')+' '+o.desconto_valor_informado):''}
+      ${Number.isFinite(desconto)&&desconto>0?linhaComanda('Desconto manual','- '+moeda(desconto)):''}${linhaComanda('Motivo do desconto',o.desconto_motivo)}
+      ${o.taxa_entrega!=null?linhaComanda('Taxa de entrega',moeda(o.taxa_entrega)):''}${linhaComanda('Total final',moeda(o.total))}</section>`;
+    abrirModal('comandaModal');
+  }
+
+  function mensagemPagamento(o) {
+    const total=moeda(o.total), troco=Number(o.troco_para)-Number(o.total);
+    if (o.forma_pagamento==='dinheiro' && o.troco_para!=null) return `Cliente paga com ${moeda(o.troco_para)}. Entregue ${moeda(Math.max(0,troco))} de troco.`;
+    if (o.forma_pagamento==='dinheiro') return `Confirme que recebeu ${total} do cliente.`;
+    if (o.forma_pagamento==='cartao') return `Confirme que o pagamento de ${total} foi aprovado na maquininha.`;
+    if (o.forma_pagamento==='pix') return `Confirme que o PIX de ${total} foi realmente recebido.`;
+    return `Confirme o recebimento de ${total}.`;
+  }
+
+  function abrirConfirmacaoEntrega(pedidoId) {
+    const o=pedidoPorId(pedidoId);
+    if (!o) return showToast('Aviso','Pedido não encontrado na fila atual.');
+    pedidoEmConfirmacaoId=o.id;
+    const cliente=escaparHtml(o.clientes?.nome||'Cliente');
+    const pago=o.pago===true;
+    document.getElementById('confirmacaoBody').innerHTML=`
+      ${linhaComanda('Pedido',codigoEntrega(o))}${linhaComanda('Cliente',o.clientes?.nome)}${linhaComanda('Total',moeda(o.total))}
+      ${linhaComanda('Pagamento',formaPagamentoTexto(o.forma_pagamento))}${linhaComanda('Situação',pago?'Pago':'Pagamento pendente')}
+      ${o.troco_para!=null?linhaComanda('Cliente paga com',moeda(o.troco_para)):''}
+      <div class="confirm-alert">${pago?`Este pedido já está pago. Você realmente entregou o pedido ${escaparHtml(codigoEntrega(o))} para ${cliente}?`:`<b>Pagamento pendente</b><br>${escaparHtml(mensagemPagamento(o))}`}</div>
+      ${pago?'':`<label class="confirm-check"><input id="confirmarPagamentoCheck" type="checkbox"> <span>Confirmo que recebi o pagamento e entreguei o pedido.</span></label>`}
+      <div class="modal-actions"><button class="btn" type="button" data-fechar-modal="confirmacaoModal">Voltar</button>
+      <button class="btn primary" id="confirmarFinalizacaoBtn" type="button" data-acao="finalizar-entrega" ${pago?'':'disabled'}>${pago?'Sim, pedido entregue':'Confirmar pagamento e entrega'}</button></div>`;
+    abrirModal('confirmacaoModal');
+  }
+
+  async function finalizarEntregaConfirmada() {
+    if (finalizacaoEmAndamento) return;
+    const o=pedidoPorId(pedidoEmConfirmacaoId);
+    if (!o) return showToast('Aviso','Pedido não está mais disponível.');
+    const check=document.getElementById('confirmarPagamentoCheck');
+    if (o.pago!==true && !check?.checked) return;
+    const botao=document.getElementById('confirmarFinalizacaoBtn');
+    finalizacaoEmAndamento=true; botao.disabled=true; botao.textContent='Confirmando…';
+    const statusFinal=o.tipo==='retirada'?'retirado':'entregue';
+    const alteracao=o.pago===true?{status:statusFinal}:{pago:true,status:statusFinal};
+    const {data,error}=await sb.from('pedidos').update(alteracao)
+      .eq('id',o.id).eq('motoboy_id',currentUser.id)
+      .select('id, pago, status').maybeSingle();
+    if (error || !data) {
+      finalizacaoEmAndamento=false; botao.disabled=false; botao.textContent=o.pago===true?'Sim, pedido entregue':'Confirmar pagamento e entrega';
+      showToast('Não foi possível finalizar',error?.message||'O pedido não foi atualizado. Verifique sua permissão e tente novamente.');
+      return;
+    }
+    finalizacaoEmAndamento=false;
+    fecharModal('confirmacaoModal');
+    await carregarEntregas();
+    void carregarControle();
+    showToast('Entrega concluída','Pagamento e entrega confirmados com segurança.');
+  }
+
+  document.getElementById('entregasList').addEventListener('click', event => {
+    const botao=event.target.closest('[data-acao]');
+    if (!botao) return;
+    const id=botao.dataset.pedidoId;
+    if (botao.dataset.acao==='ver-comanda') abrirComanda(id);
+    if (botao.dataset.acao==='confirmar-entrega') abrirConfirmacaoEntrega(id);
+    if (botao.dataset.acao==='copiar-endereco') {
+      const pedido=pedidoPorId(id); if (pedido) copiarEnderecoMotoboy(enderecoTexto(pedido.enderecos_cliente));
+    }
+  });
+  document.addEventListener('click', event => {
+    const fechar=event.target.closest('[data-fechar-modal]');
+    if (fechar) fecharModal(fechar.dataset.fecharModal);
+    if (event.target.classList?.contains('modal-overlay')) fecharModal(event.target.id);
+    if (event.target.id==='confirmarPagamentoCheck') document.getElementById('confirmarFinalizacaoBtn').disabled=!event.target.checked;
+    const copiar=event.target.closest?.('[data-acao="copiar-endereco"]');
+    if (copiar && !document.getElementById('entregasList').contains(copiar)) {
+      const pedido=pedidoPorId(copiar.dataset.pedidoId); if (pedido) copiarEnderecoMotoboy(enderecoTexto(pedido.enderecos_cliente));
+    }
+    if (event.target.closest?.('[data-acao="finalizar-entrega"]')) void finalizarEntregaConfirmada();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key==='Escape') {
+      if (document.getElementById('confirmacaoModal').classList.contains('open')) fecharModal('confirmacaoModal');
+      else if (document.getElementById('comandaModal').classList.contains('open')) fecharModal('comandaModal');
+    }
+  });
 
   function subscribeTrackingEntregas() {
     if (trackingChannel) sb.removeChannel(trackingChannel);
@@ -910,7 +1200,7 @@
     if (!currentUser) return;
     try {
       await carregarEntregas();
-      if (abaAtual === 'controle') await carregarControle();
+      await carregarControle();
     } catch (e) {
       console.error('Falha ao atualizar entregas do motoboy:', e);
     }
