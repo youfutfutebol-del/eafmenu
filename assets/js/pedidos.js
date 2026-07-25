@@ -10,6 +10,21 @@
   // Limitacao conhecida: so funciona na mesma aba que criou o pedido manual (sem coluna no banco
   // pra diferenciar a origem, nao da pra saber isso em outra aba/dispositivo).
   let pedidosCriadosManualmente = new Set();
+
+  // Estado do Realtime de pedidos: canal ativo, status da assinatura e timers
+  // de reconexao/polling de contingencia/resincronizacao. Tudo centralizado aqui
+  // para nao criar canais ou timers duplicados (ver subscribeRealtime()).
+  let canalPedidosRealtime = null;
+  let statusRealtimePedidos = 'desconectado'; // 'conectado' | 'conectando' | 'desconectado'
+  let inscricaoRealtimeEmAndamento = false;
+  let timerReconexaoRealtime = null;
+  let timerPollingContingenciaRealtime = null;
+  let timerTimeoutConexaoRealtime = null;
+  let resincronizandoRealtime = false;
+  const RECONEXAO_REALTIME_MS = 3000;
+  const POLLING_CONTINGENCIA_REALTIME_MS = 30000;
+  const TIMEOUT_CONEXAO_REALTIME_MS = 12000;
+
   let pedidosHistorico = [];
   let erroHistoricoPedidos = null;
   let estadoHistoricoPedidos = 'inicial';
@@ -298,29 +313,151 @@
     agruparPendenciasAnteriores();
   };
 
-  function subscribeRealtime() {
-    sb.channel('pedidos-restaurante-' + restauranteId)
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'pedidos', filter: `restaurante_id=eq.${restauranteId}` },
-        async (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const idNovo = payload.new?.id;
-            if (idNovo && pedidosCriadosManualmente.has(idNovo)) {
-              pedidosCriadosManualmente.delete(idNovo);
-            } else {
-              tocarNovoPedido();
-              showToast('Novo pedido recebido', 'Um pedido novo chegou no monitor.');
-            }
-          }
-          await loadPedidos();
-        }
-      )
-      .subscribe((status) => {
-        const isOn = status === 'SUBSCRIBED';
-        document.getElementById('connPill').className = 'pill-status ' + (isOn ? 'on' : 'off');
-        document.getElementById('connLabel').textContent = isOn ? 'Conectado' : 'Conectando...';
-      });
+  function atualizarPillConexaoRealtime(status) {
+    const pill = document.getElementById('connPill');
+    const label = document.getElementById('connLabel');
+    if (!pill || !label) return;
+    if (status === 'conectado') {
+      pill.className = 'pill-status on';
+      label.textContent = 'Conectado';
+    } else if (status === 'conectando') {
+      pill.className = 'pill-status off';
+      label.textContent = 'Conectando...';
+    } else {
+      pill.className = 'pill-status off';
+      label.textContent = 'Reconectando...';
+    }
   }
+
+  function pararPollingContingenciaRealtime() {
+    if (timerPollingContingenciaRealtime) {
+      clearInterval(timerPollingContingenciaRealtime);
+      timerPollingContingenciaRealtime = null;
+    }
+  }
+
+  function iniciarPollingContingenciaRealtime() {
+    if (timerPollingContingenciaRealtime) return;
+    timerPollingContingenciaRealtime = setInterval(() => {
+      if (statusRealtimePedidos !== 'conectado') loadPedidos();
+    }, POLLING_CONTINGENCIA_REALTIME_MS);
+  }
+
+  function cancelarReconexaoRealtime() {
+    if (timerReconexaoRealtime) {
+      clearTimeout(timerReconexaoRealtime);
+      timerReconexaoRealtime = null;
+    }
+  }
+
+  function programarReconexaoRealtime() {
+    if (timerReconexaoRealtime) return;
+    timerReconexaoRealtime = setTimeout(() => {
+      timerReconexaoRealtime = null;
+      subscribeRealtime();
+    }, RECONEXAO_REALTIME_MS);
+  }
+
+  function cancelarTimeoutConexaoRealtime() {
+    if (timerTimeoutConexaoRealtime) {
+      clearTimeout(timerTimeoutConexaoRealtime);
+      timerTimeoutConexaoRealtime = null;
+    }
+  }
+
+  async function removerCanalPedidosRealtime() {
+    cancelarTimeoutConexaoRealtime();
+    if (!canalPedidosRealtime) return;
+    const canalAnterior = canalPedidosRealtime;
+    canalPedidosRealtime = null;
+    try { await sb.removeChannel(canalAnterior); } catch (e) {}
+  }
+
+  function falhaConexaoRealtime() {
+    statusRealtimePedidos = 'desconectado';
+    inscricaoRealtimeEmAndamento = false;
+    cancelarTimeoutConexaoRealtime();
+    atualizarPillConexaoRealtime('desconectado');
+    iniciarPollingContingenciaRealtime();
+    programarReconexaoRealtime();
+  }
+
+  async function subscribeRealtime() {
+    if (!sb || !restauranteId) return;
+    if (statusRealtimePedidos === 'conectado' || inscricaoRealtimeEmAndamento) return;
+    inscricaoRealtimeEmAndamento = true;
+    cancelarReconexaoRealtime();
+    statusRealtimePedidos = 'conectando';
+    atualizarPillConexaoRealtime('conectando');
+
+    await removerCanalPedidosRealtime();
+
+    try {
+      const novoCanal = sb.channel('pedidos-restaurante-' + restauranteId)
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'pedidos', filter: `restaurante_id=eq.${restauranteId}` },
+          async (payload) => {
+            if (canalPedidosRealtime !== novoCanal) return;
+            if (payload.eventType === 'INSERT') {
+              const idNovo = payload.new?.id;
+              if (idNovo && pedidosCriadosManualmente.has(idNovo)) {
+                pedidosCriadosManualmente.delete(idNovo);
+              } else {
+                tocarNovoPedido();
+                showToast('Novo pedido recebido', 'Um pedido novo chegou no monitor.');
+              }
+            }
+            await loadPedidos();
+          }
+        )
+        .subscribe((status) => {
+          if (canalPedidosRealtime !== novoCanal) return;
+          if (status === 'SUBSCRIBED') {
+            statusRealtimePedidos = 'conectado';
+            inscricaoRealtimeEmAndamento = false;
+            cancelarTimeoutConexaoRealtime();
+            cancelarReconexaoRealtime();
+            pararPollingContingenciaRealtime();
+            atualizarPillConexaoRealtime('conectado');
+            loadPedidos();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            falhaConexaoRealtime();
+          } else {
+            atualizarPillConexaoRealtime('conectando');
+          }
+        });
+
+      canalPedidosRealtime = novoCanal;
+
+      cancelarTimeoutConexaoRealtime();
+      timerTimeoutConexaoRealtime = setTimeout(() => {
+        timerTimeoutConexaoRealtime = null;
+        if (canalPedidosRealtime !== novoCanal) return;
+        if (statusRealtimePedidos !== 'conectando') return;
+        falhaConexaoRealtime();
+      }, TIMEOUT_CONEXAO_REALTIME_MS);
+    } catch (e) {
+      falhaConexaoRealtime();
+    }
+  }
+
+  async function resincronizarRealtime() {
+    if (resincronizandoRealtime) return;
+    if (!sb || !restauranteId || !currentUser) return;
+    resincronizandoRealtime = true;
+    try {
+      await loadPedidos();
+      if (statusRealtimePedidos !== 'conectado') subscribeRealtime();
+    } finally {
+      resincronizandoRealtime = false;
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') resincronizarRealtime();
+  });
+  window.addEventListener('focus', resincronizarRealtime);
+  window.addEventListener('online', resincronizarRealtime);
 
   async function advanceStatus(id, status, tipo) {
     let next = FLOW[FLOW.indexOf(status) + 1];
