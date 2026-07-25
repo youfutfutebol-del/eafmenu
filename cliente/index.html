@@ -817,6 +817,63 @@
     return error?.code === '28000' || error?.code === 'PGRST301' || error?.status === 401;
   }
 
+  // Guarda usada antes de qualquer INSERT do checkout (endereço e pedido).
+  // NÃO confia no cliente guardado localmente: revalida no banco que existe um cliente
+  // vinculado simultaneamente à sessão atual (auth_user_id = session.user.id) e a ESTE
+  // restaurante. Isso cobre o caso de sessão anônima nova/divergente com cliente antigo
+  // em memória ou cache — que terminaria em erro de RLS no INSERT.
+  // Se válido: atualiza a sessão local com o cliente do banco e retorna true.
+  // Se inválido: limpa só a identificação local deste restaurante, volta ao passo 1,
+  // mostra mensagem amigável (nunca erro técnico de RLS) e retorna false.
+  async function garantirClienteSessaoValida() {
+    let session = null;
+    try {
+      const { data, error } = await sb.auth.getSession();
+      if (!error) session = data.session;
+    } catch (e) {
+      session = null;
+    }
+
+    if (session) {
+      let clienteValido = null;
+      let erroConsulta = null;
+      try {
+        const { data, error } = await sb.from('clientes')
+          .select('id, nome, telefone')
+          .eq('restaurante_id', restaurante.id)
+          .eq('auth_user_id', session.user.id)
+          .maybeSingle();
+        clienteValido = data;
+        erroConsulta = error;
+      } catch (e) {
+        erroConsulta = e;
+      }
+
+      if (!erroConsulta && clienteValido && clienteValido.id) {
+        salvarSessaoCliente(clienteValido);
+        return true;
+      }
+
+      // Falha transitória (rede/servidor), sem indício de sessão inválida:
+      // bloqueia o INSERT mas preserva a identificação local para nova tentativa.
+      if (erroConsulta && !erroSessaoInvalida(erroConsulta)) {
+        showToast('Sem conexão', 'Não foi possível confirmar seus dados agora. Verifique sua internet e tente de novo.');
+        return false;
+      }
+    }
+
+    // Sessão ausente, sessão inválida (401/28000/PGRST301) ou nenhum cliente
+    // correspondente a esta sessão neste restaurante.
+    cliente = null;
+    limparSessaoCliente();
+    document.getElementById('identNome').value = '';
+    document.getElementById('identTelefone').value = '';
+    document.getElementById('identErro').classList.add('hidden');
+    irParaStep(1);
+    showToast('Confirme seus dados', 'Sua identificação expirou. Informe seu nome e telefone para continuar o pedido.');
+    return false;
+  }
+
   async function carregarSessaoCliente() {
     cliente = null;
     const { data: { session }, error: sessionError } = await sb.auth.getSession();
@@ -1251,7 +1308,15 @@
       }
       if (cliErr) throw cliErr;
 
-      salvarSessaoCliente(novoCliente);
+      // A RPC v2 é RETURNS TABLE: o Supabase JS entrega um ARRAY ([{ id, nome, telefone }]),
+      // não um objeto. Sem esta normalização, cliente.id fica undefined e o INSERT em
+      // pedidos sai sem cliente_id — a policy RLS rejeita o pedido.
+      const clienteNormalizado = Array.isArray(novoCliente) ? novoCliente[0] : novoCliente;
+      if (!clienteNormalizado || !clienteNormalizado.id) {
+        throw new Error('Cadastro do cliente retornou sem identificação.');
+      }
+
+      salvarSessaoCliente(clienteNormalizado);
       irParaStep(2);
     } catch (e) {
       console.error('Falha ao identificar cliente:', e?.code || 'erro');
@@ -1277,6 +1342,10 @@
   function voltarParaIdent() { irParaStep(1); }
 
   async function confirmarEntrega() {
+    // O fluxo de entrega grava o endereço com cliente.id já neste passo;
+    // a mesma guarda do pedido evita INSERT inválido (e erro de RLS) aqui.
+    if (!(await garantirClienteSessaoValida())) return;
+
     if (checkoutTipo === 'entrega') {
       const rua = document.getElementById('endRua').value.trim();
       const numero = document.getElementById('endNumero').value.trim();
@@ -1435,6 +1504,9 @@
       closeSheet('sheetCheckout');
       return;
     }
+
+    // Nunca enviar pedido sem sessão válida e cliente identificado (evita erro de RLS).
+    if (!(await garantirClienteSessaoValida())) return;
 
     confirmarPedidoEmAndamento = true;
     btn.disabled = true; btn.textContent = 'Enviando pedido...';
