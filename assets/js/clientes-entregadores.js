@@ -74,13 +74,32 @@
     await loadClientes();
   }
 
+  // Colspan dos estados da tabela: 8 colunas para dono/gerente (coluna "Liberação de hoje"
+  // visível), 7 para os demais papéis (classe sem-liberacao-diaria oculta a coluna).
+  function colspanEntregadores() {
+    const tabela = document.getElementById('tabelaEntregadores');
+    return (tabela && tabela.classList.contains('sem-liberacao-diaria')) ? 7 : 8;
+  }
+
   async function loadEntregadores() {
+    const tbody = document.getElementById('entregadoresTableBody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="${colspanEntregadores()}"><div class="empty-state"><div class="ic">⏳</div><h4>Carregando entregadores...</h4></div></td></tr>`;
+
+    // FK explícita: existem DUAS relações usuarios↔motoboys (motoboys_id_fkey = cadastro,
+    // motoboys_liberado_por_fkey = auditoria da liberação). Sem o nome, o PostgREST
+    // recusa o embed com "more than one relationship was found".
     const { data, error } = await sb.from('usuarios')
-      .select('id, nome, telefone, ativo, motoboys ( veiculo, placa, disponivel, liberado_em, liberado_por )')
+      .select('id, nome, telefone, ativo, motoboys!motoboys_id_fkey ( veiculo, placa, disponivel, liberado_em, liberado_por )')
       .eq('restaurante_id', restauranteId)
       .eq('role', 'motoboy')
       .order('nome', { ascending: true });
-    if (error) { showToast('Erro ao carregar entregadores', error.message); return; }
+    if (error) {
+      console.error('Falha ao carregar entregadores:', error);
+      entregadoresCache = [];
+      if (tbody) tbody.innerHTML = `<tr><td colspan="${colspanEntregadores()}"><div class="empty-state"><div class="ic">⚠️</div><h4>Não foi possível carregar os entregadores</h4><p>Verifique sua conexão e tente novamente.</p></div></td></tr>`;
+      showToast('Erro ao carregar entregadores', 'Não foi possível carregar os entregadores. Tente novamente.');
+      return;
+    }
     entregadoresCache = data || [];
 
     if (entregadoresCache.length > 0) {
@@ -101,7 +120,7 @@
   function renderEntregadoresTable() {
     const tbody = document.getElementById('entregadoresTableBody');
     if (entregadoresCache.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="ic">🚚</div><h4>Nenhum entregador cadastrado</h4></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${colspanEntregadores()}"><div class="empty-state"><div class="ic">🚚</div><h4>Nenhum entregador cadastrado</h4></div></td></tr>`;
       return;
     }
     tbody.innerHTML = entregadoresCache.map(e => {
@@ -193,6 +212,23 @@
 
   function closeEntregador() { document.getElementById('entregadorModalBg').classList.remove('show'); }
 
+  // Mensagens controladas que a RPC criar_usuario_equipe emite de propósito para o usuário.
+  // Qualquer outro erro (constraint, rede, bug) recebe mensagem genérica e vai só pro console.
+  const MENSAGENS_RPC_EQUIPE = [
+    'Você não tem permissão para criar usuários.',
+    'Telefone é obrigatório (com DDD).',
+    'Este telefone já está vinculado a outra conta de equipe.',
+    'Já existe uma conta com este e-mail. Fale com o suporte do EAF Menu.',
+    'Este telefone acabou de ser cadastrado. Atualize a tela e tente novamente.'
+  ];
+  function mensagemErroCriarEntregador(error) {
+    const msg = error?.message || '';
+    if (MENSAGENS_RPC_EQUIPE.includes(msg) || msg.includes('já faz parte da equipe deste restaurante')) {
+      return msg;
+    }
+    return 'Não foi possível criar o entregador. Tente novamente.';
+  }
+
   async function submitEntregador() {
     const id = document.getElementById('entId').value || null;
     const nome = document.getElementById('entNome').value.trim();
@@ -205,9 +241,17 @@
     if (id) {
       // Edição: atualiza nome/telefone (usuarios) e veículo/placa (motoboys)
       const { error: errUsuario } = await sb.from('usuarios').update({ nome, telefone }).eq('id', id);
-      if (errUsuario) { showToast('Erro ao salvar', errUsuario.message); return; }
+      if (errUsuario) {
+        console.error('Falha ao atualizar entregador:', errUsuario);
+        showToast('Erro ao salvar', 'Não foi possível salvar as alterações. Tente novamente.');
+        return;
+      }
       const { error: errMoto } = await sb.from('motoboys').update({ veiculo, placa }).eq('id', id);
-      if (errMoto) { showToast('Erro ao salvar veículo', errMoto.message); return; }
+      if (errMoto) {
+        console.error('Falha ao atualizar veículo do entregador:', errMoto);
+        showToast('Erro ao salvar veículo', 'Não foi possível salvar o veículo. Tente novamente.');
+        return;
+      }
       closeEntregador();
       showToast('Entregador atualizado', nome);
       await loadEntregadores();
@@ -226,7 +270,11 @@
       p_veiculo: veiculo,
       p_placa: placa
     });
-    if (error) { showToast('Erro ao criar entregador', error.message); return; }
+    if (error) {
+      console.error('Falha ao criar entregador:', error);
+      showToast('Erro ao criar entregador', mensagemErroCriarEntregador(error));
+      return;
+    }
 
     closeEntregador();
     showToast('Entregador criado', `${nome} já pode entrar no App do Motoboy com o telefone e a senha definida.`);

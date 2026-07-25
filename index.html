@@ -1231,12 +1231,18 @@
   }
 
   async function loadMotoboysAtivos() {
+    // Mesma ambiguidade de duas FKs usuarios↔motoboys: exige o nome explícito da relação.
     const { data, error } = await sb.from('usuarios')
-      .select('id, nome, motoboys ( disponivel )')
+      .select('id, nome, motoboys!motoboys_id_fkey ( disponivel )')
       .eq('restaurante_id', restauranteId)
       .eq('role', 'motoboy')
       .eq('ativo', true);
-    if (!error) motoboysAtivosCache = data || [];
+    if (error) {
+      console.error('Falha ao carregar motoboys ativos:', error);
+      motoboysAtivosCache = [];
+      return;
+    }
+    motoboysAtivosCache = data || [];
   }
 
  const STATUS_LABEL = {
