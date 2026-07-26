@@ -58,6 +58,10 @@
   .admin-badge__dot { width:7px; height:7px; border-radius:50%; background: var(--green); }
   .admin-badge__role { display:inline-block; margin-top:6px; background: var(--red); color:#fff; font-size:9.5px; font-weight:800; padding:2px 7px; border-radius:5px; letter-spacing:.03em; }
   .sound-toggle { display:flex; align-items:center; justify-content:space-between; padding:8px 10px; font-size:12.5px; color:#D4D4D8; }
+  .sound-toggle__label { display:flex; flex-direction:column; gap:2px; }
+  .sound-toggle__status { font-size:10.5px; font-weight:600; color:#9A9AA0; }
+  .sound-toggle__status--ativo { color: var(--green); }
+  .sound-toggle__status--bloqueado { color: var(--amber); }
   .switch { width:32px; height:18px; background:#3a3a3a; border-radius:20px; position:relative; border:none; }
   .switch.on { background: var(--green); }
   .switch::after { content:''; position:absolute; top:2px; left:2px; width:14px; height:14px; background:#fff; border-radius:50%; transition:.15s; }

@@ -129,7 +129,10 @@
           <span class="admin-badge__role" id="userRole">—</span>
         </div>
         <div class="sound-toggle">
-          Som de Pedidos
+          <div class="sound-toggle__label">
+            Som de Pedidos
+            <span class="sound-toggle__status sound-toggle__status--bloqueado" id="soundStatusTxt">Toque para ativar o som</span>
+          </div>
           <button class="switch on" id="soundSwitch" onclick="toggleSound()"></button>
         </div>
         <button class="logout-btn" style="color:#D4D4D8;" onclick="abrirTrocarMinhaSenha()">🔑 Trocar minha senha</button>
@@ -147,8 +150,8 @@
           </div>
           <div class="actions">
             <button class="btn primary" onclick="openManualOrder()">+ Lançar Pedido (Manual)</button>
-            <button class="btn" onclick="tocarNovoPedido()">🔊 Testar Alerta</button>
-            <button class="btn" id="btnTestarSomDev" style="display:none;" onclick="tocarNovoPedido()">🔔 Testar Som (dev)</button>
+            <button class="btn" onclick="testarAlertaSom()">🔊 Testar Alerta</button>
+            <button class="btn" id="btnTestarSomDev" style="display:none;" onclick="testarAlertaSom()">🔔 Testar Som (dev)</button>
             <div class="pill-status on" id="lojaStatusPill"><span class="dot"></span> <span id="lojaStatusTxt">Carregando horário...</span></div>
             <div class="pill-status on" id="connPill"><span class="dot"></span> <span id="connLabel">Conectado</span></div>
             <button class="btn pedido-prazo-btn" id="btnPrazoEntregaPedidos" type="button" onclick="abrirPrazoEntregaPedidos()">⏱ Definir prazo</button>
@@ -1071,7 +1074,11 @@
   let produtosCache = [];
   let orders = [];
   let filtroPedidos = 'todos';
-  let soundOn = true;
+  let soundOn = (typeof lerPreferenciaSom === 'function') ? lerPreferenciaSom() : true;
+  document.getElementById('soundSwitch')?.classList.toggle('on', soundOn);
+  // "Som ativo" só depois de uma reprodução real bem-sucedida — no boot, ligado
+  // vira "bloqueado" (Toque para ativar o som) até tocar de verdade.
+  if (typeof atualizarStatusSom === 'function') atualizarStatusSom(soundOn ? 'bloqueado' : 'desligado');
   let audioCtx = null;
   let pendingEmail = '';
   let currentView = 'pedidos';
