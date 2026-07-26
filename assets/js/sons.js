@@ -84,10 +84,26 @@ function lerPreferenciaSom() {
 
 function setSoundOn(ligado) {
   try { localStorage.setItem(SOM_PEDIDOS_PREF_KEY, ligado ? '1' : '0'); } catch (e) {}
+  atualizarControleSom(ligado);
   // Ligar o switch não toca nada nem confirma o áudio — só volta a permitir o
   // alerta. "Som ativo" só aparece depois de uma reprodução real bem-sucedida
   // (ver tocarNovoPedido/testarAlertaSom).
   atualizarStatusSom(ligado ? 'bloqueado' : 'desligado');
+}
+
+// Centraliza a atualização do botão de som (texto de ação, switch visual e
+// atributos de acessibilidade), pra ligar/desligar e o boot do painel usarem
+// a mesma fonte de verdade.
+function atualizarControleSom(ligado) {
+  const botao = document.getElementById('soundToggleBtn');
+  const acao = document.getElementById('soundActionTxt');
+  const interruptor = document.getElementById('soundSwitch');
+  if (interruptor) interruptor.classList.toggle('on', ligado);
+  if (acao) acao.textContent = ligado ? 'Desligar som' : 'Ligar som';
+  if (botao) {
+    botao.setAttribute('aria-pressed', ligado ? 'true' : 'false');
+    botao.setAttribute('aria-label', ligado ? 'Desligar som de pedidos' : 'Ligar som de pedidos');
+  }
 }
 
 function atualizarStatusSom(estado) {
