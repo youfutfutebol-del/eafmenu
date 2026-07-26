@@ -126,6 +126,8 @@
   .topbar__row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
   .topbar__titulo { font-family: var(--font-display); font-weight:700; font-size:19px; letter-spacing:-.3px; }
   .topbar__sub { font-size:12px; color:#9AA1AA; margin-top:2px; }
+  .topbar__realtime { font-size:10.5px; font-weight:600; color:#6B7280; margin-top:3px; }
+  .topbar__realtime--conectado { color: var(--done); }
   .topbar__right { display:flex; align-items:center; gap:12px; }
   .disp-toggle { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:700; color:#D5D8DB; }
   .switch { width:34px; height:19px; background:#33383E; border-radius:20px; position:relative; flex-shrink:0; }
@@ -318,6 +320,7 @@
       <div>
         <div class="topbar__titulo" id="topNome">Olá</div>
         <div class="topbar__sub" id="topSub">—</div>
+        <div class="topbar__realtime" id="trackingIndicator" hidden>Conectando…</div>
       </div>
       <div class="topbar__right">
         <div class="disp-toggle" id="dispToggleWrap" hidden>
@@ -560,10 +563,21 @@
     saiu_para_entrega: 'Saiu p/ entrega', entregue: 'Entregue', retirado: 'Retirado', cancelado: 'Cancelado'
   };
 
+  // Estado do Realtime de entregas do motoboy: canal ativo, status da assinatura
+  // e timers de reconexao/timeout, no mesmo padrao usado no painel do restaurante.
   let trackingChannel = null;
+  let statusTrackingEntregas = 'desconectado'; // 'conectado' | 'conectando' | 'desconectado'
+  let inscricaoTrackingEmAndamento = false;
+  let timerReconexaoTracking = null;
+  let timerTimeoutConexaoTracking = null;
+  const RECONEXAO_TRACKING_MS = 3000;
+  const TIMEOUT_CONEXAO_TRACKING_MS = 12000;
+
   let entregasRefreshInterval = null;
-  let visibilityListenerRegistrado = false;
-  let focusLiberacaoListenerRegistrado = false;
+  let refreshEntregasEmAndamento = false;
+  let refreshEntregasPendente = false;
+  let resyncListenersRegistrados = false;
+  let resincronizandoMotoboy = false;
   let liberacaoVersao = 0;
   let abaAtual = 'entregas';
   const SESSION_GUARD_MOTOBOY_KEY = 'eaf_motoboy_session_guard';
@@ -609,7 +623,11 @@
     sessionGuardExpiring = true;
     try {
       localStorage.removeItem(SESSION_GUARD_MOTOBOY_KEY);
-      if (trackingChannel) sb.removeChannel(trackingChannel);
+      inscricaoTrackingEmAndamento = false;
+      statusTrackingEntregas = 'desconectado';
+      cancelarReconexaoTracking();
+      cancelarTimeoutConexaoTracking();
+      await removerCanalTrackingEntregas();
       if (entregasRefreshInterval) clearInterval(entregasRefreshInterval);
       await sb.auth.signOut();
     } catch (e) {}
@@ -750,7 +768,11 @@
   }
 
   async function logout() {
-    if (trackingChannel) sb.removeChannel(trackingChannel);
+    inscricaoTrackingEmAndamento = false;
+    statusTrackingEntregas = 'desconectado';
+    cancelarReconexaoTracking();
+    cancelarTimeoutConexaoTracking();
+    await removerCanalTrackingEntregas();
     if (entregasRefreshInterval) clearInterval(entregasRefreshInterval);
     localStorage.removeItem(SESSION_GUARD_MOTOBOY_KEY);
     await sb.auth.signOut();
@@ -877,8 +899,15 @@
     if (btnVoltar) btnVoltar.hidden = !liberadoHoje;
 
     if (!novoEstado) {
-      // Realtime não deve existir enquanto bloqueado, em nenhuma hipótese.
-      if (trackingChannel) { sb.removeChannel(trackingChannel); trackingChannel = null; }
+      // Realtime não deve existir enquanto bloqueado, em nenhuma hipótese — invalida
+      // a inscrição ANTES de aguardar a remoção do canal (não só depois), pra uma
+      // subscribeTrackingEntregas() em voo nesse exato await não recriar o canal.
+      inscricaoTrackingEmAndamento = false;
+      statusTrackingEntregas = 'desconectado';
+      cancelarReconexaoTracking();
+      cancelarTimeoutConexaoTracking();
+      await removerCanalTrackingEntregas();
+      atualizarIndicadorTracking('desconectado');
       if (mudouParaBloqueado) {
         fecharModal('comandaModal');
         fecharModal('confirmacaoModal');
@@ -1506,56 +1535,181 @@
     }
   });
 
-  function subscribeTrackingEntregas() {
-    if (trackingChannel) sb.removeChannel(trackingChannel);
-    trackingChannel = sb.channel('motoboy-entregas-restaurante-' + currentUser.restaurante_id)
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'pedidos', filter: `restaurante_id=eq.${currentUser.restaurante_id}` },
-        async () => {
-          await refreshEntregasMotoboy();
-        }
-      )
-      .subscribe();
+  // =====================================================================
+  // REALTIME DE ENTREGAS DO MOTOBOY — mesmo padrão de autorrecuperação do
+  // painel do restaurante: canal guardado com referência local (novoCanal),
+  // callbacks de canal antigo são ignorados, reconexão com atraso curto e
+  // único timer, timeout manual pra não ficar preso em "conectando".
+  // =====================================================================
+
+  function atualizarIndicadorTracking(estado) {
+    const indicador = document.getElementById('trackingIndicator');
+    if (!indicador) return;
+    if (!liberadoHoje) { indicador.hidden = true; return; }
+    const legendas = { conectado: 'Tempo real ativo', conectando: 'Conectando…', desconectado: 'Reconectando…' };
+    indicador.hidden = false;
+    indicador.textContent = legendas[estado] || legendas.conectando;
+    indicador.className = 'topbar__realtime' + (estado === 'conectado' ? ' topbar__realtime--conectado' : '');
   }
 
+  function cancelarReconexaoTracking() {
+    if (timerReconexaoTracking) {
+      clearTimeout(timerReconexaoTracking);
+      timerReconexaoTracking = null;
+    }
+  }
+
+  function programarReconexaoTracking() {
+    if (timerReconexaoTracking) return;
+    timerReconexaoTracking = setTimeout(() => {
+      timerReconexaoTracking = null;
+      if (currentUser && liberadoHoje) subscribeTrackingEntregas();
+    }, RECONEXAO_TRACKING_MS);
+  }
+
+  function cancelarTimeoutConexaoTracking() {
+    if (timerTimeoutConexaoTracking) {
+      clearTimeout(timerTimeoutConexaoTracking);
+      timerTimeoutConexaoTracking = null;
+    }
+  }
+
+  async function removerCanalTrackingEntregas() {
+    cancelarTimeoutConexaoTracking();
+    if (!trackingChannel) return;
+    const canalAnterior = trackingChannel;
+    trackingChannel = null;
+    try { await sb.removeChannel(canalAnterior); } catch (e) {}
+  }
+
+  function falhaConexaoTracking() {
+    statusTrackingEntregas = 'desconectado';
+    inscricaoTrackingEmAndamento = false;
+    cancelarTimeoutConexaoTracking();
+    atualizarIndicadorTracking('desconectado');
+    if (currentUser && liberadoHoje) programarReconexaoTracking();
+  }
+
+  async function subscribeTrackingEntregas() {
+    if (!currentUser || !liberadoHoje) return;
+    if (statusTrackingEntregas === 'conectado' || inscricaoTrackingEmAndamento) return;
+    inscricaoTrackingEmAndamento = true;
+    cancelarReconexaoTracking();
+    statusTrackingEntregas = 'conectando';
+    atualizarIndicadorTracking('conectando');
+
+    await removerCanalTrackingEntregas();
+
+    // Durante o await acima pode ter ocorrido bloqueio diário, logout ou expiração
+    // de sessão — todos invalidam inscricaoTrackingEmAndamento/liberadoHoje antes de
+    // remover o canal. Revalida aqui pra não criar um canal novo depois da limpeza.
+    if (!currentUser || !liberadoHoje || !inscricaoTrackingEmAndamento) {
+      inscricaoTrackingEmAndamento = false;
+      statusTrackingEntregas = 'desconectado';
+      atualizarIndicadorTracking('desconectado');
+      return;
+    }
+
+    try {
+      const novoCanal = sb.channel('motoboy-entregas-restaurante-' + currentUser.restaurante_id)
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'pedidos', filter: `restaurante_id=eq.${currentUser.restaurante_id}` },
+          async () => {
+            if (trackingChannel !== novoCanal) return; // callback de um canal já removido, ignora
+            await refreshEntregasMotoboy();
+          }
+        )
+        .subscribe((status) => {
+          if (trackingChannel !== novoCanal) return; // idem, pro callback de status
+          if (status === 'SUBSCRIBED') {
+            statusTrackingEntregas = 'conectado';
+            inscricaoTrackingEmAndamento = false;
+            cancelarTimeoutConexaoTracking();
+            cancelarReconexaoTracking();
+            atualizarIndicadorTracking('conectado');
+            refreshEntregasMotoboy(); // resincronização controlada ao (re)conectar
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            falhaConexaoTracking();
+          } else {
+            atualizarIndicadorTracking('conectando');
+          }
+        });
+
+      trackingChannel = novoCanal;
+
+      cancelarTimeoutConexaoTracking();
+      timerTimeoutConexaoTracking = setTimeout(() => {
+        timerTimeoutConexaoTracking = null;
+        if (trackingChannel !== novoCanal) return;
+        if (statusTrackingEntregas !== 'conectando') return;
+        falhaConexaoTracking();
+      }, TIMEOUT_CONEXAO_TRACKING_MS);
+    } catch (e) {
+      falhaConexaoTracking();
+    }
+  }
+
+  async function executarRodadaRefreshEntregas() {
+    const liberado = await verificarLiberacaoDiaria();
+    if (!liberado) return;
+    await carregarEntregas();
+    await carregarControle();
+    await carregarPermissaoRoteirizacao();
+  }
+
+  // Serializado: nunca roda duas rodadas ao mesmo tempo. Se chegar uma solicitação
+  // enquanto uma rodada já está em andamento, marca refreshEntregasPendente e, ao
+  // terminar, executa no máximo mais uma rodada extra pra absorver o que chegou.
   async function refreshEntregasMotoboy() {
     if (!currentUser) return;
+    if (refreshEntregasEmAndamento) {
+      refreshEntregasPendente = true;
+      return;
+    }
+    refreshEntregasEmAndamento = true;
     try {
-      const liberado = await verificarLiberacaoDiaria();
-      if (!liberado) return;
-      await carregarEntregas();
-      await carregarControle();
-      await carregarPermissaoRoteirizacao();
+      await executarRodadaRefreshEntregas();
+      if (refreshEntregasPendente) {
+        refreshEntregasPendente = false;
+        await executarRodadaRefreshEntregas();
+      }
     } catch (e) {
       console.error('Falha ao atualizar entregas do motoboy:', e);
+    } finally {
+      refreshEntregasEmAndamento = false;
+      refreshEntregasPendente = false;
+    }
+  }
+
+  // Resincronização centralizada usada ao voltar pro app (visibilitychange, focus,
+  // online): revalida liberação, atualiza entregas e reconecta o canal se precisar.
+  async function resincronizarMotoboy() {
+    if (!currentUser || resincronizandoMotoboy) return;
+    resincronizandoMotoboy = true;
+    try {
+      await refreshEntregasMotoboy();
+      if (liberadoHoje && statusTrackingEntregas !== 'conectado') subscribeTrackingEntregas();
+    } finally {
+      resincronizandoMotoboy = false;
     }
   }
 
   function iniciarRefreshEntregasMotoboy() {
     if (entregasRefreshInterval) clearInterval(entregasRefreshInterval);
     entregasRefreshInterval = setInterval(refreshEntregasMotoboy, 30000);
-
-    if (!visibilityListenerRegistrado) {
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') refreshEntregasMotoboy();
-      });
-      visibilityListenerRegistrado = true;
-    }
-
-    iniciarListenerFocusLiberacao();
+    iniciarListenersResincronizacaoMotoboy();
   }
 
-  // window.focus é um evento distinto de visibilitychange (cobre voltar de outro app/janela
-  // no desktop) — mantido além do visibilitychange existente, não como substituto dele.
-  function iniciarListenerFocusLiberacao() {
-    if (focusLiberacaoListenerRegistrado) return;
-    window.addEventListener('focus', async () => {
-      if (!currentUser) return;
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) return;
-      await verificarLiberacaoDiaria();
+  // visibilitychange, focus (volta de outro app/janela no desktop) e online (internet
+  // voltou) levam todos ao mesmo lugar — resincronizarMotoboy() — registrados uma única vez.
+  function iniciarListenersResincronizacaoMotoboy() {
+    if (resyncListenersRegistrados) return;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') resincronizarMotoboy();
     });
-    focusLiberacaoListenerRegistrado = true;
+    window.addEventListener('focus', resincronizarMotoboy);
+    window.addEventListener('online', resincronizarMotoboy);
+    resyncListenersRegistrados = true;
   }
 
   function beep() {
