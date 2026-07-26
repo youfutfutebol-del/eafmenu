@@ -128,13 +128,13 @@
           <div class="admin-badge__row"><span class="admin-badge__dot"></span> <span id="userNome">—</span></div>
           <span class="admin-badge__role" id="userRole">—</span>
         </div>
-        <div class="sound-toggle">
-          <div class="sound-toggle__label">
-            Som de Pedidos
+        <button type="button" class="sound-toggle" id="soundToggleBtn" onclick="toggleSound()" aria-pressed="true" aria-label="Desligar som de pedidos">
+          <span class="sound-toggle__label">
+            <span class="sound-toggle__action" id="soundActionTxt">Desligar som</span>
             <span class="sound-toggle__status sound-toggle__status--bloqueado" id="soundStatusTxt">Toque para ativar o som</span>
-          </div>
-          <button class="switch on" id="soundSwitch" onclick="toggleSound()"></button>
-        </div>
+          </span>
+          <span class="switch on" id="soundSwitch" aria-hidden="true"></span>
+        </button>
         <button class="logout-btn" style="color:#D4D4D8;" onclick="abrirTrocarMinhaSenha()">🔑 Trocar minha senha</button>
         <button class="logout-btn" onclick="logout()">⎋ Sair do Painel</button>
       </div>
@@ -1075,7 +1075,7 @@
   let orders = [];
   let filtroPedidos = 'todos';
   let soundOn = (typeof lerPreferenciaSom === 'function') ? lerPreferenciaSom() : true;
-  document.getElementById('soundSwitch')?.classList.toggle('on', soundOn);
+  if (typeof atualizarControleSom === 'function') atualizarControleSom(soundOn);
   // "Som ativo" só depois de uma reprodução real bem-sucedida — no boot, ligado
   // vira "bloqueado" (Toque para ativar o som) até tocar de verdade.
   if (typeof atualizarStatusSom === 'function') atualizarStatusSom(soundOn ? 'bloqueado' : 'desligado');

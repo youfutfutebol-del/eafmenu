@@ -57,8 +57,10 @@
   .admin-badge__row { display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; }
   .admin-badge__dot { width:7px; height:7px; border-radius:50%; background: var(--green); }
   .admin-badge__role { display:inline-block; margin-top:6px; background: var(--red); color:#fff; font-size:9.5px; font-weight:800; padding:2px 7px; border-radius:5px; letter-spacing:.03em; }
-  .sound-toggle { display:flex; align-items:center; justify-content:space-between; padding:8px 10px; font-size:12.5px; color:#D4D4D8; }
+  .sound-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:8px 10px; font-size:12.5px; color:#D4D4D8; background:transparent; border:none; border-radius:8px; font-family:inherit; text-align:left; cursor:pointer; }
+  .sound-toggle:hover { background: rgba(255,255,255,.06); }
   .sound-toggle__label { display:flex; flex-direction:column; gap:2px; }
+  .sound-toggle__action { font-weight:600; }
   .sound-toggle__status { font-size:10.5px; font-weight:600; color:#9A9AA0; }
   .sound-toggle__status--ativo { color: var(--green); }
   .sound-toggle__status--bloqueado { color: var(--amber); }
