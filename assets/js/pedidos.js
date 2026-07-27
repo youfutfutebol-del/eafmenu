@@ -31,6 +31,7 @@
   let modoListaPedidos = 'andamento';
   let historicoPaginaAtual = 0;
   let historicoTotalResultados = 0;
+  let historicoConsultaDiaAtual = false;
   const HISTORICO_TAMANHO_PAGINA = 200;
   const renderOrdersEmAndamento = window.renderOrders;
   const STATUS_HISTORICO_PEDIDOS = ['entregue', 'retirado', 'cancelado'];
@@ -89,7 +90,6 @@
     linhaFiltro.parentNode.insertBefore(modos, linhaFiltro);
     const formulario = document.createElement('div');
     formulario.id = 'filtrosHistoricoPedidos';
-    formulario.style.cssText = 'display:none; width:100%; gap:8px; align-items:end; flex-wrap:wrap;';
     formulario.innerHTML = `
       <label style="display:grid; gap:4px; font-size:11px; font-weight:700;">Data inicial
         <input id="historicoDataInicial" type="date" style="padding:7px 9px; border:1px solid var(--border); border-radius:8px; font:inherit;">
@@ -113,9 +113,16 @@
     const formulario = document.getElementById('filtrosHistoricoPedidos');
     const filtrosPagamento = document.getElementById('filterTabsPedidos');
     const rotuloPagamento = filtrosPagamento?.previousElementSibling;
-    if (formulario) formulario.style.display = modoListaPedidos === 'historico' ? 'flex' : 'none';
+    if (formulario) {
+      formulario.classList.toggle('is-visible', modoListaPedidos === 'historico');
+    }
     if (filtrosPagamento) filtrosPagamento.style.display = modoListaPedidos === 'historico' ? 'none' : '';
     if (rotuloPagamento) rotuloPagamento.style.display = modoListaPedidos === 'historico' ? 'none' : '';
+    if (modoListaPedidos === 'historico') {
+      preencherDiaComercialAtualHistorico();
+      buscarHistoricoPedidos();
+      return;
+    }
     renderOrders();
   }
 
@@ -124,10 +131,32 @@
     return digitos.startsWith('55') && digitos.length > 11 ? digitos.slice(2) : digitos;
   }
 
+  function formatarDataInputHistorico(data) {
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const dia = String(data.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+  }
+
+  function dataDiaComercialAtualHistorico() {
+    return formatarDataInputHistorico(inicioDiaComercial());
+  }
+
+  function preencherDiaComercialAtualHistorico() {
+    const dataAtual = dataDiaComercialAtualHistorico();
+    document.getElementById('historicoDataInicial').value = dataAtual;
+    document.getElementById('historicoDataFinal').value = dataAtual;
+    document.getElementById('historicoTelefone').value = '';
+  }
+
   function limitesPeriodoHistorico(dataInicial, dataFinal) {
-    const inicio = new Date(`${dataInicial}T00:00:00-03:00`);
-    const fimExclusivo = new Date(`${dataFinal}T00:00:00-03:00`);
-    fimExclusivo.setUTCDate(fimExclusivo.getUTCDate() + 1);
+    const criarInicioDiaComercial = valor => {
+      const [ano, mes, dia] = valor.split('-').map(Number);
+      return new Date(ano, mes - 1, dia, HORA_RESET_PEDIDOS, 0, 0, 0);
+    };
+    const inicio = criarInicioDiaComercial(dataInicial);
+    const fimExclusivo = criarInicioDiaComercial(dataFinal);
+    fimExclusivo.setDate(fimExclusivo.getDate() + 1);
     return { inicio: inicio.toISOString(), fimExclusivo: fimExclusivo.toISOString() };
   }
 
@@ -159,6 +188,9 @@
     const telefoneNormalizado = normalizarTelefoneHistorico(telefone);
     const temAlgumaData = Boolean(dataInicial || dataFinal);
     if (!manterPagina) historicoPaginaAtual = 0;
+    historicoConsultaDiaAtual = dataInicial === dataDiaComercialAtualHistorico()
+      && dataFinal === dataInicial
+      && !telefoneNormalizado;
     if (!temAlgumaData && !telefoneNormalizado) {
       definirMensagemHistorico('Informe um período ou telefone para consultar pedidos anteriores.', true);
       return;
@@ -174,8 +206,8 @@
 
     estadoHistoricoPedidos = 'carregando';
     erroHistoricoPedidos = null;
-    document.getElementById('filterCountPedidos').textContent = 'Buscando…';
-    document.getElementById('orderList').innerHTML = '<div class="empty-state"><div class="ic">🕘</div><p>Buscando pedidos anteriores…</p></div>';
+    document.getElementById('filterCountPedidos').textContent = historicoConsultaDiaAtual ? 'Buscando pedidos de hoje…' : 'Buscando…';
+    document.getElementById('orderList').innerHTML = `<div class="empty-state"><div class="ic">🕘</div><p>${historicoConsultaDiaAtual ? 'Buscando pedidos de hoje…' : 'Buscando pedidos anteriores…'}</p></div>`;
     try {
       let clientesIds = null;
       if (telefoneNormalizado) {
@@ -221,15 +253,99 @@
   }
 
   function limparFiltrosHistoricoPedidos() {
-    document.getElementById('historicoDataInicial').value = '';
-    document.getElementById('historicoDataFinal').value = '';
-    document.getElementById('historicoTelefone').value = '';
-    pedidosHistorico = [];
-    erroHistoricoPedidos = null;
-    estadoHistoricoPedidos = 'inicial';
-    historicoPaginaAtual = 0;
-    historicoTotalResultados = 0;
-    renderHistoricoPedidos();
+    preencherDiaComercialAtualHistorico();
+    buscarHistoricoPedidos();
+  }
+
+  function formatarDataHoraHistorico(valor) {
+    return new Date(valor).toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23'
+    });
+  }
+
+  function renderItemHistorico(itemOriginal) {
+    const item = normalizarItemPedido(itemOriginal);
+    const detalhes = [];
+    if (item.nomeTamanho) detalhes.push(`Tamanho: ${escapeHtml(item.nomeTamanho)}`);
+    if (item.sabores.length) detalhes.push(`Sabores: ${item.sabores.map(escapeHtml).join(' + ')}`);
+    if (item.observacoes) detalhes.push(`Obs. do item: ${escapeHtml(item.observacoes)}`);
+    return `
+      <div class="order-history-item">
+        <strong>${escapeHtml(item.quantidade)}x ${escapeHtml(item.nomePrincipal)}</strong>
+        ${detalhes.length ? `<span>${detalhes.join(' · ')}</span>` : ''}
+      </div>`;
+  }
+
+  function renderCardHistorico(pedido) {
+    const cliente = escapeHtml(pedido.clientes?.nome || 'Cliente balcão');
+    const telefone = pedido.clientes?.telefone
+      ? `<div class="order-card__phone">${escapeHtml(pedido.clientes.telefone)}</div>`
+      : '';
+    const tipoBadge = pedido.tipo === 'entrega'
+      ? '<span class="badge entrega">🛵 entrega</span>'
+      : '<span class="badge retirada">🏠 retirada</span>';
+    const statusBadge = `<span class="badge status order-history-status order-history-status--${escapeHtml(pedido.status)}">${escapeHtml(STATUS_LABEL[pedido.status] || pedido.status)}</span>`;
+    const pagoBadge = pedido.pago
+      ? '<span class="badge pago">pago</span>'
+      : '<span class="badge pendente">pendente</span>';
+    const endereco = pedido.enderecos_cliente;
+    const partesEndereco = endereco
+      ? [
+          endereco.logradouro,
+          endereco.numero,
+          endereco.bairro,
+          endereco.cidade,
+          endereco.complemento,
+          endereco.referencia ? `Ref: ${endereco.referencia}` : ''
+        ].filter(Boolean).map(escapeHtml)
+      : [];
+    const enderecoLinha = pedido.tipo === 'entrega' && partesEndereco.length
+      ? `<div class="order-detail order-detail--address">📍 ${partesEndereco.join(' · ')}</div>`
+      : '';
+    const observacaoLinha = pedido.observacoes
+      ? `<div class="order-detail order-detail--note">📝 ${escapeHtml(pedido.observacoes)}</div>`
+      : '';
+    const trocoLinha = pedido.forma_pagamento === 'dinheiro' && pedido.troco_para
+      ? `<div class="order-detail order-detail--change">💵 Troco: R$ ${(Number(pedido.troco_para) - Number(pedido.total)).toFixed(2).replace('.', ',')} (paga com R$ ${Number(pedido.troco_para).toFixed(2).replace('.', ',')})</div>`
+      : '';
+    const pedidoIdArg = escapeHtml(JSON.stringify(pedido.id));
+
+    return `
+      <div class="order-row order-row--history">
+        <div class="order-card__top">
+          <div class="order-card__code order-code">
+            <span>${escapeHtml(codigoPedido(pedido))}</span>
+            <span class="order-history-date">${escapeHtml(formatarDataHoraHistorico(pedido.criado_em))}</span>
+          </div>
+          <div class="order-card__total order-total">R$ ${Number(pedido.total).toFixed(2).replace('.', ',')}</div>
+        </div>
+        <div class="order-card__body order-card__body--history">
+          <div class="order-main">
+            <div class="order-card__identity order-card__identity--history">
+              <div class="order-history-customer">
+                <div class="order-cliente">${cliente}</div>
+                ${telefone}
+              </div>
+              <div class="order-badges">${tipoBadge}${statusBadge}${pagoBadge}</div>
+            </div>
+            <div class="order-card__details">
+              <div class="order-detail order-detail--items">${(pedido.itens_pedido || []).map(renderItemHistorico).join('') || 'sem itens'}</div>
+              ${enderecoLinha}
+              ${observacaoLinha}
+              ${trocoLinha}
+            </div>
+          </div>
+          <div class="order-history-actions">
+            <button class="order-btn order-btn--secondary" onclick="imprimirComanda(${pedidoIdArg})">🖨️ Imprimir</button>
+          </div>
+        </div>
+      </div>`;
   }
 
   function renderHistoricoPedidos() {
@@ -245,36 +361,22 @@
       return;
     }
     if (estadoHistoricoPedidos === 'carregando') {
-      document.getElementById('filterCountPedidos').textContent = 'Buscando…';
-      list.innerHTML = '<div class="empty-state"><div class="ic">🕘</div><p>Buscando pedidos anteriores…</p></div>';
+      document.getElementById('filterCountPedidos').textContent = historicoConsultaDiaAtual ? 'Buscando pedidos de hoje…' : 'Buscando…';
+      list.innerHTML = `<div class="empty-state"><div class="ic">🕘</div><p>${historicoConsultaDiaAtual ? 'Buscando pedidos de hoje…' : 'Buscando pedidos anteriores…'}</p></div>`;
       return;
     }
-    const ordersAtuais = orders;
-    const filtroAtual = filtroPedidos;
-    orders = pedidosHistorico;
-    filtroPedidos = 'todos';
-    renderOrdersEmAndamento();
-    orders = ordersAtuais;
-    filtroPedidos = filtroAtual;
     const inicioResultado = historicoTotalResultados ? historicoPaginaAtual * HISTORICO_TAMANHO_PAGINA + 1 : 0;
     const fimResultado = Math.min((historicoPaginaAtual + 1) * HISTORICO_TAMANHO_PAGINA, historicoTotalResultados);
-    document.getElementById('filterCountPedidos').textContent = historicoTotalResultados
-      ? `Mostrando ${inicioResultado}–${fimResultado} de ${historicoTotalResultados} pedidos`
-      : 'Nenhum pedido encontrado';
-    list.querySelectorAll('button[onclick^="marcarPago"], button[onclick^="abrirCancelarPedido"]').forEach(botao => botao.remove());
-    [...list.querySelectorAll('.order-row')].forEach((linha, indice) => {
-      const pedido = pedidosHistorico[indice];
-      const data = new Date(pedido.criado_em).toLocaleString('pt-BR', {
-        timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
-      });
-      const codigo = linha.querySelector('.order-code');
-      if (codigo) codigo.textContent = `${codigoPedido(pedido)} · ${data}`;
-      const cliente = linha.querySelector('.order-cliente');
-      if (cliente && pedido.clientes?.telefone) {
-        cliente.insertAdjacentHTML('afterend', `<div class="order-itens">${escapeHtml(pedido.clientes.telefone)}</div>`);
-      }
-    });
+    document.getElementById('filterCountPedidos').textContent = historicoConsultaDiaAtual
+      ? (historicoTotalResultados ? `${historicoTotalResultados} ${historicoTotalResultados === 1 ? 'pedido' : 'pedidos'} do dia` : '')
+      : (historicoTotalResultados
+        ? `Mostrando ${inicioResultado}–${fimResultado} de ${historicoTotalResultados} pedidos`
+        : 'Nenhum pedido encontrado');
+    if (!historicoTotalResultados) {
+      list.innerHTML = `<div class="empty-state"><div class="ic">📋</div><p>${historicoConsultaDiaAtual ? 'Nenhum pedido finalizado neste dia.' : 'Nenhum pedido encontrado.'}</p></div>`;
+      return;
+    }
+    list.innerHTML = pedidosHistorico.map(renderCardHistorico).join('');
     if (historicoTotalResultados) {
       const totalPaginas = Math.ceil(historicoTotalResultados / HISTORICO_TAMANHO_PAGINA);
       list.insertAdjacentHTML('beforeend', `
