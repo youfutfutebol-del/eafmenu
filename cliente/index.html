@@ -282,12 +282,7 @@
   .pedido-card__previsao.aguardando { color:var(--muted); font-weight:500; }
   .pedido-card__itens { font-size:12px; color:var(--muted); margin-top:10px; line-height:1.5; }
   .pedido-card__total { font-weight:800; font-size:14.5px; margin-top:9px; font-family: var(--font-display); }
-  .pedidos-busca { border-top:1px solid var(--border); margin-top:18px; padding-top:16px; }
-  .pedidos-busca h4 { margin:0 0 10px; font-family:var(--font-display); font-size:14px; }
-  .pedidos-busca__linha { display:flex; gap:8px; align-items:stretch; }
-  .pedidos-busca__linha input { min-width:0; flex:1; padding:10px 12px; border:1.5px solid var(--border); border-radius:10px; background:var(--bg); color:var(--ink); font:inherit; font-size:13px; }
-  .pedidos-busca__linha .btn { width:auto; flex:0 0 auto; padding:10px 18px; }
-  .pedidos-voltar { margin-top:10px; }
+  /* (bloco de busca de pedido anterior removido — não há mais busca histórica) */
 
   /* ---------------- Toast ---------------- */
   .toast {
@@ -403,7 +398,7 @@
     <!-- Passo 1: identificação (sessão anônima do Supabase Auth por trás, sem OTP/senha) -->
     <div id="stepIdent">
       <h3>Como podemos te chamar?</h3>
-      <p class="sub">Só precisamos disso uma vez — na próxima compra o app já te reconhece.</p>
+      <p class="sub">Informe seus dados para este pedido. No próximo dia de atendimento, pediremos novamente.</p>
 
       <div class="field"><label>Seu nome</label><input id="identNome" placeholder="Nome completo"></div>
       <div class="field"><label>Telefone (WhatsApp)</label><input id="identTelefone" placeholder="(41) 9...." inputmode="tel" oninput="mascaraTelefone(this)"></div>
@@ -479,14 +474,6 @@
     <div class="sheet__handle"></div>
     <h3 id="meusPedidosTitulo">Pedidos de hoje</h3>
     <div id="meusPedidosLista" style="margin-top:10px;"></div>
-    <div class="pedidos-busca">
-      <h4>Buscar pedido anterior</h4>
-      <div class="pedidos-busca__linha">
-        <input type="date" id="buscaPedidosData" aria-label="Data do pedido anterior">
-        <button class="btn" type="button" onclick="buscarPedidosAnteriores()">Buscar</button>
-      </div>
-      <button class="link-btn pedidos-voltar hidden" id="voltarPedidosHojeBtn" type="button" onclick="voltarParaPedidosHoje()">Voltar para pedidos de hoje</button>
-    </div>
     <button class="btn" onclick="closeSheet('sheetPedidos')" style="margin-top:10px;">Fechar</button>
   </div>
 </div>
@@ -534,6 +521,12 @@
   let statusAbertoInterval = null;
   let restauranteConfigChannel = null;
 
+  // Dia comercial (vira às 07:00 America/Sao_Paulo) — o relógio local é só um
+  // despertador; a verdade sempre vem do servidor via dia_comercial_atual().
+  let diaComercialAtual = null;
+  let diaComercialTimerId = null;
+  let verificandoDiaComercial = false;
+
   const trackedChannels = [];
 
   // =====================================================================
@@ -569,6 +562,7 @@
     aplicarMarca();
     subscribeConfiguracaoPublica();
 
+    await consultarDiaComercialServidor();
     await carregarSessaoCliente();
     atualizarSaudacao();
 
@@ -581,6 +575,12 @@
     if (statusAbertoInterval) clearInterval(statusAbertoInterval);
     statusAbertoInterval = setInterval(atualizarStatusAberto, 60 * 1000);
 
+    agendarProximaVerificacaoDiaComercial();
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') consultarDiaComercialServidor();
+    });
+    window.addEventListener('focus', () => consultarDiaComercialServidor());
+
     document.getElementById('screenLoading').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
 
@@ -592,6 +592,126 @@
   function showInvalido() {
     document.getElementById('screenLoading').classList.add('hidden');
     document.getElementById('screenInvalido').classList.remove('hidden');
+  }
+
+  // =====================================================================
+  // DIA COMERCIAL (vira às 07:00 America/Sao_Paulo)
+  // =====================================================================
+  // Consulta a verdade no servidor. Se o dia mudou desde a última verificação
+  // conhecida por este app, dispara o reset completo da interface. Sempre
+  // reagenda o próximo despertador (evita timers duplicados).
+  async function consultarDiaComercialServidor() {
+    if (verificandoDiaComercial) return diaComercialAtual;
+    verificandoDiaComercial = true;
+    try {
+      const { data, error } = await sb.rpc('dia_comercial_atual');
+      if (error || !data) return diaComercialAtual;
+
+      const diaServidor = Array.isArray(data) ? data[0] : data;
+      const diaConhecidoAntes = diaComercialAtual;
+
+      if (diaConhecidoAntes && diaServidor !== diaConhecidoAntes) {
+        diaComercialAtual = diaServidor;
+        await resetCompletoVirada();
+      } else {
+        diaComercialAtual = diaServidor;
+      }
+
+      return diaComercialAtual;
+    } finally {
+      verificandoDiaComercial = false;
+      agendarProximaVerificacaoDiaComercial();
+    }
+  }
+
+  // Desperta perto das 07:00 America/Sao_Paulo. Se o servidor ainda disser que
+  // o dia não virou (diferença de relógio, navegador suspenso, fuso horário),
+  // NÃO agenda direto para 24h depois — verifica de novo em ~60s.
+  function agendarProximaVerificacaoDiaComercial() {
+    if (diaComercialTimerId) { clearTimeout(diaComercialTimerId); diaComercialTimerId = null; }
+
+    const agora = new Date();
+    const partes = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+    }).formatToParts(agora);
+    const valor = tipo => Number(partes.find(p => p.type === tipo)?.value || 0);
+    const segundosDesdeMeiaNoite = valor('hour') * 3600 + valor('minute') * 60 + valor('second');
+    const segundosAte07h = ((7 * 3600) - segundosDesdeMeiaNoite + 86400) % 86400;
+    const esperaMs = (segundosAte07h === 0 ? 86400 : segundosAte07h) * 1000;
+
+    diaComercialTimerId = setTimeout(async () => {
+      const diaAntesDoCheck = diaComercialAtual;
+      await consultarDiaComercialServidor();
+      if (diaComercialAtual === diaAntesDoCheck) {
+        // Servidor ainda não confirmou a virada perto do horário esperado:
+        // tenta de novo em 60s em vez de esperar mais 24h.
+        if (diaComercialTimerId) clearTimeout(diaComercialTimerId);
+        diaComercialTimerId = setTimeout(consultarDiaComercialServidor, 60 * 1000);
+      }
+    }, esperaMs);
+  }
+
+  // Limpa toda informação da virada anterior. Nenhum pedido, endereço, carrinho
+  // ou identificação do dia comercial passado permanece visível.
+  async function resetCompletoVirada() {
+    closeSheet('sheetPedidos');
+    closeSheet('sheetCarrinho');
+    closeSheet('sheetCheckout');
+    closeSheet('sheetProduto');
+
+    trackedChannels.forEach(ch => sb.removeChannel(ch));
+    trackedChannels.length = 0;
+
+    cliente = null;
+    limparSessaoCliente();
+
+    // ESTADO
+    confirmarPedidoEmAndamento = false;
+    detalheProdutoAtual = null;
+    detalheTamanhoSelecionadoId = null;
+    detalheSaboresSelecionados = [];
+    detalheQtd = 1;
+    maxSaboresAtual = 1;
+    cart = [];
+    checkoutEnderecoId = null;
+    checkoutEndereco = null;
+    checkoutPrecisaTroco = false;
+    checkoutTipo = 'entrega';
+
+    // FORMULÁRIOS
+    document.getElementById('identNome').value = '';
+    document.getElementById('identTelefone').value = '';
+    document.getElementById('identErro').classList.add('hidden');
+    document.getElementById('endCep').value = '';
+    document.getElementById('endBairro').value = '';
+    document.getElementById('endRua').value = '';
+    document.getElementById('endNumero').value = '';
+    document.getElementById('endComplemento').value = '';
+    document.getElementById('endCidade').value = '';
+    document.getElementById('trocoParaInput').value = '';
+
+    // REVISÃO E PEDIDOS
+    document.getElementById('meusPedidosLista').innerHTML = '';
+    document.getElementById('revisaoItens').innerHTML = '';
+    document.getElementById('revisaoValores').innerHTML = '';
+    document.getElementById('revisaoTipoTexto').textContent = '';
+    document.getElementById('revisaoPagamentoTexto').innerHTML = '';
+
+    // BOTÕES E CONTROLES
+    const btnIdent = document.getElementById('identContinuarBtn');
+    btnIdent.disabled = false; btnIdent.textContent = 'Continuar';
+    const btnPedido = document.getElementById('btnConfirmarPedido');
+    btnPedido.disabled = false; btnPedido.textContent = 'Confirmar pedido';
+
+    irParaStep(1);
+    setTipoPedido('entrega');
+    setFormaPagamento('dinheiro');
+    setOpcaoTroco(false);
+
+    renderCarrinhoLista();
+    atualizarCartFab();
+    await atualizarBadgePedidos();
+    atualizarSaudacao();
   }
 
   function aplicarMarca() {
@@ -802,14 +922,24 @@
   // SESSÃO DO CLIENTE (por restaurante, sem Supabase Auth)
   // =====================================================================
   function chaveSessao() { return 'eaf_cliente_' + restauranteSlug; }
+  function chaveDiaComercial() { return 'eaf_cliente_' + restauranteSlug + '_dia'; }
 
   function dadosClienteParaCache(c) {
     return { id: c.id, nome: c.nome, telefone: c.telefone };
   }
 
+  // Remove somente a identificação DESTE restaurante (chave eaf_cliente_<slug> e
+  // qualquer eaf_cliente_<slug>_*). Preserva eaf_ultimo_restaurante e os dados
+  // de outros restaurantes.
   function limparSessaoCliente() {
     cliente = null;
-    localStorage.removeItem(chaveSessao());
+    const prefixo = chaveSessao();
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const chave = localStorage.key(i);
+      if (chave === prefixo || (chave && chave.startsWith(prefixo + '_'))) {
+        localStorage.removeItem(chave);
+      }
+    }
     atualizarSaudacao();
   }
 
@@ -818,11 +948,11 @@
   }
 
   // Guarda usada antes de qualquer INSERT do checkout (endereço e pedido).
-  // NÃO confia no cliente guardado localmente: revalida no banco que existe um cliente
-  // vinculado simultaneamente à sessão atual (auth_user_id = session.user.id) e a ESTE
-  // restaurante. Isso cobre o caso de sessão anônima nova/divergente com cliente antigo
-  // em memória ou cache — que terminaria em erro de RLS no INSERT.
-  // Se válido: atualiza a sessão local com o cliente do banco e retorna true.
+  // NÃO acessa a tabela "clientes" diretamente: usa cliente_sessao_atual(), que só
+  // devolve uma linha quando existe cliente_sessoes para (auth.uid(), restaurante)
+  // com dia_comercial igual ao dia comercial atual. Isso cobre sessão nova/divergente,
+  // cache velho de outra sessão e identificação de um dia comercial já encerrado.
+  // Se válido: atualiza a sessão local e retorna true.
   // Se inválido: limpa só a identificação local deste restaurante, volta ao passo 1,
   // mostra mensagem amigável (nunca erro técnico de RLS) e retorna false.
   async function garantirClienteSessaoValida() {
@@ -835,22 +965,26 @@
     }
 
     if (session) {
-      let clienteValido = null;
+      await consultarDiaComercialServidor();
+
+      let sessaoValida = null;
       let erroConsulta = null;
       try {
-        const { data, error } = await sb.from('clientes')
-          .select('id, nome, telefone')
-          .eq('restaurante_id', restaurante.id)
-          .eq('auth_user_id', session.user.id)
-          .maybeSingle();
-        clienteValido = data;
+        const { data, error } = await sb.rpc('cliente_sessao_atual', { p_restaurante_id: restaurante.id });
+        const linha = Array.isArray(data) ? data[0] : data;
+        sessaoValida = linha || null;
         erroConsulta = error;
       } catch (e) {
         erroConsulta = e;
       }
 
-      if (!erroConsulta && clienteValido && clienteValido.id) {
-        salvarSessaoCliente(clienteValido);
+      if (!erroConsulta && sessaoValida && sessaoValida.cliente_id) {
+        diaComercialAtual = sessaoValida.dia_comercial;
+        salvarSessaoCliente({
+          id: sessaoValida.cliente_id,
+          nome: sessaoValida.nome_informado,
+          telefone: sessaoValida.telefone_informado
+        });
         return true;
       }
 
@@ -862,8 +996,8 @@
       }
     }
 
-    // Sessão ausente, sessão inválida (401/28000/PGRST301) ou nenhum cliente
-    // correspondente a esta sessão neste restaurante.
+    // Sessão ausente, sessão inválida, dia comercial virou ou nenhuma
+    // identificação correspondente a esta sessão neste restaurante hoje.
     cliente = null;
     limparSessaoCliente();
     document.getElementById('identNome').value = '';
@@ -882,15 +1016,18 @@
       return;
     }
 
-    // sessão anônima ativa nesse aparelho: verifica se já existe cadastro pra ESTE restaurante
-    const { data, error } = await sb.from('clientes')
-      .select('id, nome, telefone')
-      .eq('restaurante_id', restaurante.id)
-      .eq('auth_user_id', session.user.id)
-      .maybeSingle();
+    // Não consulta "clientes" diretamente: só considera a sessão válida se
+    // cliente_sessao_atual() devolver linha para o dia comercial de hoje.
+    const { data, error } = await sb.rpc('cliente_sessao_atual', { p_restaurante_id: restaurante.id });
+    const linha = Array.isArray(data) ? data[0] : data;
 
-    if (!error && data) {
-      salvarSessaoCliente(data);
+    if (!error && linha && linha.cliente_id) {
+      diaComercialAtual = linha.dia_comercial;
+      salvarSessaoCliente({
+        id: linha.cliente_id,
+        nome: linha.nome_informado,
+        telefone: linha.telefone_informado
+      });
     } else if (!error || erroSessaoInvalida(error)) {
       limparSessaoCliente();
     }
@@ -899,6 +1036,7 @@
     const dadosSeguros = dadosClienteParaCache(c);
     cliente = dadosSeguros;
     localStorage.setItem(chaveSessao(), JSON.stringify(dadosSeguros));
+    if (diaComercialAtual) localStorage.setItem(chaveDiaComercial(), diaComercialAtual);
     atualizarSaudacao();
   }
 
@@ -1281,6 +1419,8 @@
     btn.disabled = true; btn.textContent = 'Só um instante...';
 
     try {
+      await consultarDiaComercialServidor();
+
       let { data: { session }, error: sessionError } = await sb.auth.getSession();
       if (sessionError) limparSessaoCliente();
       if (!session) {
@@ -1290,13 +1430,13 @@
         session = data.session;
       }
 
-      const identificarCliente = () => sb.rpc('criar_ou_atualizar_cliente_sessao_v2', {
+      const identificarCliente = () => sb.rpc('criar_ou_atualizar_cliente_sessao_v3', {
         p_restaurante_id: restaurante.id,
         p_nome: nome,
         p_telefone: telefone
       });
 
-      let { data: novoCliente, error: cliErr } = await identificarCliente();
+      let { data: identificacao, error: cliErr } = await identificarCliente();
       if (cliErr?.code === '28000') {
         limparSessaoCliente();
         await sb.auth.signOut({ scope: 'local' });
@@ -1304,24 +1444,27 @@
         const { error: renovarErro } = await sb.auth.signInAnonymously();
         if (renovarErro) throw renovarErro;
 
-        ({ data: novoCliente, error: cliErr } = await identificarCliente());
+        ({ data: identificacao, error: cliErr } = await identificarCliente());
       }
       if (cliErr) throw cliErr;
 
-      // A RPC v2 é RETURNS TABLE: o Supabase JS entrega um ARRAY ([{ id, nome, telefone }]),
-      // não um objeto. Sem esta normalização, cliente.id fica undefined e o INSERT em
-      // pedidos sai sem cliente_id — a policy RLS rejeita o pedido.
-      const clienteNormalizado = Array.isArray(novoCliente) ? novoCliente[0] : novoCliente;
-      if (!clienteNormalizado || !clienteNormalizado.id) {
-        throw new Error('Cadastro do cliente retornou sem identificação.');
+      // A RPC v3 é RETURNS TABLE: o Supabase JS entrega um ARRAY.
+      const linha = Array.isArray(identificacao) ? identificacao[0] : identificacao;
+      if (!linha || !linha.cliente_id) {
+        throw new Error('Identificação retornou sem dados.');
       }
 
-      salvarSessaoCliente(clienteNormalizado);
+      diaComercialAtual = linha.dia_comercial;
+      salvarSessaoCliente({
+        id: linha.cliente_id,
+        nome: linha.nome_informado,
+        telefone: linha.telefone_informado
+      });
       irParaStep(2);
     } catch (e) {
       console.error('Falha ao identificar cliente:', e?.code || 'erro');
       erroEl.textContent = e?.code === 'P0001' || e?.code === '28000'
-        ? 'Não foi possível concluir a identificação com os dados informados. Confira os dados ou utilize este dispositivo em que seus pedidos foram realizados.'
+        ? 'Não foi possível concluir a identificação com os dados informados. Confira o nome e o telefone.'
         : 'Não foi possível continuar agora. Verifique sua internet e tente de novo.';
       erroEl.classList.remove('hidden');
     } finally {
@@ -1361,8 +1504,18 @@
         cidade
       };
 
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session?.user?.id || !diaComercialAtual) {
+        await garantirClienteSessaoValida();
+        showToast('Confirme seus dados', 'Sua identificação expirou. Informe seu nome e telefone para continuar o pedido.');
+        return;
+      }
+      const authUserId = session.user.id;
+
       const { data, error } = await sb.from('enderecos_cliente').insert({
         cliente_id: cliente.id,
+        cliente_sessao_auth_user_id: authUserId,
+        cliente_sessao_dia_comercial: diaComercialAtual,
         logradouro: rua,
         numero,
         bairro,
@@ -1508,6 +1661,14 @@
     // Nunca enviar pedido sem sessão válida e cliente identificado (evita erro de RLS).
     if (!(await garantirClienteSessaoValida())) return;
 
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session?.user?.id || !diaComercialAtual) {
+      await garantirClienteSessaoValida();
+      showToast('Confirme seus dados', 'Sua identificação expirou. Informe seu nome e telefone para continuar o pedido.');
+      return;
+    }
+    const authUserId = session.user.id;
+
     confirmarPedidoEmAndamento = true;
     btn.disabled = true; btn.textContent = 'Enviando pedido...';
     let pedidoIniciado = false;
@@ -1529,6 +1690,8 @@
       const payload = {
         restaurante_id: restaurante.id,
         cliente_id: cliente.id,
+        cliente_sessao_auth_user_id: authUserId,
+        cliente_sessao_dia_comercial: diaComercialAtual,
         tipo: checkoutTipo,
         forma_pagamento: forma,
         subtotal,
@@ -1587,46 +1750,7 @@
   };
   const FLOW_ENTREGA = ['recebido', 'aceito', 'em_preparo', 'saiu_para_entrega', 'entregue'];
   const FLOW_RETIRADA = ['recebido', 'aceito', 'em_preparo', 'retirado'];
-  const STATUS_PEDIDOS_ATIVOS = ['recebido', 'aceito', 'em_preparo', 'saiu_para_entrega'];
   const PEDIDO_SELECT = `id, tipo, status, total, criado_em, previsao_inicio, previsao_fim, itens_pedido ( quantidade, produtos ( nome ) )`;
-  let visualizacaoPedidos = 'hoje';
-
-  function chaveDataSaoPaulo(data = new Date()) {
-    const partes = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit'
-    }).formatToParts(data);
-    const valor = tipo => partes.find(parte => parte.type === tipo)?.value;
-    return `${valor('year')}-${valor('month')}-${valor('day')}`;
-  }
-
-  function horarioSaoPauloParaUtc(ano, mes, dia) {
-    const alvo = Date.UTC(ano, mes - 1, dia, 0, 0, 0);
-    let estimativa = alvo;
-    const formatador = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
-    });
-
-    for (let tentativa = 0; tentativa < 3; tentativa++) {
-      const partes = formatador.formatToParts(new Date(estimativa));
-      const valor = tipo => Number(partes.find(parte => parte.type === tipo)?.value);
-      const observado = Date.UTC(valor('year'), valor('month') - 1, valor('day'), valor('hour'), valor('minute'), valor('second'));
-      estimativa += alvo - observado;
-    }
-    return new Date(estimativa);
-  }
-
-  function intervaloDiaSaoPaulo(chave = chaveDataSaoPaulo()) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(chave)) return null;
-    const [ano, mes, dia] = chave.split('-').map(Number);
-    const dataValidada = new Date(Date.UTC(ano, mes - 1, dia));
-    if (dataValidada.getUTCFullYear() !== ano || dataValidada.getUTCMonth() !== mes - 1 || dataValidada.getUTCDate() !== dia) return null;
-    const proximoDia = new Date(Date.UTC(ano, mes - 1, dia + 1));
-    return {
-      inicio: horarioSaoPauloParaUtc(ano, mes, dia).toISOString(),
-      fim: horarioSaoPauloParaUtc(proximoDia.getUTCFullYear(), proximoDia.getUTCMonth() + 1, proximoDia.getUTCDate()).toISOString()
-    };
-  }
 
   function formatarJanelaPrevisao(inicioIso, fimIso) {
     if (!inicioIso || !fimIso) return null;
@@ -1670,10 +1794,14 @@
     const badge = document.getElementById('pedidosBadge');
     if (!cliente) { badge.classList.add('hidden'); return; }
 
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { badge.classList.add('hidden'); return; }
+
     const { data } = await sb.from('pedidos')
       .select('id, status')
-      .eq('cliente_id', cliente.id)
       .eq('restaurante_id', restaurante.id)
+      .eq('cliente_sessao_auth_user_id', session.user.id)
+      .eq('cliente_sessao_dia_comercial', diaComercialAtual)
       .not('status', 'in', '(entregue,retirado,cancelado)');
 
     const n = (data || []).length;
@@ -1683,29 +1811,30 @@
 
   async function openMeusPedidos() {
     if (!cliente) {
-      document.getElementById('meusPedidosLista').innerHTML = `<div class="cart-empty">Você ainda não fez nenhum pedido nesse restaurante.</div>`;
-      document.getElementById('meusPedidosTitulo').textContent = 'Pedidos de hoje';
-      document.getElementById('voltarPedidosHojeBtn').classList.add('hidden');
+      document.getElementById('meusPedidosLista').innerHTML = `<div class="cart-empty">Você ainda não fez nenhum pedido nesse restaurante hoje.</div>`;
       openSheet('sheetPedidos');
       return;
     }
 
-    await carregarPedidosHoje();
+    await carregarMeusPedidos();
     openSheet('sheetPedidos');
-    subscribeTrackingPedidos();
+    await subscribeTrackingPedidos();
   }
 
-  async function carregarPedidosHoje() {
-    const intervalo = intervaloDiaSaoPaulo();
-    visualizacaoPedidos = 'hoje';
-    document.getElementById('meusPedidosTitulo').textContent = 'Pedidos de hoje';
-    document.getElementById('voltarPedidosHojeBtn').classList.add('hidden');
+  // Não existe busca histórica: cada sessão só acessa os pedidos que ELA criou
+  // no dia comercial atual (mesma regra que a RLS aplica no servidor).
+  async function carregarMeusPedidos() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      document.getElementById('meusPedidosLista').innerHTML = `<div class="cart-empty">Não foi possível carregar seus pedidos agora.</div>`;
+      return;
+    }
 
     const { data, error } = await sb.from('pedidos')
       .select(PEDIDO_SELECT)
-      .eq('cliente_id', cliente.id)
       .eq('restaurante_id', restaurante.id)
-      .or(`and(criado_em.gte.${intervalo.inicio},criado_em.lt.${intervalo.fim}),status.in.(${STATUS_PEDIDOS_ATIVOS.join(',')})`)
+      .eq('cliente_sessao_auth_user_id', session.user.id)
+      .eq('cliente_sessao_dia_comercial', diaComercialAtual)
       .order('criado_em', { ascending: false });
 
     if (error) {
@@ -1713,39 +1842,6 @@
       return;
     }
     renderMeusPedidos(data || [], 'Nenhum pedido feito hoje.');
-  }
-
-  async function buscarPedidosAnteriores() {
-    if (!cliente) return;
-    const chave = document.getElementById('buscaPedidosData').value;
-    const intervalo = intervaloDiaSaoPaulo(chave);
-    if (!intervalo) {
-      showToast('Escolha uma data', 'Informe a data do pedido que deseja buscar.');
-      return;
-    }
-
-    const { data, error } = await sb.from('pedidos')
-      .select(PEDIDO_SELECT)
-      .eq('cliente_id', cliente.id)
-      .eq('restaurante_id', restaurante.id)
-      .gte('criado_em', intervalo.inicio)
-      .lt('criado_em', intervalo.fim)
-      .order('criado_em', { ascending: false });
-
-    if (error) {
-      showToast('Busca indisponível', 'Não foi possível buscar os pedidos dessa data agora.');
-      return;
-    }
-    visualizacaoPedidos = 'historico';
-    const dataLegivel = chave.split('-').reverse().join('/');
-    document.getElementById('meusPedidosTitulo').textContent = `Pedidos de ${dataLegivel}`;
-    document.getElementById('voltarPedidosHojeBtn').classList.remove('hidden');
-    renderMeusPedidos(data || [], 'Nenhum pedido encontrado nessa data.');
-  }
-
-  async function voltarParaPedidosHoje() {
-    document.getElementById('buscaPedidosData').value = '';
-    await carregarPedidosHoje();
   }
 
   function renderMeusPedidos(lista, mensagemVazia = 'Nenhum pedido encontrado.') {
@@ -1785,15 +1881,26 @@
     }).join('');
   }
 
-  function subscribeTrackingPedidos() {
+  async function subscribeTrackingPedidos() {
     trackedChannels.forEach(ch => sb.removeChannel(ch));
     trackedChannels.length = 0;
 
-    const ch = sb.channel('tracking-cliente-' + cliente.id)
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+
+    // Filtro principal por cliente_sessao_auth_user_id: funciona mesmo durante
+    // a janela A→B→C, quando a RLS antiga ainda pode permitir leitura por
+    // cliente_id canônico. O nome do canal identifica restaurante + sessão.
+    const ch = sb.channel('tracking-restaurante-' + restaurante.id + '-sessao-' + session.user.id)
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'pedidos', filter: `cliente_id=eq.${cliente.id}` },
+        { event: '*', schema: 'public', table: 'pedidos', filter: `cliente_sessao_auth_user_id=eq.${session.user.id}` },
         async (payload) => {
-          if (visualizacaoPedidos === 'hoje') await carregarPedidosHoje();
+          // Guarda extra: se por algum motivo o evento vier de outro restaurante,
+          // ignora sem recarregar pedidos, sem atualizar badge e sem tocar som.
+          const restauranteDoEvento = payload.new?.restaurante_id || payload.old?.restaurante_id;
+          if (restauranteDoEvento && restauranteDoEvento !== restaurante.id) return;
+
+          await carregarMeusPedidos();
           await atualizarBadgePedidos();
           const statusAnterior = payload.old?.status;
           const statusNovo = payload.new?.status;
