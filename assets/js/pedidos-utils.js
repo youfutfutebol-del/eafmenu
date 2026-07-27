@@ -132,13 +132,13 @@
 
       const end = o.enderecos_cliente;
       const enderecoLinha = (o.tipo === 'entrega' && end?.logradouro)
-        ? `<div class="order-itens" style="margin-top:2px;">📍 ${escapeHtml(end.logradouro)}${end.numero ? ', ' + escapeHtml(end.numero) : ''}${end.bairro ? ' - ' + escapeHtml(end.bairro) : ''}${end.referencia ? ' · Ref: ' + escapeHtml(end.referencia) : ''}</div>`
+        ? `<div class="order-detail order-detail--address">📍 ${escapeHtml(end.logradouro)}${end.numero ? ', ' + escapeHtml(end.numero) : ''}${end.bairro ? ' - ' + escapeHtml(end.bairro) : ''}${end.referencia ? ' · Ref: ' + escapeHtml(end.referencia) : ''}</div>`
         : '';
       const obsLinha = o.observacoes
-        ? `<div class="order-itens" style="margin-top:4px; background:#FEF9C3; color:#854D0E; padding:4px 8px; border-radius:6px; font-weight:600;">📝 ${escapeHtml(o.observacoes)}</div>`
+        ? `<div class="order-detail order-detail--note">📝 ${escapeHtml(o.observacoes)}</div>`
         : '';
       const trocoLinha = (o.forma_pagamento === 'dinheiro' && o.troco_para)
-        ? `<div class="order-itens" style="margin-top:2px; color:var(--amber); font-weight:700;">💵 Troco: R$ ${(Number(o.troco_para) - Number(o.total)).toFixed(2).replace('.', ',')} (paga com R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')})</div>`
+        ? `<div class="order-detail order-detail--change">💵 Troco: R$ ${(Number(o.troco_para) - Number(o.total)).toFixed(2).replace('.', ',')} (paga com R$ ${Number(o.troco_para).toFixed(2).replace('.', ',')})</div>`
         : '';
       const pedidoFinalizado = STATUS_FINAIS.includes(o.status);
       const horarioFinalPrevisao = o.tipo === 'entrega' && !pedidoFinalizado
@@ -158,7 +158,7 @@
       const statusArg = escapeHtml(JSON.stringify(o.status));
       const tipoArg = escapeHtml(JSON.stringify(o.tipo));
       const motoboySelect = (o.tipo === 'entrega' && !STATUS_FINAIS.includes(o.status))
-        ? `<select onchange="atribuirMotoboy(${pedidoIdArg}, this.value)" style="margin-top:6px; font-size:11.5px; padding:5px 8px; border:1px solid var(--border); border-radius:7px; max-width:170px;">
+        ? `<select class="order-motoboy-select" onchange="atribuirMotoboy(${pedidoIdArg}, this.value)">
              <option value="">🛵 Sem motoboy</option>
              ${motoboysAtivosCache.map(m => `<option value="${escapeHtml(m.id)}" ${o.motoboy_id === m.id ? 'selected' : ''}>${escapeHtml(m.nome)}</option>`).join('')}
            </select>`
@@ -172,30 +172,38 @@
           actionHtml = `<div class="done">✓ ${STATUS_LABEL[o.status] || 'Concluído'}</div>`;
         }
       } else {
-        actionHtml = `<button onclick="advanceStatus(${pedidoIdArg}, ${statusArg}, ${tipoArg})">${escapeHtml(NEXT_LABEL[o.status] || 'Avançar')}</button>`;
+        actionHtml = `<button class="order-btn order-btn--primary" onclick="advanceStatus(${pedidoIdArg}, ${statusArg}, ${tipoArg})">${escapeHtml(NEXT_LABEL[o.status] || 'Avançar')}</button>`;
       }
       if (!o.pago && o.status !== 'cancelado') {
-        actionHtml += `<button class="pago-btn" onclick="marcarPago(${pedidoIdArg})">Marcar pago</button>`;
+        actionHtml += `<button class="order-btn order-btn--secondary pago-btn" onclick="marcarPago(${pedidoIdArg})">Marcar pago</button>`;
       }
-      actionHtml += `<button class="pago-btn" onclick="imprimirComanda(${pedidoIdArg})">🖨️ Imprimir</button>`;
+      actionHtml += `<button class="order-btn order-btn--secondary pago-btn" onclick="imprimirComanda(${pedidoIdArg})">🖨️ Imprimir</button>`;
       if (o.status !== 'cancelado') {
-        actionHtml += `<button class="pago-btn" style="color:var(--red);" onclick="abrirCancelarPedido(${pedidoIdArg})">✕ Cancelar</button>`;
+        actionHtml += `<button class="order-btn order-btn--danger pago-btn" onclick="abrirCancelarPedido(${pedidoIdArg})">✕ Cancelar</button>`;
       }
 
       return `
         <div class="order-row">
-          <div class="order-main">
-            <div class="order-code">${escapeHtml(codigoPedido(o))} · ${timeAgo(o.criado_em)}</div>
-            <div class="order-cliente">${cliente}</div>
-            <div class="order-itens">${itens || 'sem itens'}</div>
-            ${enderecoLinha}
-            ${previsaoLinha}
-            ${obsLinha}
-            ${trocoLinha}
+          <div class="order-card__top">
+            <div class="order-card__code order-code">${escapeHtml(codigoPedido(o))} · ${timeAgo(o.criado_em)}</div>
+            <div class="order-card__total order-total">R$ ${Number(o.total).toFixed(2).replace('.', ',')}</div>
           </div>
-          <div class="order-badges">${tipoBadge}${statusBadge}${pagoBadge}</div>
-          <div class="order-total">R$ ${Number(o.total).toFixed(2).replace('.', ',')}</div>
-          <div class="order-action">${actionHtml}${motoboySelect}</div>
+          <div class="order-card__body">
+            <div class="order-main">
+              <div class="order-card__identity">
+                <div class="order-cliente">${cliente}</div>
+                <div class="order-badges">${tipoBadge}${statusBadge}${pagoBadge}</div>
+              </div>
+              <div class="order-card__details">
+                <div class="order-detail order-detail--items">${itens || 'sem itens'}</div>
+                ${enderecoLinha}
+                ${previsaoLinha}
+                ${obsLinha}
+                ${trocoLinha}
+              </div>
+            </div>
+            <div class="order-actions order-action">${actionHtml}${motoboySelect}</div>
+          </div>
         </div>`;
     }).join('');
   }
