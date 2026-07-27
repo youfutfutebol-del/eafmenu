@@ -293,16 +293,11 @@
     const linhas = [...document.querySelectorAll('#orderList .order-row')];
     const inicio = inicioDiaComercial();
     let grupoAnteriorInserido = false;
-    let grupoAtualInserido = false;
     linhas.forEach((linha, indice) => {
       const anterior = new Date(filtrados[indice]?.criado_em) < inicio;
       if (anterior && !grupoAnteriorInserido) {
         linha.insertAdjacentHTML('beforebegin', '<h3 style="margin:8px 0 10px; font-size:13px;">Pendências anteriores</h3>');
         grupoAnteriorInserido = true;
-      }
-      if (!anterior && !grupoAtualInserido) {
-        linha.insertAdjacentHTML('beforebegin', '<h3 style="margin:18px 0 10px; font-size:13px;">Em andamento</h3>');
-        grupoAtualInserido = true;
       }
     });
   }

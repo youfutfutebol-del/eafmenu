@@ -101,17 +101,24 @@
   .tab { border:1px solid var(--border); background:#fff; padding:6px 13px; border-radius:8px; font-size:12.5px; font-weight:700; color: var(--muted); }
   .tab.active { background: var(--ink); color:#fff; border-color: var(--ink); }
   .filter-count { margin-left:auto; font-size:12px; color: var(--muted); }
-  .order-list, .extrato-list { background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .order-list { display:grid; gap:12px; background:transparent; border:0; border-radius:0; overflow:visible; }
+  .extrato-list { background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
   .empty-state { padding: 60px 20px; text-align:center; color: var(--muted); }
   .empty-state .ic { font-size:26px; margin-bottom:10px; }
   .empty-state h4 { margin:0 0 4px; color: var(--ink); font-size:14px; }
   .empty-state p { margin:0; font-size:12.5px; }
-  .order-row { display:flex; align-items:center; gap:16px; padding:16px 18px; border-bottom:1px solid var(--border); }
-  .order-row:last-child { border-bottom:none; }
+  .order-row { min-width:0; display:grid; gap:14px; padding:16px 18px; background:#fff; border:1px solid var(--border); border-radius:12px; }
+  .order-card__top { min-width:0; display:grid; grid-template-columns:minmax(0, 1fr) max-content; align-items:center; gap:16px; padding-bottom:11px; border-bottom:1px solid var(--border); }
+  .order-card__body { min-width:0; display:grid; grid-template-columns:minmax(0, 1fr) minmax(260px, 360px); align-items:start; gap:20px; }
   .order-main { flex:1; min-width:0; }
   .order-code { font-family: 'SF Mono', ui-monospace, Menlo, monospace; font-weight:700; font-size:12.5px; color: var(--muted); }
-  .order-cliente { font-weight:800; font-size:14px; margin: 2px 0 3px; }
-  .order-itens { font-size:12px; color: var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .order-card__identity { min-width:0; display:flex; align-items:center; gap:8px 12px; flex-wrap:wrap; }
+  .order-cliente { min-width:0; font-weight:800; font-size:14px; line-height:1.35; overflow-wrap:normal; word-break:normal; }
+  .order-card__details { min-width:0; display:grid; gap:5px; margin-top:8px; }
+  .order-detail { min-width:0; font-size:12px; line-height:1.45; color:var(--muted); white-space:normal; overflow-wrap:anywhere; }
+  .order-itens { min-width:0; font-size:12px; line-height:1.45; color:var(--muted); white-space:normal; overflow-wrap:anywhere; }
+  .order-detail--note { width:fit-content; max-width:100%; padding:5px 8px; border-radius:6px; background:#FEF9C3; color:#854D0E; font-weight:600; }
+  .order-detail--change { color:var(--amber); font-weight:700; }
   .order-previsao { display:inline-flex; width:fit-content; max-width:100%; margin-top:6px; padding:4px 8px; border:1px solid #BFDBFE; border-radius:7px; background:#EFF6FF; color:#1E3A8A; font-size:11.5px; line-height:1.35; font-weight:800; overflow-wrap:anywhere; }
   .order-previsao.atrasada { border-color:#FECACA; background:#FEF2F2; color:#991B1B; }
   .order-badges { display:flex; gap:6px; flex-shrink:0; }
@@ -121,16 +128,20 @@
   .badge.pago { background:#DCFCE7; color:#15803D; }
   .badge.pendente { background:#FEF3C7; color:#92400E; }
   .badge.status { background:#F4F4F5; color:#3F3F46; }
-  .order-total { font-weight:800; font-size:14px; min-width:80px; text-align:right; flex-shrink:0; }
-  .order-action { flex-shrink:0; }
-  .order-action button { background: var(--ink); color:#fff; border:none; border-radius:8px; padding:8px 13px; font-size:12px; font-weight:700; white-space:nowrap; }
+  .order-total { font-weight:800; font-size:15px; min-width:80px; text-align:right; white-space:nowrap; }
+  .order-actions { min-width:0; display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+  .order-btn { min-width:0; min-height:40px; border-radius:8px; padding:8px 10px; font-size:12px; font-weight:700; line-height:1.25; white-space:normal; }
+  .order-btn--primary { background:var(--ink); color:#fff; border:1px solid var(--ink); }
+  .order-btn--secondary { background:#fff; color:var(--ink); border:1px solid var(--border); }
+  .order-btn--danger { background:#FEF2F2; color:var(--red); border:1px solid #FCA5A5; }
+  .order-motoboy-select { grid-column:1 / -1; width:100%; min-width:0; min-height:40px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--ink); font-size:11.5px; }
   .order-action .done { color: var(--green); font-weight:800; font-size:12px; }
   .order-action .done.cancelado {
     color: var(--red);
     background: rgba(229, 52, 42, 0.12);
     border: 1px solid rgba(229, 52, 42, 0.35);
   }
-  .order-action .pago-btn { background:#fff; color: var(--ink); border:1px solid var(--border); margin-top:6px; }
+  .order-action .pago-btn { margin-top:0; }
   .summary-row { display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-bottom:18px; }
   .summary-card { background:#fff; border:1px solid var(--border); border-radius:12px; padding:18px; }
   .summary-card .label { font-size:11.5px; font-weight:800; color: var(--muted); letter-spacing:.03em; text-transform:uppercase; margin-bottom:8px; }
@@ -282,6 +293,13 @@
   .mobile-topbar { display:none; }
   .drawer-overlay { display:none; }
   .hidden { display:none; }
+  @media (max-width: 1000px) and (min-width: 801px) {
+    #viewPedidos .main__header { display:grid; grid-template-columns:minmax(0, 1fr); }
+    #viewPedidos .actions { justify-content:flex-start; }
+    .order-card__body { grid-template-columns:minmax(0, 1fr); }
+    .order-actions { grid-template-columns:repeat(4, minmax(0, 1fr)); }
+    .order-motoboy-select { grid-column:span 2; }
+  }
   @media (max-width: 800px) {
     .pedido-prazo-fields { grid-template-columns:1fr; gap:0; }
     .marca-prazo-row { grid-template-columns:1fr; gap:0; }
@@ -298,11 +316,32 @@
     .sidebar { position:fixed; top:0; left:0; bottom:0; z-index:95; width: 78vw; max-width:280px; transform: translateX(-100%); transition: transform .22s cubic-bezier(.2,.9,.3,1.1); overflow-y:auto; padding-top: max(18px, env(safe-area-inset-top)); }
     .sidebar.open { transform: translateX(0); }
     .main { padding: 16px; }
-    .order-row, .mov-row { flex-wrap: wrap; }
-    .order-previsao { width:max-content; max-width:calc(100vw - 70px); }
-    .order-action { width:100%; min-width:0; display:flex; flex-wrap:wrap; gap:6px; }
-    .order-action button, .order-action select { max-width:100%; }
-    .order-action select { flex:1 1 170px; min-width:0; }
+    #viewPedidos .main__header { display:grid; grid-template-columns:minmax(0, 1fr); align-items:stretch; }
+    #viewPedidos .main__header > div:first-child { width:100%; }
+    #viewPedidos .actions { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); width:100%; align-items:stretch; }
+    #viewPedidos .actions > * { min-width:0; min-height:44px; width:100%; justify-content:center; white-space:normal; text-align:center; }
+    #viewPedidos .actions .primary { grid-column:1 / -1; }
+    #modoListaPedidos { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); width:100%; gap:6px; }
+    #modoListaPedidos .tab { min-height:42px; }
+    #filtrosHistoricoPedidos { align-items:stretch !important; }
+    #filtrosHistoricoPedidos > label { min-width:0 !important; flex:1 1 140px; }
+    #filtrosHistoricoPedidos > .btn { min-height:44px; flex:1 1 140px; }
+    #viewPedidos .filter-row { display:grid; grid-template-columns:minmax(0, 1fr); align-items:stretch; }
+    #viewPedidos .filter-label { display:block; }
+    #filterTabsPedidos { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); width:100%; }
+    #filterTabsPedidos .tab { min-width:0; min-height:42px; padding:7px; }
+    .order-row { width:100%; gap:12px; padding:14px; }
+    .order-card__top { gap:10px; padding-bottom:10px; }
+    .order-card__body { grid-template-columns:minmax(0, 1fr); gap:14px; }
+    .order-card__identity { display:grid; gap:8px; }
+    .order-cliente { font-size:14px; overflow-wrap:normal; word-break:normal; }
+    .order-badges { min-width:0; flex-wrap:wrap; }
+    .order-card__details { margin-top:10px; gap:7px; }
+    .order-detail { white-space:normal; text-overflow:clip; overflow:visible; }
+    .order-previsao { display:flex; width:fit-content; max-width:100%; white-space:normal; }
+    .order-actions { width:100%; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+    .order-btn, .order-motoboy-select { min-height:44px; }
+    .order-motoboy-select { grid-column:1 / -1; }
     .summary-row { grid-template-columns: 1fr; }
     .main__header { gap:10px; }
     .main__title { font-size:18px; }
