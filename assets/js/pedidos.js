@@ -35,8 +35,9 @@
   const HISTORICO_TAMANHO_PAGINA = 200;
   const renderOrdersEmAndamento = window.renderOrders;
   const STATUS_HISTORICO_PEDIDOS = ['entregue', 'retirado', 'cancelado'];
+  const PRAZO_CANCELAMENTO_FINALIZADO_MS = 24 * 60 * 60 * 1000;
   const CAMPOS_PEDIDOS = `
-    id, numero_diario, tipo, status, pago, forma_pagamento, subtotal, taxa_entrega, total, desconto_tipo, desconto_valor_informado, desconto_manual, desconto_motivo, criado_em, motoboy_id, troco_para, observacoes, previsao_inicio, previsao_fim,
+    id, numero_diario, tipo, status, pago, forma_pagamento, subtotal, taxa_entrega, total, desconto_tipo, desconto_valor_informado, desconto_manual, desconto_motivo, criado_em, finalizado_em, motoboy_id, troco_para, observacoes, previsao_inicio, previsao_fim,
     clientes ( nome, telefone ),
     enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento, referencia ),
     itens_pedido (
@@ -46,6 +47,13 @@
       itens_pedido_sabores ( produto_id, nome_produto_snapshot, preco_unitario, ordem, produtos ( nome ) )
     )
   `;
+
+  function pedidoFinalizadoPodeSerCancelado(pedido, agoraMs = Date.now()) {
+    if (!['entregue', 'retirado'].includes(pedido?.status) || !pedido.finalizado_em) return false;
+    const finalizadoEmMs = new Date(pedido.finalizado_em).getTime();
+    if (!Number.isFinite(finalizadoEmMs) || finalizadoEmMs > agoraMs) return false;
+    return agoraMs - finalizadoEmMs <= PRAZO_CANCELAMENTO_FINALIZADO_MS;
+  }
 
   async function loadPedidos() {
     const { data, error } = await sb.from('pedidos')
@@ -315,6 +323,9 @@
       ? `<div class="order-detail order-detail--change">💵 Troco: R$ ${(Number(pedido.troco_para) - Number(pedido.total)).toFixed(2).replace('.', ',')} (paga com R$ ${Number(pedido.troco_para).toFixed(2).replace('.', ',')})</div>`
       : '';
     const pedidoIdArg = escapeHtml(JSON.stringify(pedido.id));
+    const botaoCancelar = pedidoFinalizadoPodeSerCancelado(pedido)
+      ? `<button class="order-btn order-btn--danger" type="button" onclick="abrirCancelarPedido(${pedidoIdArg})">Cancelar pedido</button>`
+      : '';
 
     return `
       <div class="order-row order-row--history">
@@ -342,7 +353,8 @@
             </div>
           </div>
           <div class="order-history-actions">
-            <button class="order-btn order-btn--secondary" onclick="imprimirComanda(${pedidoIdArg})">🖨️ Imprimir</button>
+            <button class="order-btn order-btn--secondary" type="button" onclick="imprimirComanda(${pedidoIdArg})">🖨️ Imprimir</button>
+            ${botaoCancelar}
           </div>
         </div>
       </div>`;
@@ -761,6 +773,16 @@
   // o frontend só coleta motivo/senha e mostra o erro amigável se a RPC recusar)
   // =====================================================================
   function abrirCancelarPedido(pedidoId) {
+    const pedido = orders.find(item => item.id === pedidoId)
+      || pedidosHistorico.find(item => item.id === pedidoId);
+    if (pedido?.status === 'cancelado') {
+      showToast('Pedido já cancelado', 'Este pedido já está cancelado.');
+      return;
+    }
+    if (['entregue', 'retirado'].includes(pedido?.status) && !pedidoFinalizadoPodeSerCancelado(pedido)) {
+      showToast('Prazo encerrado', 'Pedidos finalizados só podem ser cancelados nas primeiras 24 horas.');
+      return;
+    }
     document.getElementById('cpPedidoId').value = pedidoId;
     document.getElementById('cpMotivo').value = '';
     document.getElementById('cpSenha').value = '';
@@ -801,5 +823,9 @@
 
     fecharCancelarPedido();
     showToast('Pedido cancelado', motivo);
-    await loadPedidos();
+    if (modoListaPedidos === 'historico') {
+      await buscarHistoricoPedidos(true);
+    } else {
+      await loadPedidos();
+    }
   }

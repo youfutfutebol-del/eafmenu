@@ -152,7 +152,7 @@
   .order-history-item { display:grid; gap:2px; }
   .order-history-item + .order-history-item { margin-top:5px; }
   .order-history-item span { color:var(--muted); }
-  .order-history-actions { width:112px; }
+  .order-history-actions { width:128px; display:grid; gap:8px; }
   .order-history-actions .order-btn { width:100%; }
   .order-history-status--cancelado { background:#FEF2F2; color:#B91C1C; }
   .summary-row { display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-bottom:18px; }
@@ -355,8 +355,9 @@
     .order-detail { white-space:normal; text-overflow:clip; overflow:visible; }
     .order-previsao { display:flex; width:fit-content; max-width:100%; white-space:normal; }
     .order-actions { width:100%; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
-    .order-history-actions { width:100%; }
-    .order-history-actions .order-btn { width:auto; min-width:112px; }
+    .order-history-actions { width:100%; grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    .order-history-actions .order-btn { width:100%; min-width:0; }
+    .order-history-actions .order-btn:only-child { grid-column:1 / -1; }
     .order-history-date { display:block; margin:3px 0 0; white-space:normal; }
     .order-btn, .order-motoboy-select { min-height:44px; }
     .order-motoboy-select { grid-column:1 / -1; }
