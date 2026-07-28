@@ -217,7 +217,7 @@
   const MENSAGENS_RPC_EQUIPE = [
     'Você não tem permissão para criar usuários.',
     'Telefone é obrigatório (com DDD).',
-    'Este telefone já está vinculado a outra conta de equipe.',
+    'Este telefone já está vinculado a outra conta de acesso.',
     'Já existe uma conta com este e-mail. Fale com o suporte do EAF Menu.',
     'Este telefone acabou de ser cadastrado. Atualize a tela e tente novamente.'
   ];
@@ -233,52 +233,72 @@
     const id = document.getElementById('entId').value || null;
     const nome = document.getElementById('entNome').value.trim();
     const telefone = document.getElementById('entTelefone').value.trim();
+    const telefoneNormalizado = normalizarTelefoneAcesso(telefone);
     const veiculo = document.getElementById('entVeiculo').value;
     const placa = document.getElementById('entPlaca').value.trim() || null;
+    const submitBtn = document.getElementById('entSubmitBtn');
     if (!nome) { showToast('Faltou o nome', 'Informe o nome do entregador.'); return; }
     if (!telefone) { showToast('Faltou o telefone', 'Informe o telefone (usado pra login no App do Motoboy).'); return; }
+    if (telefoneNormalizado.length < 10) { showToast('Telefone inválido', 'Informe um telefone com DDD e pelo menos 10 dígitos.'); return; }
+    if (submitBtn?.disabled) return;
 
-    if (id) {
-      // Edição: atualiza nome/telefone (usuarios) e veículo/placa (motoboys)
-      const { error: errUsuario } = await sb.from('usuarios').update({ nome, telefone }).eq('id', id);
-      if (errUsuario) {
-        console.error('Falha ao atualizar entregador:', errUsuario);
-        showToast('Erro ao salvar', 'Não foi possível salvar as alterações. Tente novamente.');
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      if (id) {
+        // Edição: atualiza nome/telefone (usuarios) e veículo/placa (motoboys)
+        const { error: errUsuario } = await sb.from('usuarios').update({ nome, telefone: telefoneNormalizado }).eq('id', id);
+        if (errUsuario) {
+          console.error('Falha ao atualizar usuário do entregador:', errUsuario);
+          if (errUsuario.message === 'Este telefone já está vinculado a outra conta de acesso.') {
+            showToast('Telefone já utilizado', errUsuario.message);
+          } else {
+            showToast('Erro ao salvar', 'Não foi possível salvar as alterações. Tente novamente.');
+          }
+          return;
+        }
+        const { error: errMoto } = await sb.from('motoboys').update({ veiculo, placa }).eq('id', id);
+        if (errMoto) {
+          console.error('Falha ao atualizar veículo do entregador:', errMoto);
+          showToast('Erro ao salvar veículo', 'Não foi possível salvar o veículo. Tente novamente.');
+          return;
+        }
+        closeEntregador();
+        showToast('Entregador atualizado', nome);
+        await loadEntregadores();
         return;
       }
-      const { error: errMoto } = await sb.from('motoboys').update({ veiculo, placa }).eq('id', id);
-      if (errMoto) {
-        console.error('Falha ao atualizar veículo do entregador:', errMoto);
-        showToast('Erro ao salvar veículo', 'Não foi possível salvar o veículo. Tente novamente.');
+
+      const senha = document.getElementById('entSenha').value;
+      if (!senha || senha.length < 8) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 8 caracteres.'); return; }
+
+      const { error } = await sb.rpc('criar_usuario_equipe', {
+        p_nome: nome,
+        p_telefone: telefoneNormalizado,
+        p_email: null,
+        p_role: 'motoboy',
+        p_senha: senha,
+        p_veiculo: veiculo,
+        p_placa: placa
+      });
+      if (error) {
+        console.error('Falha ao criar entregador:', error);
+        if (error.message === 'Este telefone já está vinculado a outra conta de acesso.') {
+          showToast('Telefone já utilizado', error.message);
+        } else {
+          showToast('Erro ao criar entregador', mensagemErroCriarEntregador(error));
+        }
         return;
       }
+
       closeEntregador();
-      showToast('Entregador atualizado', nome);
+      showToast('Entregador criado', `${nome} já pode entrar no App do Motoboy com o telefone e a senha definida.`);
       await loadEntregadores();
-      return;
+    } catch (error) {
+      console.error('Exceção ao salvar entregador:', error);
+      showToast('Erro ao salvar entregador', 'Não foi possível salvar o entregador. Tente novamente.');
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
     }
-
-    const senha = document.getElementById('entSenha').value;
-    if (!senha || senha.length < 8) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 8 caracteres.'); return; }
-
-    const { error } = await sb.rpc('criar_usuario_equipe', {
-      p_nome: nome,
-      p_telefone: telefone,
-      p_email: null,
-      p_role: 'motoboy',
-      p_senha: senha,
-      p_veiculo: veiculo,
-      p_placa: placa
-    });
-    if (error) {
-      console.error('Falha ao criar entregador:', error);
-      showToast('Erro ao criar entregador', mensagemErroCriarEntregador(error));
-      return;
-    }
-
-    closeEntregador();
-    showToast('Entregador criado', `${nome} já pode entrar no App do Motoboy com o telefone e a senha definida.`);
-    await loadEntregadores();
   }
 
   async function toggleEntregadorAtivo(id, ativoAtual) {

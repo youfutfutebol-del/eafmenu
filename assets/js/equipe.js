@@ -102,26 +102,46 @@
   async function submitMembro() {
     const nome = document.getElementById('mbNome').value.trim();
     const telefone = document.getElementById('mbTelefone').value.trim();
+    const telefoneNormalizado = normalizarTelefoneAcesso(telefone);
     const email = document.getElementById('mbEmail').value.trim().toLowerCase();
     const senha = document.getElementById('mbSenha').value;
     const role = document.getElementById('mbRole').value;
+    const submitBtn = document.getElementById('mbSubmitBtn');
     if (!nome) { showToast('Faltou o nome', 'Informe o nome da pessoa.'); return; }
     if (!telefone) { showToast('Faltou o telefone', 'Informe o telefone da pessoa (usado para o login).'); return; }
+    if (telefoneNormalizado.length < 10) { showToast('Telefone inválido', 'Informe um telefone com DDD e pelo menos 10 dígitos.'); return; }
     if (!senha || senha.length < 8) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 8 caracteres.'); return; }
+    if (submitBtn?.disabled) return;
 
-    const { data, error } = await sb.rpc('criar_usuario_equipe', {
-      p_nome: nome,
-      p_telefone: telefone,
-      p_email: email || null,
-      p_role: role,
-      p_senha: senha
-    });
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      const { error } = await sb.rpc('criar_usuario_equipe', {
+        p_nome: nome,
+        p_telefone: telefoneNormalizado,
+        p_email: email || null,
+        p_role: role,
+        p_senha: senha
+      });
 
-    if (error) { showToast('Erro ao criar usuário', error.message); return; }
+      if (error) {
+        if (error.message === 'Este telefone já está vinculado a outra conta de acesso.') {
+          showToast('Telefone já utilizado', error.message);
+          return;
+        }
+        console.error('Falha ao criar usuário da equipe:', error);
+        showToast('Erro ao criar usuário', 'Não foi possível criar o usuário. Tente novamente.');
+        return;
+      }
 
-    closeMembro();
-    showToast(`Usuário "${nome}" criado`, `Login: ${telefone} · Senha: a que você definiu`);
-    await loadEquipe();
+      closeMembro();
+      showToast(`Usuário "${nome}" criado`, `Login: ${telefoneNormalizado} · Senha: a que você definiu`);
+      await loadEquipe();
+    } catch (error) {
+      console.error('Exceção ao criar usuário da equipe:', error);
+      showToast('Erro ao criar usuário', 'Não foi possível criar o usuário. Tente novamente.');
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
   }
 
   async function mudarRole(id, novoRole) {

@@ -4,6 +4,10 @@
 
   function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
+  function normalizarTelefoneAcesso(valor) {
+    return String(valor || '').replace(/\D/g, '');
+  }
+
   function formatHoraCurta(d) {
     return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   }

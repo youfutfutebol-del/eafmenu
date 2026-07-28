@@ -910,7 +910,7 @@
     <p style="font-size:11.5px; color:var(--muted); margin:-4px 0 12px;">Essa senha é o que o entregador usa pra entrar no App do Motoboy junto com o telefone.</p>
     <div class="modal-actions">
       <button class="btn" onclick="closeEntregador()">Cancelar</button>
-      <button class="btn primary" onclick="submitEntregador()">Salvar entregador</button>
+      <button class="btn primary" id="entSubmitBtn" onclick="submitEntregador()">Salvar entregador</button>
     </div>
   </div>
 </div>
@@ -935,7 +935,7 @@
     <p style="font-size:11.5px; color:var(--muted); margin:-4px 0 12px;">Você define a senha agora e repassa pra pessoa (WhatsApp, verbalmente etc.) — o sistema não envia nada por conta própria.</p>
     <div class="modal-actions">
       <button class="btn" onclick="closeMembro()">Cancelar</button>
-      <button class="btn primary" onclick="submitMembro()">Criar usuário</button>
+      <button class="btn primary" id="mbSubmitBtn" onclick="submitMembro()">Criar usuário</button>
     </div>
   </div>
 </div>

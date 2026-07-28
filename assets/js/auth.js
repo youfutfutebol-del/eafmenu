@@ -101,6 +101,12 @@ function iniciarControleSessaoPainel() {
 
 setInterval(iniciarControleSessaoPainel, 1000);
 
+function erroConflitoTelefoneLogin(error) {
+  const mensagem = String(error?.message || '').toLowerCase();
+  return mensagem.includes('telefone')
+    && (mensagem.includes('conflito') || mensagem.includes('mais de uma conta') || mensagem.includes('múltiplas contas'));
+}
+
 async function fazerLogin() {
   if (!sb) { setLoginMsg('Ainda carregando configuração, aguarde...', false); return; }
 
@@ -109,24 +115,35 @@ async function fazerLogin() {
   if (!identificador || !senha) { setLoginMsg('Preencha telefone/e-mail e senha.', true); return; }
 
   setLoginMsg('Entrando...', false);
-  document.getElementById('loginBtn').disabled = true;
+  const loginBtn = document.getElementById('loginBtn');
+  loginBtn.disabled = true;
+  try {
+    const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
 
-  const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
+    if (resolveErr) {
+      if (erroConflitoTelefoneLogin(resolveErr)) {
+        setLoginMsg('Existe um conflito neste telefone. Fale com o suporte do EAF Menu.', true);
+      } else {
+        setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
+      }
+      return;
+    }
+    if (!emailResolvido) {
+      setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
+      return;
+    }
 
-  if (resolveErr || !emailResolvido) {
-    document.getElementById('loginBtn').disabled = false;
-    setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
-    return;
+    const { error } = await sb.auth.signInWithPassword({ email: emailResolvido, password: senha });
+    if (error) { setLoginMsg('Telefone/e-mail ou senha incorretos.', true); return; }
+
+    prepararSessionGuardPainel(true);
+    await bootSeguro();
+  } catch (error) {
+    console.error('Exceção ao fazer login:', error);
+    setLoginMsg('Não foi possível entrar agora. Verifique sua conexão e tente novamente.', true);
+  } finally {
+    loginBtn.disabled = false;
   }
-
-  const { error } = await sb.auth.signInWithPassword({ email: emailResolvido, password: senha });
-
-  document.getElementById('loginBtn').disabled = false;
-
-  if (error) { setLoginMsg('Telefone/e-mail ou senha incorretos.', true); return; }
-
-  prepararSessionGuardPainel(true);
-  await bootSeguro();
 }
 
 function setLoginMsg(msg, isError) {
@@ -151,20 +168,37 @@ async function enviarRecuperacaoSenha() {
   const identificador = document.getElementById('recIdentInput').value.trim();
   if (!identificador) { setLoginMsg('Informe seu telefone ou e-mail cadastrado.', true); return; }
 
-  document.getElementById('recBtn').disabled = true;
-  const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
+  const recBtn = document.getElementById('recBtn');
+  recBtn.disabled = true;
+  try {
+    const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
 
-  if (resolveErr || !emailResolvido) {
-    document.getElementById('recBtn').disabled = false;
-    setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
-    return;
+    if (resolveErr) {
+      if (erroConflitoTelefoneLogin(resolveErr)) {
+        setLoginMsg('Existe um conflito neste telefone. Fale com o suporte do EAF Menu.', true);
+      } else {
+        setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
+      }
+      return;
+    }
+    if (!emailResolvido) {
+      setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
+      return;
+    }
+
+    const { error } = await sb.auth.resetPasswordForEmail(emailResolvido, { redirectTo: location.origin + location.pathname });
+    if (error) {
+      console.error('Falha ao enviar recuperação de senha:', error);
+      setLoginMsg('Não foi possível enviar o link agora. Tente novamente.', true);
+      return;
+    }
+    setLoginMsg('Se o telefone/e-mail estiver cadastrado, um link de redefinição foi enviado por e-mail.', false);
+  } catch (error) {
+    console.error('Exceção ao enviar recuperação de senha:', error);
+    setLoginMsg('Não foi possível enviar o link agora. Verifique sua conexão e tente novamente.', true);
+  } finally {
+    recBtn.disabled = false;
   }
-
-  const { error } = await sb.auth.resetPasswordForEmail(emailResolvido, { redirectTo: location.origin + location.pathname });
-  document.getElementById('recBtn').disabled = false;
-
-  if (error) { setLoginMsg('Erro ao enviar o link: ' + error.message, true); return; }
-  setLoginMsg('Se o telefone/e-mail estiver cadastrado, um link de redefinição foi enviado por e-mail.', false);
 }
 
 function mostrarTelaNovaSenhaRecuperacao() {

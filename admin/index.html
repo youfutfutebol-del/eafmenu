@@ -212,7 +212,7 @@
 
     <div class="modal-actions">
       <button class="btn" onclick="fecharNovoRestaurante()">Cancelar</button>
-      <button class="btn primary" onclick="submitNovoRestaurante()">Criar restaurante</button>
+      <button class="btn primary" id="nrSubmitBtn" onclick="submitNovoRestaurante()">Criar restaurante</button>
     </div>
   </div>
 </div>
@@ -444,31 +444,55 @@
   }
   function fecharNovoRestaurante() { document.getElementById('novoRestModalBg').classList.remove('show'); }
 
+  function normalizarTelefoneAcesso(valor) {
+    return String(valor || '').replace(/\D/g, '');
+  }
+
   async function submitNovoRestaurante() {
     const nomeRestaurante = document.getElementById('nrNomeRestaurante').value.trim();
     const donoNome = document.getElementById('nrDonoNome').value.trim();
     const donoTelefone = document.getElementById('nrDonoTelefone').value.trim();
+    const donoTelefoneNormalizado = normalizarTelefoneAcesso(donoTelefone);
     const donoEmail = document.getElementById('nrDonoEmail').value.trim();
     const donoSenha = document.getElementById('nrDonoSenha').value;
+    const submitBtn = document.getElementById('nrSubmitBtn');
 
     if (!nomeRestaurante) { showToast('Faltou o nome', 'Informe o nome do restaurante.'); return; }
     if (!donoNome) { showToast('Faltou o nome do dono', 'Informe o nome do primeiro usuário.'); return; }
     if (!donoTelefone) { showToast('Faltou o telefone', 'Informe o telefone de login do dono.'); return; }
+    if (donoTelefoneNormalizado.length < 10) { showToast('Telefone inválido', 'Informe um telefone com DDD e pelo menos 10 dígitos.'); return; }
     if (!donoSenha || donoSenha.length < 8) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 8 caracteres.'); return; }
+    if (submitBtn?.disabled) return;
 
-    const { error } = await sb.rpc('criar_restaurante_com_dono', {
-      p_nome_restaurante: nomeRestaurante,
-      p_dono_nome: donoNome,
-      p_dono_telefone: donoTelefone,
-      p_dono_email: donoEmail || null,
-      p_dono_senha: donoSenha
-    });
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      const { error } = await sb.rpc('criar_restaurante_com_dono', {
+        p_nome_restaurante: nomeRestaurante,
+        p_dono_nome: donoNome,
+        p_dono_telefone: donoTelefoneNormalizado,
+        p_dono_email: donoEmail || null,
+        p_dono_senha: donoSenha
+      });
 
-    if (error) { showToast('Erro ao criar restaurante', error.message); return; }
+      if (error) {
+        if (error.message === 'Este telefone já está vinculado a outra conta de acesso.') {
+          showToast('Telefone já utilizado', error.message);
+        } else {
+          console.error('Falha ao criar restaurante:', error);
+          showToast('Erro ao criar restaurante', 'Não foi possível criar o restaurante. Tente novamente.');
+        }
+        return;
+      }
 
-    fecharNovoRestaurante();
-    showToast('Restaurante criado', `${nomeRestaurante} já pode ser acessado. Login do dono: ${donoTelefone}`);
-    await carregarRestaurantes();
+      fecharNovoRestaurante();
+      showToast('Restaurante criado', `${nomeRestaurante} já pode ser acessado. Login do dono: ${donoTelefoneNormalizado}`);
+      await carregarRestaurantes();
+    } catch (error) {
+      console.error('Exceção ao criar restaurante:', error);
+      showToast('Erro ao criar restaurante', 'Não foi possível criar o restaurante. Tente novamente.');
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
   }
 
   function showToast(title, body) {
