@@ -123,7 +123,7 @@
   .order-detail--change { color:var(--amber); font-weight:700; }
   .order-previsao { display:inline-flex; width:fit-content; max-width:100%; margin-top:6px; padding:4px 8px; border:1px solid #BFDBFE; border-radius:7px; background:#EFF6FF; color:#1E3A8A; font-size:11.5px; line-height:1.35; font-weight:800; overflow-wrap:anywhere; }
   .order-previsao.atrasada { border-color:#FECACA; background:#FEF2F2; color:#991B1B; }
-  .order-badges { display:flex; gap:6px; flex-shrink:0; }
+  .order-badges { display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; }
   .badge { font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:20px; white-space:nowrap; }
   .badge.entrega { background:#DCEEFF; color:#0B4C87; }
   .badge.retirada { background:#EFE4FF; color:#5B2A9E; }
@@ -155,6 +155,11 @@
   .order-history-actions { width:128px; display:grid; gap:8px; }
   .order-history-actions .order-btn { width:100%; }
   .order-history-status--cancelado { background:#FEF2F2; color:#B91C1C; }
+  .order-btn--warning { background:#FFFBEB; color:#92400E; border:1px solid #FCD34D; }
+  .cancelamento-financeiro--neutro { background:#F4F4F5; color:#52525B; }
+  .cancelamento-financeiro--estornado { background:#FEE2E2; color:#B91C1C; }
+  .cancelamento-financeiro--mantido { background:#DCFCE7; color:#15803D; }
+  .cancelamento-financeiro--pendente { background:#FEF3C7; color:#92400E; }
   .summary-row { display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-bottom:18px; }
   .summary-card { background:#fff; border:1px solid var(--border); border-radius:12px; padding:18px; }
   .summary-card .label { font-size:11.5px; font-weight:800; color: var(--muted); letter-spacing:.03em; text-transform:uppercase; margin-bottom:8px; }
@@ -505,7 +510,37 @@
 .cancel-item-valor { font-weight:800; font-size:12.5px; color: var(--red); }
 .cancel-item-meta { font-size:11.5px; color: var(--muted); }
 .cancel-item-motivo { font-size:12px; color: var(--ink); margin-top:2px; }
+.cancel-item-financeiro { width:fit-content; margin-top:5px; padding:4px 8px; border-radius:999px; font-size:11px; font-weight:800; }
+.cancel-item-financeiro--neutro { background:#F4F4F5; color:#52525B; }
+.cancel-item-financeiro--estornado { background:#FEE2E2; color:#B91C1C; }
+.cancel-item-financeiro--mantido { background:#DCFCE7; color:#15803D; }
+.cancel-item-financeiro--pendente { background:#FEF3C7; color:#92400E; }
 .cancel-resumo-topo { display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; padding-bottom:10px; margin-bottom:6px; border-bottom:1px solid var(--border); }
+
+/* ===== Cancelamento pago e decisão financeira ===== */
+.modal-financeiro-cancelamento { max-width:560px; max-height:min(90vh, 760px); overflow-y:auto; }
+.cancelamento-pedido-resumo {
+  margin-bottom:14px; padding:11px 12px; border:1px solid var(--border); border-radius:10px;
+  background:var(--bg); font-size:13px; font-weight:800;
+}
+.cancelamento-financeiro-info, .cancelamento-impacto, .cancelamento-motivo-original {
+  margin-bottom:14px; padding:11px 12px; border-radius:10px; font-size:12.5px; line-height:1.45;
+}
+.cancelamento-financeiro-info { background:#EFF6FF; border:1px solid #BFDBFE; color:#1E3A8A; }
+.cancelamento-impacto { background:#FFFBEB; border:1px solid #FDE68A; color:#92400E; font-weight:700; }
+.cancelamento-motivo-original { display:grid; gap:3px; background:var(--bg); border:1px solid var(--border); }
+.cancelamento-motivo-original span { color:var(--muted); }
+.cancelamento-escolhas { display:grid; gap:9px; margin:0 0 14px; padding:0; border:0; }
+.cancelamento-escolhas legend { margin-bottom:8px; font-size:12px; font-weight:800; color:var(--ink); }
+.cancelamento-escolha {
+  display:flex; align-items:flex-start; gap:10px; padding:12px; border:1px solid var(--border);
+  border-radius:10px; background:#fff; cursor:pointer;
+}
+.cancelamento-escolha:has(input:checked) { border-color:var(--ink); box-shadow:0 0 0 1px var(--ink); }
+.cancelamento-escolha input { margin-top:3px; accent-color:var(--ink); }
+.cancelamento-escolha span { display:grid; gap:3px; min-width:0; }
+.cancelamento-escolha strong { font-size:12.5px; }
+.cancelamento-escolha small { color:var(--muted); font-size:11.5px; line-height:1.4; }
 
 /* ===== Relatório Financeiro — dashboard (redesign completo) ===== */
 :root {
@@ -557,6 +592,12 @@
 .rel-kpi-card--indigo .rel-kpi-value { color: var(--indigo); }
 .rel-kpi-card--recebido { background: var(--indigo-soft); border-color: color-mix(in srgb, var(--indigo) 25%, var(--border)); }
 .rel-kpi-card--recebido .rel-kpi-value { color: var(--indigo); }
+.rel-kpi-card--bruto { background:#F5F3FF; border-color:#DDD6FE; }
+.rel-kpi-card--bruto .rel-kpi-value { color:#7C3AED; }
+.rel-kpi-card--estornado { background:#FEF2F2; border-color:#FECACA; }
+.rel-kpi-card--estornado .rel-kpi-value { color:#B91C1C; }
+.rel-kpi-card--decisao { background:#FFFBEB; border-color:#FDE68A; }
+.rel-kpi-card--decisao .rel-kpi-value { color:#B45309; }
 .rel-kpi-card--pendente { background: var(--amber-soft); border-color: color-mix(in srgb, var(--amber) 25%, var(--border)); }
 .rel-kpi-card--pendente .rel-kpi-value { color: var(--amber); }
 .rel-kpi-card--cancel { background: var(--red-soft); border-color: color-mix(in srgb, var(--red) 25%, var(--border)); }
@@ -566,6 +607,10 @@
 .rel-kpi-card--amber .rel-kpi-value { color: var(--amber); }
 .rel-kpi-card--clicavel { cursor:pointer; transition: transform .12s ease, box-shadow .12s ease; }
 .rel-kpi-card--clicavel:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(16,16,20,.08); }
+.rel-alerta-pendente {
+  margin:0 0 16px; padding:12px 14px; border:1px solid #F59E0B; border-radius:10px;
+  background:#FFFBEB; color:#92400E; font-size:13px; font-weight:800; line-height:1.45;
+}
 
 @media (max-width: 900px) {
   .rel-kpi-grid { grid-template-columns: repeat(2, 1fr); }
@@ -574,6 +619,8 @@
 @media (max-width: 540px) {
   .rel-kpi-grid { grid-template-columns: 1fr; }
   .rel-kpi-card--hero { grid-column: span 1; }
+  .modal-financeiro-cancelamento { width:calc(100vw - 24px); max-height:92vh; padding:18px 16px; }
+  .cancelamento-escolha { padding:11px 10px; }
 }
 
 /* Resumo do período */

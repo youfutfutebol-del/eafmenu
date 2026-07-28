@@ -147,6 +147,9 @@
     const cancelados = p.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
     const vendido = p.vendido || { pedidos: 0, valor: 0 };
     const recebido = p.recebido || { pedidos: 0, valor: 0 };
+    const recebidoBruto = p.recebido_bruto || { pedidos: recebido.pedidos || 0, valor: recebido.valor || 0 };
+    const estornado = p.estornado || { pedidos: 0, valor: 0 };
+    const cancelamentosPendentes = p.cancelamentos_pagos_pendentes || { pedidos: 0, valor: 0 };
     const pendente = p.pendente || { pedidos: 0, valor: 0 };
 
     document.getElementById('relKpiVendido').textContent = formatMoedaRel(vendido.valor);
@@ -155,6 +158,13 @@
     document.getElementById('relKpiRecebido').textContent = formatMoedaRel(recebido.valor);
     document.getElementById('relKpiRecebidoSub').textContent =
       `${recebido.pedidos} pedido${recebido.pedidos === 1 ? '' : 's'} recebido${recebido.pedidos === 1 ? '' : 's'}`;
+    document.getElementById('relKpiRecebidoBruto').textContent = formatMoedaRel(recebidoBruto.valor);
+    document.getElementById('relKpiEstornado').textContent = formatMoedaRel(estornado.valor);
+    document.getElementById('relKpiEstornadoSub').textContent =
+      `${estornado.pedidos} pedido${estornado.pedidos === 1 ? '' : 's'} estornado${estornado.pedidos === 1 ? '' : 's'}`;
+    document.getElementById('relKpiCancelamentosPendentes').textContent = formatMoedaRel(cancelamentosPendentes.valor);
+    document.getElementById('relKpiCancelamentosPendentesSub').textContent =
+      `${cancelamentosPendentes.pedidos} aguardando decisão`;
     document.getElementById('relKpiPendente').textContent = formatMoedaRel(pendente.valor);
     document.getElementById('relKpiPendenteSub').textContent =
       `${pendente.pedidos} pedido${pendente.pedidos === 1 ? '' : 's'} pendente${pendente.pedidos === 1 ? '' : 's'}`;
@@ -162,18 +172,29 @@
     document.getElementById('relKpiCancelados').textContent = cancelados.pedidos;
     document.getElementById('relKpiValorCancelado').textContent = formatMoedaRel(cancelados.valor);
     document.getElementById('relKpiTaxa').textContent = `${cancelados.percentual}%`;
+    const alertaEl = document.getElementById('relAlertaCancelamentosPendentes');
+    alertaEl.classList.toggle('hidden', cancelamentosPendentes.pedidos <= 0);
+    alertaEl.textContent = cancelamentosPendentes.pedidos > 0
+      ? `Existem ${cancelamentosPendentes.pedidos} cancelamentos pagos, totalizando ${formatMoedaRel(cancelamentosPendentes.valor)}, aguardando decisão financeira.`
+      : '';
   }
 
   function relRenderResumo(p) {
     const cancelados = p.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
     const vendido = p.vendido || { pedidos: 0, valor: 0 };
     const recebido = p.recebido || { pedidos: 0, valor: 0 };
+    const recebidoBruto = p.recebido_bruto || { pedidos: recebido.pedidos || 0, valor: recebido.valor || 0 };
+    const estornado = p.estornado || { pedidos: 0, valor: 0 };
+    const cancelamentosPendentes = p.cancelamentos_pagos_pendentes || { pedidos: 0, valor: 0 };
     const pendente = p.pendente || { pedidos: 0, valor: 0 };
     document.getElementById('relResumoData').textContent = relFormatarPeriodoBR(p.data_inicio, p.data_fim);
 
     const stats = [
       { lbl: 'Vendido', val: formatMoedaRel(vendido.valor) },
-      { lbl: 'Recebido', val: formatMoedaRel(recebido.valor) },
+      { lbl: 'Recebido líquido', val: formatMoedaRel(recebido.valor) },
+      { lbl: 'Recebido bruto', val: formatMoedaRel(recebidoBruto.valor) },
+      { lbl: 'Estornado', val: formatMoedaRel(estornado.valor), destaque: true },
+      { lbl: 'Decisão pendente', val: formatMoedaRel(cancelamentosPendentes.valor), pendente: true },
       { lbl: 'Pendente', val: formatMoedaRel(pendente.valor), pendente: true },
       { lbl: 'Ticket médio', val: formatMoedaRel(p.ticket_medio) },
       { lbl: 'Cancelados', val: String(cancelados.pedidos), destaque: true },
@@ -257,12 +278,18 @@
     const cancelados = p.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
     const vendido = p.vendido || { pedidos: 0, valor: 0 };
     const recebido = p.recebido || { pedidos: 0, valor: 0 };
+    const recebidoBruto = p.recebido_bruto || { pedidos: recebido.pedidos || 0, valor: recebido.valor || 0 };
+    const estornado = p.estornado || { pedidos: 0, valor: 0 };
+    const cancelamentosPendentes = p.cancelamentos_pagos_pendentes || { pedidos: 0, valor: 0 };
     const pendente = p.pendente || { pedidos: 0, valor: 0 };
     const insights = [];
 
     insights.push(`Vendido no período: <b>${formatMoedaRel(vendido.valor)}</b>, em <b>${vendido.pedidos}</b> pedido${vendido.pedidos === 1 ? '' : 's'}.`);
-    insights.push(`Recebido no período: <b>${formatMoedaRel(recebido.valor)}</b>, em <b>${recebido.pedidos}</b> pedido${recebido.pedidos === 1 ? '' : 's'}.`);
+    insights.push(`Recebido líquido: <b>${formatMoedaRel(recebido.valor)}</b> (${formatMoedaRel(recebidoBruto.valor)} bruto menos ${formatMoedaRel(estornado.valor)} estornado).`);
     insights.push(`Pendente de recebimento: <b>${formatMoedaRel(pendente.valor)}</b>, em <b>${pendente.pedidos}</b> pedido${pendente.pedidos === 1 ? '' : 's'}.`);
+    if (cancelamentosPendentes.pedidos > 0) {
+      insights.push(`<b>${cancelamentosPendentes.pedidos}</b> cancelamento${cancelamentosPendentes.pedidos === 1 ? '' : 's'} pago${cancelamentosPendentes.pedidos === 1 ? '' : 's'}, totalizando <b>${formatMoedaRel(cancelamentosPendentes.valor)}</b>, aguardando decisão financeira.`);
+    }
 
     if (cancelados.pedidos > 0) {
       insights.push(`<b>${cancelados.pedidos}</b> pedido${cancelados.pedidos === 1 ? '' : 's'} cancelado${cancelados.pedidos === 1 ? '' : 's'}, totalizando <b>${formatMoedaRel(cancelados.valor)}</b> (${cancelados.percentual}% dos pedidos do período).`);
@@ -308,7 +335,46 @@
       return;
     }
 
-    renderCancelamentosPeriodo(data);
+    try {
+      const dadosEnriquecidos = await enriquecerCancelamentosPeriodo(data);
+      renderCancelamentosPeriodo(dadosEnriquecidos);
+    } catch (e) {
+      document.getElementById('cancelamentosPeriodoLabel').textContent = 'Erro ao carregar';
+      document.getElementById('cancelamentosPeriodoLista').innerHTML =
+        `<p class="main__subtitle" style="color:var(--red);">${escapeHtml(e.message || 'Não foi possível completar os dados financeiros dos cancelamentos.')}</p>`;
+    }
+  }
+
+  async function enriquecerCancelamentosPeriodo(data) {
+    const cancelamentos = data?.cancelamentos || [];
+    const pedidoIds = [...new Set(cancelamentos.map(item => item.pedido_id).filter(Boolean))];
+    if (pedidoIds.length === 0) return data;
+
+    const TAMANHO_BLOCO = 100;
+    const pedidosFinanceiros = [];
+    for (let inicio = 0; inicio < pedidoIds.length; inicio += TAMANHO_BLOCO) {
+      const blocoIds = pedidoIds.slice(inicio, inicio + TAMANHO_BLOCO);
+      const { data: pedidosBloco, error } = await sb.from('pedidos')
+        .select('id, pago, cancelamento_decisao_financeira, cancelamento_decisao_financeira_em')
+        .eq('restaurante_id', restauranteId)
+        .in('id', blocoIds);
+      if (error) throw new Error(`Não foi possível completar os dados financeiros dos cancelamentos: ${error.message}`);
+      pedidosFinanceiros.push(...(pedidosBloco || []));
+    }
+
+    const financeirosPorId = new Map(pedidosFinanceiros.map(pedido => [pedido.id, pedido]));
+    const idsSemDados = pedidoIds.filter(id => !financeirosPorId.has(id));
+    if (idsSemDados.length > 0) {
+      throw new Error('Não foi possível completar os dados financeiros de todos os cancelamentos.');
+    }
+
+    return {
+      ...data,
+      cancelamentos: cancelamentos.map(cancelamento => ({
+        ...cancelamento,
+        ...financeirosPorId.get(cancelamento.pedido_id)
+      }))
+    };
   }
 
   function fecharCancelamentosPeriodo() {
@@ -333,6 +399,16 @@
       const autorizadoLinha = (c.autorizado_por_nome && c.autorizado_por_nome !== c.cancelado_por_nome)
         ? ` · autorizado por ${escapeHtml(c.autorizado_por_nome)}`
         : '';
+      const estadoFinanceiro = c.cancelamento_decisao_financeira;
+      const financeiroLinha = estadoFinanceiro === 'estornado'
+        ? '<div class="cancel-item-financeiro cancel-item-financeiro--estornado">Valor estornado</div>'
+        : estadoFinanceiro === 'mantido'
+          ? '<div class="cancel-item-financeiro cancel-item-financeiro--mantido">Valor mantido</div>'
+          : estadoFinanceiro === 'pendente'
+            ? '<div class="cancel-item-financeiro cancel-item-financeiro--pendente">Decisão financeira pendente</div>'
+            : c.pago === false || estadoFinanceiro === 'nao_aplicavel'
+              ? '<div class="cancel-item-financeiro cancel-item-financeiro--neutro">Sem impacto financeiro</div>'
+              : '';
       return `
         <div class="cancel-item-row">
           <div class="cancel-item-top">
@@ -342,6 +418,7 @@
           <div class="cancel-item-meta">Estava: ${escapeHtml(c.status_anterior || '—')} · ${escapeHtml(c.tipo || '—')} · cancelado em ${escapeHtml(dataCancel)}</div>
           <div class="cancel-item-meta">Por ${escapeHtml(c.cancelado_por_nome || '—')}${autorizadoLinha}</div>
           <div class="cancel-item-motivo">${escapeHtml(c.motivo_cancelamento || 'Sem motivo informado')}</div>
+          ${financeiroLinha}
         </div>`;
     }).join('');
   }
@@ -363,6 +440,9 @@
     const cancelados = p.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
     const vendido = p.vendido || { pedidos: 0, valor: 0 };
     const recebido = p.recebido || { pedidos: 0, valor: 0 };
+    const recebidoBruto = p.recebido_bruto || { pedidos: recebido.pedidos || 0, valor: recebido.valor || 0 };
+    const estornado = p.estornado || { pedidos: 0, valor: 0 };
+    const cancelamentosPendentes = p.cancelamentos_pagos_pendentes || { pedidos: 0, valor: 0 };
     const pendente = p.pendente || { pedidos: 0, valor: 0 };
     const linhas = [];
 
@@ -371,8 +451,13 @@
     linhas.push('');
     linhas.push(`Vendido;${relNumeroCSV(vendido.valor)}`);
     linhas.push(`Pedidos vendidos;${vendido.pedidos}`);
-    linhas.push(`Recebido;${relNumeroCSV(recebido.valor)}`);
+    linhas.push(`Recebido líquido;${relNumeroCSV(recebido.valor)}`);
     linhas.push(`Pedidos recebidos;${recebido.pedidos}`);
+    linhas.push(`Recebido bruto;${relNumeroCSV(recebidoBruto.valor)}`);
+    linhas.push(`Estornado;${relNumeroCSV(estornado.valor)}`);
+    linhas.push(`Pedidos estornados;${estornado.pedidos}`);
+    linhas.push(`Cancelamentos pagos pendentes;${cancelamentosPendentes.pedidos}`);
+    linhas.push(`Valor pendente de decisão;${relNumeroCSV(cancelamentosPendentes.valor)}`);
     linhas.push(`Pendente;${relNumeroCSV(pendente.valor)}`);
     linhas.push(`Pedidos pendentes;${pendente.pedidos}`);
     linhas.push(`Ticket médio;${relNumeroCSV(p.ticket_medio)}`);

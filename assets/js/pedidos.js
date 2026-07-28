@@ -36,8 +36,10 @@
   const renderOrdersEmAndamento = window.renderOrders;
   const STATUS_HISTORICO_PEDIDOS = ['entregue', 'retirado', 'cancelado'];
   const PRAZO_CANCELAMENTO_FINALIZADO_MS = 24 * 60 * 60 * 1000;
+  let cancelamentoPedidoEmAndamento = false;
+  let resolucaoFinanceiraEmAndamento = false;
   const CAMPOS_PEDIDOS = `
-    id, numero_diario, tipo, status, pago, forma_pagamento, subtotal, taxa_entrega, total, desconto_tipo, desconto_valor_informado, desconto_manual, desconto_motivo, criado_em, finalizado_em, motoboy_id, troco_para, observacoes, previsao_inicio, previsao_fim,
+    id, numero_diario, tipo, status, pago, forma_pagamento, subtotal, taxa_entrega, total, desconto_tipo, desconto_valor_informado, desconto_manual, desconto_motivo, criado_em, finalizado_em, motoboy_id, troco_para, observacoes, previsao_inicio, previsao_fim, motivo_cancelamento, cancelado_em, cancelamento_decisao_financeira, cancelamento_decisao_financeira_em, cancelamento_decisao_financeira_por,
     clientes ( nome, telefone ),
     enderecos_cliente!endereco_entrega_id ( logradouro, numero, bairro, cidade, complemento, referencia ),
     itens_pedido (
@@ -302,6 +304,21 @@
     const pagoBadge = pedido.pago
       ? '<span class="badge pago">pago</span>'
       : '<span class="badge pendente">pendente</span>';
+    const estadoFinanceiro = pedido.cancelamento_decisao_financeira;
+    let cancelamentoFinanceiroBadge = '';
+    let botaoResolverFinanceiro = '';
+    if (pedido.status === 'cancelado') {
+      if (!pedido.pago || estadoFinanceiro === 'nao_aplicavel') {
+        cancelamentoFinanceiroBadge = '<span class="badge cancelamento-financeiro cancelamento-financeiro--neutro">Sem impacto financeiro</span>';
+      } else if (estadoFinanceiro === 'estornado') {
+        cancelamentoFinanceiroBadge = '<span class="badge cancelamento-financeiro cancelamento-financeiro--estornado">Valor estornado</span>';
+      } else if (estadoFinanceiro === 'mantido') {
+        cancelamentoFinanceiroBadge = '<span class="badge cancelamento-financeiro cancelamento-financeiro--mantido">Valor mantido</span>';
+      } else if (estadoFinanceiro === 'pendente') {
+        cancelamentoFinanceiroBadge = '<span class="badge cancelamento-financeiro cancelamento-financeiro--pendente">Decisão financeira pendente</span>';
+        botaoResolverFinanceiro = `<button class="order-btn order-btn--warning" type="button" onclick="abrirResolverCancelamentoFinanceiro(${escapeHtml(JSON.stringify(pedido.id))})">Resolver financeiro</button>`;
+      }
+    }
     const endereco = pedido.enderecos_cliente;
     const partesEndereco = endereco
       ? [
@@ -343,7 +360,7 @@
                 <div class="order-cliente">${cliente}</div>
                 ${telefone}
               </div>
-              <div class="order-badges">${tipoBadge}${statusBadge}${pagoBadge}</div>
+              <div class="order-badges">${tipoBadge}${statusBadge}${pagoBadge}${cancelamentoFinanceiroBadge}</div>
             </div>
             <div class="order-card__details">
               <div class="order-detail order-detail--items">${(pedido.itens_pedido || []).map(renderItemHistorico).join('') || 'sem itens'}</div>
@@ -355,6 +372,7 @@
           <div class="order-history-actions">
             <button class="order-btn order-btn--secondary" type="button" onclick="imprimirComanda(${pedidoIdArg})">🖨️ Imprimir</button>
             ${botaoCancelar}
+            ${botaoResolverFinanceiro}
           </div>
         </div>
       </div>`;
@@ -769,7 +787,7 @@
   function testAlert() { beep(); showToast('Teste de alerta', 'Assim que soa um pedido novo.'); }
 
   // =====================================================================
-  // CANCELAMENTO DE PEDIDO (segurança real fica na RPC cancelar_pedido no banco;
+  // CANCELAMENTO DE PEDIDO (segurança real fica na RPC cancelar_pedido_v2 no banco;
   // o frontend só coleta motivo/senha e mostra o erro amigável se a RPC recusar)
   // =====================================================================
   function abrirCancelarPedido(pedidoId) {
@@ -784,36 +802,101 @@
       return;
     }
     document.getElementById('cpPedidoId').value = pedidoId;
+    document.getElementById('cpPedidoResumo').textContent =
+      `${codigoPedido(pedido)} · ${formatMoeda(pedido.total)} · ${formatarFormaPagamentoCancelamento(pedido.forma_pagamento)}`;
+    document.getElementById('cpPedidoPago').value = pedido.pago ? 'true' : 'false';
     document.getElementById('cpMotivo').value = '';
     document.getElementById('cpSenha').value = '';
+    document.querySelectorAll('input[name="cpDecisaoFinanceira"]').forEach(input => { input.checked = false; });
+    document.getElementById('cpEscolhaFinanceira').classList.toggle('hidden', !pedido.pago);
+    document.getElementById('cpInformacaoFinanceira').textContent = pedido.pago
+      ? 'Este pedido foi pago. Escolha explicitamente como o valor recebido deve ser tratado.'
+      : 'Este pedido não foi pago. O cancelamento não gera movimentação financeira.';
+    document.getElementById('cpImpactoFinanceiro').textContent = pedido.pago
+      ? 'Escolha uma opção para visualizar o impacto financeiro.'
+      : 'Sem impacto financeiro.';
     document.getElementById('cpErro').classList.add('hidden');
     document.getElementById('cancelarPedidoModalBg').classList.add('show');
   }
 
   function fecharCancelarPedido() {
     document.getElementById('cancelarPedidoModalBg').classList.remove('show');
+    document.getElementById('cpSenha').value = '';
+    document.querySelectorAll('input[name="cpDecisaoFinanceira"]').forEach(input => { input.checked = false; });
+  }
+
+  function formatarFormaPagamentoCancelamento(forma) {
+    return ({ dinheiro: 'Dinheiro', pix: 'Pix', cartao: 'Cartão' })[forma] || forma || 'Não informada';
+  }
+
+  function atualizarImpactoCancelamento() {
+    const pedidoId = document.getElementById('cpPedidoId').value;
+    const pedido = orders.find(item => item.id === pedidoId)
+      || pedidosHistorico.find(item => item.id === pedidoId);
+    const decisao = document.querySelector('input[name="cpDecisaoFinanceira"]:checked')?.value;
+    const impactoEl = document.getElementById('cpImpactoFinanceiro');
+    if (decisao === 'estornar') {
+      impactoEl.textContent = `Será criada uma saída financeira de ${formatMoeda(pedido?.total)}. A receita original continuará registrada.`;
+    } else if (decisao === 'manter_recebido') {
+      impactoEl.textContent = 'O pedido será cancelado, mas o valor continuará registrado como recebido.';
+    } else {
+      impactoEl.textContent = 'Escolha uma opção para visualizar o impacto financeiro.';
+    }
+  }
+
+  async function atualizarFinanceiroAposCancelamento() {
+    const tarefas = [];
+    const podeConsultarFinanceiro = currentUser?.role === 'dono' || currentUser?.role === 'gerente';
+    if (podeConsultarFinanceiro && typeof loadMovimentacoes === 'function') tarefas.push(loadMovimentacoes());
+    if (podeConsultarFinanceiro && typeof loadCaixaAtual === 'function') tarefas.push(loadCaixaAtual());
+    if (currentUser?.role === 'dono' && currentView === 'relatorio'
+        && typeof loadRelatorioFinanceiro === 'function') {
+      tarefas.push(loadRelatorioFinanceiro());
+    }
+    await Promise.allSettled(tarefas);
   }
 
   async function submitCancelarPedido() {
+    if (cancelamentoPedidoEmAndamento) return;
     const pedidoId = document.getElementById('cpPedidoId').value;
     const motivo = document.getElementById('cpMotivo').value.trim();
     const senha = document.getElementById('cpSenha').value;
+    const pedidoPago = document.getElementById('cpPedidoPago').value === 'true';
+    const decisaoFinanceira = document.querySelector('input[name="cpDecisaoFinanceira"]:checked')?.value || null;
     const erroEl = document.getElementById('cpErro');
     erroEl.classList.add('hidden');
 
     if (!motivo) { erroEl.textContent = 'Informe o motivo do cancelamento.'; erroEl.classList.remove('hidden'); return; }
     if (!senha) { erroEl.textContent = 'Informe a senha de confirmação.'; erroEl.classList.remove('hidden'); return; }
 
+    if (pedidoPago && !decisaoFinanceira) {
+      erroEl.textContent = 'Escolha se o valor será estornado ou mantido como recebido.';
+      erroEl.classList.remove('hidden');
+      return;
+    }
+
     const btn = document.getElementById('cpConfirmarBtn');
+    cancelamentoPedidoEmAndamento = true;
     btn.disabled = true; btn.textContent = 'Cancelando...';
 
-    const { error } = await sb.rpc('cancelar_pedido', {
-      p_pedido_id: pedidoId,
-      p_motivo: motivo,
-      p_senha_confirmacao: senha
-    });
-
-    btn.disabled = false; btn.textContent = 'Confirmar cancelamento';
+    let data;
+    let error;
+    try {
+      ({ data, error } = await sb.rpc('cancelar_pedido_v2', {
+        p_pedido_id: pedidoId,
+        p_motivo: motivo,
+        p_senha_confirmacao: senha,
+        p_decisao_financeira: pedidoPago ? decisaoFinanceira : null
+      }));
+    } catch (excecao) {
+      document.getElementById('cpSenha').value = '';
+      erroEl.textContent = 'Não foi possível confirmar a resposta do servidor. Tente novamente; o sistema verificará se a operação já foi processada.';
+      erroEl.classList.remove('hidden');
+      return;
+    } finally {
+      cancelamentoPedidoEmAndamento = false;
+      btn.disabled = false; btn.textContent = 'Confirmar cancelamento';
+    }
 
     if (error) {
       erroEl.textContent = error.message;
@@ -821,11 +904,112 @@
       return;
     }
 
+    const resultado = Array.isArray(data) ? data[0] : data;
     fecharCancelarPedido();
-    showToast('Pedido cancelado', motivo);
+    const mensagem = resultado?.decisao_financeira === 'estornado' || resultado?.decisao_financeira === 'estornar'
+      ? 'Pedido cancelado e valor estornado.'
+      : resultado?.decisao_financeira === 'mantido' || resultado?.decisao_financeira === 'manter_recebido'
+        ? 'Pedido cancelado e valor mantido como recebido.'
+        : 'Pedido cancelado sem impacto financeiro.';
+    showToast(resultado?.reutilizado ? 'Cancelamento já processado' : 'Pedido cancelado', mensagem);
     if (modoListaPedidos === 'historico') {
       await buscarHistoricoPedidos(true);
     } else {
       await loadPedidos();
     }
+    await atualizarFinanceiroAposCancelamento();
+  }
+
+  function abrirResolverCancelamentoFinanceiro(pedidoId) {
+    const pedido = pedidosHistorico.find(item => item.id === pedidoId);
+    if (!pedido || pedido.status !== 'cancelado' || !pedido.pago
+        || pedido.cancelamento_decisao_financeira !== 'pendente') {
+      showToast('Decisão indisponível', 'Este cancelamento não está aguardando decisão financeira.');
+      return;
+    }
+    document.getElementById('rcfPedidoId').value = pedidoId;
+    document.getElementById('rcfPedidoResumo').textContent =
+      `${codigoPedido(pedido)} · ${formatMoeda(pedido.total)} · ${formatarFormaPagamentoCancelamento(pedido.forma_pagamento)}`;
+    document.getElementById('rcfMotivoOriginal').textContent =
+      pedido.motivo_cancelamento || 'Sem motivo informado.';
+    document.getElementById('rcfSenha').value = '';
+    document.querySelectorAll('input[name="rcfDecisaoFinanceira"]').forEach(input => { input.checked = false; });
+    document.getElementById('rcfImpactoFinanceiro').textContent =
+      'Escolha uma opção para visualizar o impacto financeiro.';
+    document.getElementById('rcfErro').classList.add('hidden');
+    document.getElementById('resolverCancelamentoFinanceiroModalBg').classList.add('show');
+  }
+
+  function fecharResolverCancelamentoFinanceiro() {
+    document.getElementById('resolverCancelamentoFinanceiroModalBg').classList.remove('show');
+    document.getElementById('rcfSenha').value = '';
+    document.querySelectorAll('input[name="rcfDecisaoFinanceira"]').forEach(input => { input.checked = false; });
+  }
+
+  function atualizarImpactoResolucaoFinanceira() {
+    const pedidoId = document.getElementById('rcfPedidoId').value;
+    const pedido = pedidosHistorico.find(item => item.id === pedidoId);
+    const decisao = document.querySelector('input[name="rcfDecisaoFinanceira"]:checked')?.value;
+    document.getElementById('rcfImpactoFinanceiro').textContent = decisao === 'estornar'
+      ? `Será criada uma saída financeira de ${formatMoeda(pedido?.total)}. A receita original continuará registrada.`
+      : decisao === 'manter_recebido'
+        ? 'O valor continuará registrado como recebido e nenhuma saída será criada.'
+        : 'Escolha uma opção para visualizar o impacto financeiro.';
+  }
+
+  async function submitResolverCancelamentoFinanceiro() {
+    if (resolucaoFinanceiraEmAndamento) return;
+    const pedidoId = document.getElementById('rcfPedidoId').value;
+    const decisao = document.querySelector('input[name="rcfDecisaoFinanceira"]:checked')?.value;
+    const senha = document.getElementById('rcfSenha').value;
+    const erroEl = document.getElementById('rcfErro');
+    erroEl.classList.add('hidden');
+    if (!decisao) {
+      erroEl.textContent = 'Escolha se o valor será estornado ou mantido como recebido.';
+      erroEl.classList.remove('hidden');
+      return;
+    }
+    if (!senha) {
+      erroEl.textContent = 'Informe a senha de confirmação.';
+      erroEl.classList.remove('hidden');
+      return;
+    }
+
+    const btn = document.getElementById('rcfConfirmarBtn');
+    resolucaoFinanceiraEmAndamento = true;
+    btn.disabled = true;
+    btn.textContent = 'Resolvendo...';
+    let data;
+    let error;
+    try {
+      ({ data, error } = await sb.rpc('resolver_cancelamento_financeiro_v1', {
+        p_pedido_id: pedidoId,
+        p_decisao_financeira: decisao,
+        p_senha_confirmacao: senha
+      }));
+    } catch (excecao) {
+      document.getElementById('rcfSenha').value = '';
+      erroEl.textContent = 'Não foi possível confirmar a resposta do servidor. Tente novamente; o sistema verificará se a operação já foi processada.';
+      erroEl.classList.remove('hidden');
+      return;
+    } finally {
+      resolucaoFinanceiraEmAndamento = false;
+      btn.disabled = false;
+      btn.textContent = 'Confirmar decisão';
+    }
+
+    if (error) {
+      erroEl.textContent = error.message;
+      erroEl.classList.remove('hidden');
+      return;
+    }
+
+    const resultado = Array.isArray(data) ? data[0] : data;
+    fecharResolverCancelamentoFinanceiro();
+    showToast(
+      resultado?.reutilizado ? 'Decisão já processada' : 'Decisão financeira registrada',
+      decisao === 'estornar' ? 'Valor estornado.' : 'Valor mantido como recebido.'
+    );
+    await buscarHistoricoPedidos(true);
+    await atualizarFinanceiroAposCancelamento();
   }

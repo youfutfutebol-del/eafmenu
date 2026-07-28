@@ -269,6 +269,7 @@
           <button class="btn primary" onclick="aplicarPeriodoRelatorio()">Aplicar período</button>
         </div>
         <p class="main__subtitle hidden" id="relErro" style="color:var(--red); margin:-8px 0 4px;"></p>
+        <div class="rel-alerta-pendente hidden" id="relAlertaCancelamentosPendentes"></div>
 
         <!-- KPIs -->
         <div class="rel-kpi-grid" id="relKpiGrid">
@@ -278,9 +279,24 @@
             <div class="rel-kpi-sub" id="relKpiVendidoSub">0 pedidos vendidos</div>
           </div>
           <div class="rel-kpi-card rel-kpi-card--recebido">
-            <div class="rel-kpi-label">Recebido</div>
+            <div class="rel-kpi-label">Recebido líquido</div>
             <div class="rel-kpi-value" id="relKpiRecebido">R$ 0,00</div>
             <div class="rel-kpi-sub" id="relKpiRecebidoSub">0 pedidos recebidos</div>
+          </div>
+          <div class="rel-kpi-card rel-kpi-card--bruto">
+            <div class="rel-kpi-label">Recebido bruto</div>
+            <div class="rel-kpi-value" id="relKpiRecebidoBruto">R$ 0,00</div>
+            <div class="rel-kpi-sub">Antes dos estornos</div>
+          </div>
+          <div class="rel-kpi-card rel-kpi-card--estornado">
+            <div class="rel-kpi-label">Estornado</div>
+            <div class="rel-kpi-value" id="relKpiEstornado">R$ 0,00</div>
+            <div class="rel-kpi-sub" id="relKpiEstornadoSub">0 pedidos estornados</div>
+          </div>
+          <div class="rel-kpi-card rel-kpi-card--decisao">
+            <div class="rel-kpi-label">Cancelamentos pagos pendentes</div>
+            <div class="rel-kpi-value" id="relKpiCancelamentosPendentes">R$ 0,00</div>
+            <div class="rel-kpi-sub" id="relKpiCancelamentosPendentesSub">0 aguardando decisão</div>
           </div>
           <div class="rel-kpi-card rel-kpi-card--pendente">
             <div class="rel-kpi-label">Pendente</div>
@@ -950,16 +966,59 @@
 </div>
 
 <div class="modal-bg" id="cancelarPedidoModalBg">
-  <div class="modal">
+  <div class="modal modal-financeiro-cancelamento">
     <h3>Cancelar pedido</h3>
     <p style="font-size:12.5px; color:var(--muted); margin:-6px 0 16px;">Essa ação não pode ser desfeita. Se você é atendente, peça a senha de um gerente ou dono pra confirmar.</p>
     <input type="hidden" id="cpPedidoId">
+    <input type="hidden" id="cpPedidoPago">
+    <div class="cancelamento-pedido-resumo" id="cpPedidoResumo">—</div>
     <div class="field"><label>Motivo do cancelamento</label><input id="cpMotivo" placeholder="Ex: cliente desistiu, endereço errado..."></div>
+    <div class="cancelamento-financeiro-info" id="cpInformacaoFinanceira"></div>
+    <fieldset class="cancelamento-escolhas hidden" id="cpEscolhaFinanceira">
+      <legend>O que fazer com o valor recebido?</legend>
+      <label class="cancelamento-escolha">
+        <input type="radio" name="cpDecisaoFinanceira" value="estornar" onchange="atualizarImpactoCancelamento()">
+        <span><strong>Estornar o valor ao cliente</strong><small>Será criada uma saída financeira no valor total do pedido.</small></span>
+      </label>
+      <label class="cancelamento-escolha">
+        <input type="radio" name="cpDecisaoFinanceira" value="manter_recebido" onchange="atualizarImpactoCancelamento()">
+        <span><strong>Manter o valor recebido</strong><small>O pedido será cancelado, mas o recebimento será preservado.</small></span>
+      </label>
+    </fieldset>
+    <div class="cancelamento-impacto" id="cpImpactoFinanceiro"></div>
     <div class="field"><label>Senha de confirmação (gerente ou dono)</label><input type="password" id="cpSenha" placeholder="Sua senha, ou a de um gerente/dono"></div>
     <p class="sub error hidden" id="cpErro" style="color:var(--red); font-size:12.5px; margin:-6px 0 12px;"></p>
     <div class="modal-actions">
       <button class="btn" onclick="fecharCancelarPedido()">Voltar</button>
       <button class="btn primary" id="cpConfirmarBtn" onclick="submitCancelarPedido()">Confirmar cancelamento</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="resolverCancelamentoFinanceiroModalBg">
+  <div class="modal modal-financeiro-cancelamento">
+    <h3>Resolver cancelamento financeiro</h3>
+    <p style="font-size:12.5px; color:var(--muted); margin:-6px 0 16px;">Este pedido já está cancelado. Registre agora o destino do valor recebido.</p>
+    <input type="hidden" id="rcfPedidoId">
+    <div class="cancelamento-pedido-resumo" id="rcfPedidoResumo">—</div>
+    <div class="cancelamento-motivo-original"><strong>Motivo original</strong><span id="rcfMotivoOriginal">—</span></div>
+    <fieldset class="cancelamento-escolhas">
+      <legend>Decisão financeira</legend>
+      <label class="cancelamento-escolha">
+        <input type="radio" name="rcfDecisaoFinanceira" value="estornar" onchange="atualizarImpactoResolucaoFinanceira()">
+        <span><strong>Estornar o valor ao cliente</strong><small>Será criada uma saída financeira no valor total do pedido.</small></span>
+      </label>
+      <label class="cancelamento-escolha">
+        <input type="radio" name="rcfDecisaoFinanceira" value="manter_recebido" onchange="atualizarImpactoResolucaoFinanceira()">
+        <span><strong>Manter o valor recebido</strong><small>Nenhuma saída financeira será criada.</small></span>
+      </label>
+    </fieldset>
+    <div class="cancelamento-impacto" id="rcfImpactoFinanceiro"></div>
+    <div class="field"><label>Senha de confirmação (gerente ou dono)</label><input type="password" id="rcfSenha" placeholder="Sua senha, ou a de um gerente/dono"></div>
+    <p class="sub error hidden" id="rcfErro" style="color:var(--red); font-size:12.5px; margin:-6px 0 12px;"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharResolverCancelamentoFinanceiro()">Voltar</button>
+      <button class="btn primary" id="rcfConfirmarBtn" onclick="submitResolverCancelamentoFinanceiro()">Confirmar decisão</button>
     </div>
   </div>
 </div>

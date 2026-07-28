@@ -17,7 +17,7 @@
 
   async function loadMovimentacoes() {
     let query = sb.from('movimentacoes_financeiras')
-      .select('id, tipo, descricao, valor, pedido_id, criado_em, forma_pagamento')
+      .select('id, tipo, descricao, valor, pedido_id, criado_em, forma_pagamento, origem')
       .eq('restaurante_id', restauranteId)
       .order('criado_em', { ascending: false });
 
@@ -54,12 +54,17 @@
     list.innerHTML = movimentacoes.map(m => {
       const isEntrada = m.tipo === 'receita';
       const classeVisual = isEntrada ? 'entrada' : 'saida';
+      const estornoPedido = m.origem === 'estorno_pedido';
+      const descricao = estornoPedido ? 'Estorno de pedido' : m.descricao;
+      const origemMeta = estornoPedido
+        ? ' · estorno automático · não editável'
+        : (m.pedido_id ? ' · gerado automaticamente' : ' · lançamento manual');
       return `
         <div class="mov-row">
           <div class="mov-icon ${classeVisual}">${isEntrada ? '⬆️' : '⬇️'}</div>
           <div class="mov-main">
-            <p class="mov-desc">${m.descricao} ${FORMA_ICONE[m.forma_pagamento] || ''}</p>
-            <div class="mov-meta">${formatData(m.criado_em)}${m.pedido_id ? ' · gerado automaticamente' : ' · lançamento manual'}</div>
+            <p class="mov-desc">${escapeHtml(descricao || 'Movimentação financeira')} ${FORMA_ICONE[m.forma_pagamento] || ''}</p>
+            <div class="mov-meta">${formatData(m.criado_em)}${origemMeta}${m.pedido_id ? ' · vinculado ao pedido' : ''}</div>
           </div>
           <div class="mov-valor ${classeVisual}">${isEntrada ? '+' : '-'} ${formatMoeda(m.valor)}</div>
         </div>`;
