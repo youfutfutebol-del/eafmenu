@@ -438,6 +438,7 @@
           <div class="field"><label>Complemento</label><input id="endComplemento" placeholder="Opcional"></div>
         </div>
         <div class="field"><label>Cidade</label><input id="endCidade"></div>
+        <div class="field"><label>Referência</label><input id="endReferencia" placeholder="Opcional"></div>
       </div>
 
       <button class="btn primary" onclick="confirmarEntrega()" style="margin-top:6px;">Continuar</button>
@@ -525,7 +526,6 @@
   let detalheQtd = 1;
 
   let checkoutTipo = 'entrega';
-  let checkoutEnderecoId = null;
   let checkoutEndereco = null;
   let checkoutPrecisaTroco = false;
   let confirmarPedidoEmAndamento = false;
@@ -686,7 +686,6 @@
     detalheQtd = 1;
     maxSaboresAtual = 1;
     cart = [];
-    checkoutEnderecoId = null;
     checkoutEndereco = null;
     checkoutPrecisaTroco = false;
     checkoutTipo = 'entrega';
@@ -701,6 +700,7 @@
     document.getElementById('endNumero').value = '';
     document.getElementById('endComplemento').value = '';
     document.getElementById('endCidade').value = '';
+    document.getElementById('endReferencia').value = '';
     document.getElementById('trocoParaInput').value = '';
 
     // REVISÃO E PEDIDOS
@@ -1501,8 +1501,6 @@
   function voltarParaIdent() { irParaStep(1); }
 
   async function confirmarEntrega() {
-    // O fluxo de entrega grava o endereço com cliente.id já neste passo;
-    // a mesma guarda do pedido evita INSERT inválido (e erro de RLS) aqui.
     if (!(await garantirClienteSessaoValida())) return;
 
     if (checkoutTipo === 'entrega') {
@@ -1513,37 +1511,14 @@
       if (!rua || !numero || !bairro || !cidade) { showToast('Endereço incompleto', 'Preencha rua, número, bairro e cidade.'); return; }
 
       checkoutEndereco = {
-        rua,
+        logradouro: rua,
         numero,
         complemento: document.getElementById('endComplemento').value.trim(),
         bairro,
-        cidade
-      };
-
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session?.user?.id || !diaComercialAtual) {
-        await garantirClienteSessaoValida();
-        showToast('Confirme seus dados', 'Sua identificação expirou. Informe seu nome e telefone para continuar o pedido.');
-        return;
-      }
-      const authUserId = session.user.id;
-
-      const { data, error } = await sb.from('enderecos_cliente').insert({
-        cliente_id: cliente.id,
-        cliente_sessao_auth_user_id: authUserId,
-        cliente_sessao_dia_comercial: diaComercialAtual,
-        logradouro: rua,
-        numero,
-        bairro,
         cidade,
-        complemento: document.getElementById('endComplemento').value.trim() || null,
-        padrao: true
-      }).select('id').single();
-
-      if (error) { showToast('Erro ao salvar endereço', error.message); return; }
-      checkoutEnderecoId = data.id;
+        referencia: document.getElementById('endReferencia').value.trim()
+      };
     } else {
-      checkoutEnderecoId = null;
       checkoutEndereco = null;
     }
     irParaStep(3);
@@ -1636,6 +1611,72 @@
   // =====================================================================
   // CHECKOUT — passo 4: revisão e confirmação
   // =====================================================================
+  const CHAVE_PEDIDO_CLIENTE_STORAGE = 'eaf_cliente_pedido_pendente_v1';
+
+  function gerarChavePedidoCliente() {
+    if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
+    return `cliente-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  function serializarEstavelPedidoCliente(valor) {
+    if (Array.isArray(valor)) return `[${valor.map(serializarEstavelPedidoCliente).join(',')}]`;
+    if (valor && typeof valor === 'object') {
+      return `{${Object.keys(valor).sort().map(chave =>
+        `${JSON.stringify(chave)}:${serializarEstavelPedidoCliente(valor[chave])}`
+      ).join(',')}}`;
+    }
+    return JSON.stringify(valor);
+  }
+
+  function criarImpressaoDigitalPedidoCliente(payload) {
+    const texto = serializarEstavelPedidoCliente(payload);
+    let hash = 2166136261;
+    for (let i = 0; i < texto.length; i++) {
+      hash ^= texto.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return `v1-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+  }
+
+  function recuperarChavePendenteCliente(payload) {
+    const fingerprint = criarImpressaoDigitalPedidoCliente(payload);
+    try {
+      const pendente = JSON.parse(sessionStorage.getItem(CHAVE_PEDIDO_CLIENTE_STORAGE) || 'null');
+      if (pendente?.fingerprint === fingerprint && pendente?.chave) return pendente.chave;
+    } catch (_) {}
+    const chave = gerarChavePedidoCliente();
+    sessionStorage.setItem(CHAVE_PEDIDO_CLIENTE_STORAGE, JSON.stringify({ fingerprint, chave }));
+    return chave;
+  }
+
+  function limparChavePendenteCliente(chaveConfirmada) {
+    try {
+      const pendente = JSON.parse(sessionStorage.getItem(CHAVE_PEDIDO_CLIENTE_STORAGE) || 'null');
+      if (pendente?.chave === chaveConfirmada) sessionStorage.removeItem(CHAVE_PEDIDO_CLIENTE_STORAGE);
+    } catch (_) {
+      sessionStorage.removeItem(CHAVE_PEDIDO_CLIENTE_STORAGE);
+    }
+  }
+
+  function montarItensPedidoCliente() {
+    if (!cart.length) throw new Error('O carrinho está vazio.');
+    return cart.map(item => {
+      if (!Number.isInteger(item.qtd) || item.qtd < 1 || !Number.isFinite(Number(item.precoUnit)) || Number(item.precoUnit) <= 0
+        || !Array.isArray(item.saboresIds) || item.saboresIds.length < 1
+        || new Set(item.saboresIds).size !== item.saboresIds.length || !item.saboresIds.includes(item.produtoId)) {
+        throw new Error('Revise a quantidade, o preço e os sabores dos itens antes de finalizar o pedido.');
+      }
+      return {
+        produto_id: item.produtoId,
+        opcao_tamanho_id: item.opcaoTamanhoId || null,
+        quantidade: item.qtd,
+        preco_unitario: Number(item.precoUnit),
+        observacoes: item.observacoes || null,
+        sabores_ids: [...item.saboresIds]
+      };
+    });
+  }
+
   function voltarParaPagamento() { irParaStep(3); }
 
   function renderRevisao() {
@@ -1653,7 +1694,7 @@
     const totalAtual = subtotal + taxa;
     const troco = validarTroco(totalAtual);
     document.getElementById('revisaoTipoTexto').textContent = checkoutTipo === 'entrega'
-      ? `Entrega — ${checkoutEndereco.rua}, ${checkoutEndereco.numero}${checkoutEndereco.complemento ? `, ${checkoutEndereco.complemento}` : ''} — ${checkoutEndereco.bairro}, ${checkoutEndereco.cidade}`
+      ? `Entrega — ${checkoutEndereco.logradouro}, ${checkoutEndereco.numero}${checkoutEndereco.complemento ? `, ${checkoutEndereco.complemento}` : ''} — ${checkoutEndereco.bairro}, ${checkoutEndereco.cidade}`
       : 'Retirada no restaurante';
 
     const formaTexto = forma === 'dinheiro' ? 'Dinheiro' : forma === 'pix' ? 'Pix' : `Cartão na ${checkoutTipo === 'entrega' ? 'entrega' : 'retirada'}`;
@@ -1674,83 +1715,69 @@
       return;
     }
 
-    // Nunca enviar pedido sem sessão válida e cliente identificado (evita erro de RLS).
-    if (!(await garantirClienteSessaoValida())) return;
-
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session?.user?.id || !diaComercialAtual) {
-      await garantirClienteSessaoValida();
-      showToast('Confirme seus dados', 'Sua identificação expirou. Informe seu nome e telefone para continuar o pedido.');
-      return;
-    }
-    const authUserId = session.user.id;
-
     confirmarPedidoEmAndamento = true;
     btn.disabled = true; btn.textContent = 'Enviando pedido...';
-    let pedidoIniciado = false;
+    let rpcIniciada = false;
     try {
-      for (const item of cart) {
-        if (!Array.isArray(item.saboresIds) || item.saboresIds.length < 1
-          || new Set(item.saboresIds).size !== item.saboresIds.length || !item.saboresIds.includes(item.produtoId)) {
-          throw new Error('Revise os sabores dos itens antes de finalizar o pedido.');
-        }
+      // A trava já está ativa antes desta espera, impedindo dois cliques concorrentes.
+      if (!(await garantirClienteSessaoValida())) return;
+
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session?.user?.id || !cliente?.id || !diaComercialAtual) {
+        showToast('Confirme seus dados', 'Sua identificação expirou. Informe seu nome e telefone para continuar o pedido.');
+        return;
       }
 
-      const subtotal = totalCarrinho();
-      const taxaEntrega = checkoutTipo === 'entrega' ? Number(restaurante.taxa_entrega_padrao || 0) : 0;
-      const total = subtotal + taxaEntrega;
+      const itens = montarItensPedidoCliente();
       const forma = document.getElementById('formaPagamento').value;
-      const troco = validarTroco(total);
+      const totalPreview = totalCarrinho() + (checkoutTipo === 'entrega' ? Number(restaurante.taxa_entrega_padrao || 0) : 0);
+      const troco = validarTroco(totalPreview);
       if (!troco.valido) throw new Error(troco.mensagem);
 
-      const payload = {
-        restaurante_id: restaurante.id,
+      const conteudoPedido = {
         cliente_id: cliente.id,
-        cliente_sessao_auth_user_id: authUserId,
-        cliente_sessao_dia_comercial: diaComercialAtual,
+        auth_user_id: session.user.id,
+        dia_comercial: diaComercialAtual,
         tipo: checkoutTipo,
         forma_pagamento: forma,
-        subtotal,
-        taxa_entrega: taxaEntrega,
-        total,
-        status: 'recebido',
-        pago: false,
-        troco_para: troco.valido ? troco.valor : null
+        troco_para: troco.valor,
+        endereco: checkoutTipo === 'entrega' ? checkoutEndereco : null,
+        itens
       };
-      if (checkoutTipo === 'entrega' && checkoutEnderecoId) payload.endereco_entrega_id = checkoutEnderecoId;
+      const chaveIdempotencia = recuperarChavePendenteCliente(conteudoPedido);
+      rpcIniciada = true;
+      const { data, error } = await sb.rpc('criar_pedido_cliente_v1', {
+        p_restaurante_id: restaurante.id,
+        p_tipo: checkoutTipo,
+        p_forma_pagamento: forma,
+        p_troco_para: troco.valor,
+        p_endereco: conteudoPedido.endereco,
+        p_itens: itens,
+        p_chave_idempotencia: chaveIdempotencia
+      });
+      if (error) throw new Error(error.message);
+      const resultado = Array.isArray(data) ? data[0] : data;
+      if (!resultado?.pedido_id) throw new Error('O banco não confirmou a criação do pedido.');
 
-      const { data: pedido, error: pedErr } = await sb.from('pedidos').insert(payload).select('id').single();
-      if (pedErr) throw new Error(pedErr.message);
-      pedidoIniciado = true;
-
-      for (const item of cart) {
-        const { data: itemInserido, error: itemErr } = await sb.from('itens_pedido').insert({
-          pedido_id: pedido.id,
-          produto_id: item.produtoId,
-          opcao_tamanho_id: item.opcaoTamanhoId,
-          quantidade: item.qtd,
-          preco_unitario: item.precoUnit,
-          sabores_esperados: item.saboresIds.length
-        }).select('id').single();
-        if (itemErr) throw new Error(itemErr.message);
-
-        if (item.saboresIds.length > 1) {
-          const { error: saboresErr } = await sb.from('itens_pedido_sabores').insert(
-            item.saboresIds.map(produtoSaborId => ({ item_pedido_id: itemInserido.id, produto_id: produtoSaborId, preco_unitario: item.precoUnit }))
-          );
-          if (saboresErr) throw new Error(saboresErr.message);
-        }
-      }
-
+      limparChavePendenteCliente(chaveIdempotencia);
       cart = [];
       atualizarCartFab();
       closeSheet('sheetCheckout');
-      showToast('Pedido enviado! 🎉', 'Acompanhe pelo botão de pedidos no topo.');
+      const numero = resultado.numero_diario ? ` #${resultado.numero_diario}` : '';
+      showToast(`Pedido${numero} confirmado! 🎉`, resultado.reutilizado
+        ? 'A confirmação anterior foi recuperada com segurança.'
+        : 'Acompanhe pelo botão de pedidos no topo.');
       await atualizarBadgePedidos();
       openMeusPedidos();
     } catch (erro) {
-      const mensagem = erro?.message || String(erro);
-      showToast(pedidoIniciado ? 'Pedido iniciado, mas não finalizado' : 'Erro ao enviar pedido', `Não foi possível finalizar o pedido: ${mensagem}`);
+      if (rpcIniciada) {
+        showToast(
+          'Pedido não confirmado',
+          'Não foi possível confirmar a resposta do servidor. Tente novamente; a mesma tentativa será recuperada com segurança, sem duplicar o pedido.'
+        );
+      } else {
+        showToast('Revise o pedido', erro?.message || String(erro));
+      }
     } finally {
       confirmarPedidoEmAndamento = false;
       btn.disabled = false; btn.textContent = 'Confirmar pedido';

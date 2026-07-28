@@ -12,8 +12,53 @@
   let pedidoManualSubmetendo = false;
   let pedidoManualEquipe = [];
   let pedidoManualEquipeErro = null;
-  let pedidoManualPedidoCriado = null;
   let pedidoManualCombinacao = null;
+  const CHAVE_PEDIDO_MANUAL_STORAGE = 'eaf_pedido_manual_pendente_v1';
+
+  function gerarChavePedidoManual() {
+    if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
+    return `manual-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  function serializarEstavelPedidoManual(valor) {
+    if (Array.isArray(valor)) return `[${valor.map(serializarEstavelPedidoManual).join(',')}]`;
+    if (valor && typeof valor === 'object') {
+      return `{${Object.keys(valor).sort().map(chave =>
+        `${JSON.stringify(chave)}:${serializarEstavelPedidoManual(valor[chave])}`
+      ).join(',')}}`;
+    }
+    return JSON.stringify(valor);
+  }
+
+  function criarImpressaoDigitalPedidoManual(payloadSemSenha) {
+    const texto = serializarEstavelPedidoManual(payloadSemSenha);
+    let hash = 2166136261;
+    for (let i = 0; i < texto.length; i++) {
+      hash ^= texto.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return `v1-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+  }
+
+  function recuperarChavePendenteManual(payloadSemSenha) {
+    const fingerprint = criarImpressaoDigitalPedidoManual(payloadSemSenha);
+    try {
+      const pendente = JSON.parse(sessionStorage.getItem(CHAVE_PEDIDO_MANUAL_STORAGE) || 'null');
+      if (pendente?.fingerprint === fingerprint && pendente?.chave) return pendente.chave;
+    } catch (_) {}
+    const chave = gerarChavePedidoManual();
+    sessionStorage.setItem(CHAVE_PEDIDO_MANUAL_STORAGE, JSON.stringify({ fingerprint, chave }));
+    return chave;
+  }
+
+  function limparChavePendenteManual(chaveConfirmada) {
+    try {
+      const pendente = JSON.parse(sessionStorage.getItem(CHAVE_PEDIDO_MANUAL_STORAGE) || 'null');
+      if (pendente?.chave === chaveConfirmada) sessionStorage.removeItem(CHAVE_PEDIDO_MANUAL_STORAGE);
+    } catch (_) {
+      sessionStorage.removeItem(CHAVE_PEDIDO_MANUAL_STORAGE);
+    }
+  }
 
   function limparCombinacaoPedidoManual() {
     pedidoManualCombinacao = null;
@@ -61,7 +106,6 @@
     pedidoManualSubmetendo = false;
     pedidoManualEquipe = [];
     pedidoManualEquipeErro = null;
-    pedidoManualPedidoCriado = null;
     limparCombinacaoPedidoManual();
     clearTimeout(buscaTelefoneTimer);
     buscaTelefoneTimer = null;
@@ -690,71 +734,6 @@
     wrap.innerHTML = linhas.map(([label, valor]) => `<div class="pm-revisao-linha"><span>${label}</span><b>${escapeHtml(valor)}</b></div>`).join('');
   }
 
-  function mensagemErroRpcDesconto(error) {
-    const mensagem = error?.message || 'A RPC recusou a aplicação do desconto.';
-    const texto = mensagem.toLowerCase();
-    if (texto.includes('pago')) return { titulo: 'Pedido pago', mensagem };
-    if (texto.includes('cancel')) return { titulo: 'Pedido cancelado', mensagem };
-    if (texto.includes('autor')) return { titulo: 'Autorizador inválido', mensagem };
-    return { titulo: 'Falha ao aplicar desconto', mensagem };
-  }
-
-  async function obterOuCriarClienteManual(nome, telefone) {
-    if (clienteEncontradoAtual && clienteEncontradoAtual.telefone === telefone) {
-      if (clienteEncontradoAtual.nome !== nome) {
-        const { error } = await sb.from('clientes').update({ nome }).eq('id', clienteEncontradoAtual.id);
-        if (error) throw erroFluxoPedidoManual('Falha ao criar cliente', error.message);
-      }
-      return clienteEncontradoAtual.id;
-    }
-
-    let clienteExistente = null;
-    if (telefone) {
-      const { data, error } = await sb.from('clientes').select('id, nome').eq('restaurante_id', restauranteId).eq('telefone', telefone).maybeSingle();
-      if (error) throw erroFluxoPedidoManual('Falha ao criar cliente', error.message);
-      clienteExistente = data;
-    }
-    if (clienteExistente) {
-      if (clienteExistente.nome !== nome) {
-        const { error } = await sb.from('clientes').update({ nome }).eq('id', clienteExistente.id);
-        if (error) throw erroFluxoPedidoManual('Falha ao criar cliente', error.message);
-      }
-      return clienteExistente.id;
-    }
-
-    const { data: cliente, error } = await sb.from('clientes')
-      .insert({ nome, telefone: telefone || null, restaurante_id: restauranteId, auth_user_id: null })
-      .select('id').single();
-    if (!error) return cliente.id;
-    if (error.code === '23505' && telefone) {
-      const { data: clienteCorrida } = await sb.from('clientes').select('id').eq('restaurante_id', restauranteId).eq('telefone', telefone).maybeSingle();
-      if (clienteCorrida) return clienteCorrida.id;
-    }
-    throw erroFluxoPedidoManual('Falha ao criar cliente', error.message);
-  }
-
-  async function obterOuCriarEnderecoManual(clienteId, tipo) {
-    if (tipo !== 'entrega') return null;
-    const logradouro = document.getElementById('mEndLogradouro').value.trim();
-    const numero = document.getElementById('mEndNumero').value.trim();
-    const bairro = document.getElementById('mEndBairro').value.trim();
-    const complemento = document.getElementById('mEndComplemento').value.trim();
-    const referencia = document.getElementById('mEndReferencia').value.trim();
-    const mesmoEndereco = enderecoEncontradoAtual
-      && enderecoEncontradoAtual.logradouro === logradouro
-      && (enderecoEncontradoAtual.numero || '') === numero
-      && (enderecoEncontradoAtual.bairro || '') === bairro
-      && (enderecoEncontradoAtual.complemento || '') === complemento
-      && (enderecoEncontradoAtual.referencia || '') === referencia;
-    if (mesmoEndereco) return enderecoEncontradoAtual.id;
-
-    const { data, error } = await sb.from('enderecos_cliente')
-      .insert({ cliente_id: clienteId, logradouro, numero, bairro, complemento: complemento || null, referencia: referencia || null })
-      .select('id').single();
-    if (error) throw erroFluxoPedidoManual('Falha ao salvar endereço', error.message);
-    return data.id;
-  }
-
   function montarItensParaInserirManual() {
     return pedidoManualItens.map(item => {
       if (!Number.isInteger(item.qtd) || item.qtd < 1 || !Array.isArray(item.saboresIds) || item.saboresIds.length < 1
@@ -787,20 +766,14 @@
         opcao_tamanho_id: item.opcaoTamanhoId || null,
         quantidade: item.qtd,
         preco_unitario: precoMedio,
-        sabores_esperados: item.saboresIds.length,
-        saboresIds: item.saboresIds
+        observacoes: item.observacoes || null,
+        sabores_ids: [...item.saboresIds]
       };
     });
   }
 
   async function submitManualOrder() {
     if (pedidoManualSubmetendo) return;
-    if (pedidoManualPedidoCriado) {
-      limparSenhaAutorizadorManual();
-      mostrarErroPedidoManual('Pedido já criado', `O pedido #${pedidoManualPedidoCriado.numero_diario || pedidoManualPedidoCriado.id} já foi criado. Recarregue a lista antes de tentar novamente.`);
-      await loadPedidos();
-      return;
-    }
     if (!validarEtapaPedidoManual()) { limparSenhaAutorizadorManual(); irParaEtapaPedidoManual(1); return; }
 
     const desconto = validarDescontoManual();
@@ -815,115 +788,83 @@
     btn.textContent = 'Lançando pedido...';
     limparErroPedidoManual();
 
-    let pedido = null;
+    let rpcIniciada = false;
     try {
       const nome = document.getElementById('mCliNome').value.trim();
       const telefone = document.getElementById('mCliTel').value.trim();
+      const telefoneNormalizado = telefone.replace(/\D/g, '');
       const tipo = document.getElementById('mTipo').value;
       const forma = document.getElementById('mForma').value;
       const observacoes = document.getElementById('mObservacoes').value.trim();
-
-      const clienteId = await obterOuCriarClienteManual(nome, telefone);
-      const enderecoId = await obterOuCriarEnderecoManual(clienteId, tipo);
       const itensParaInserir = montarItensParaInserirManual();
-
-      const { data, error: pedidoErro } = await sb.from('pedidos').insert({
-        restaurante_id: restauranteId,
-        cliente_id: clienteId,
+      const endereco = tipo === 'entrega' ? {
+        logradouro: document.getElementById('mEndLogradouro').value.trim(),
+        numero: document.getElementById('mEndNumero').value.trim(),
+        bairro: document.getElementById('mEndBairro').value.trim(),
+        complemento: document.getElementById('mEndComplemento').value.trim(),
+        referencia: document.getElementById('mEndReferencia').value.trim()
+      } : null;
+      const descontoPayload = desconto.ativo ? {
+        tipo: desconto.tipo,
+        valor: desconto.valorInformado,
+        motivo: desconto.motivo,
+        autorizado_por: desconto.autorizadoPor
+      } : null;
+      const conteudoPedido = {
+        usuario_id: currentUser.id,
+        nome_cliente: nome,
+        telefone_cliente: telefoneNormalizado || null,
         tipo,
         forma_pagamento: forma,
-        status: 'recebido',
-        endereco_entrega_id: enderecoId,
-        troco_para: null,
-        observacoes: observacoes || null
-      }).select('id, numero_diario').single();
-      if (pedidoErro) throw erroFluxoPedidoManual('Falha ao criar pedido', pedidoErro.message);
-
-      pedido = data;
-      pedidoManualPedidoCriado = pedido;
-      pedidosCriadosManualmente.add(pedido.id);
-
-      for (const item of itensParaInserir) {
-        const { saboresIds, ...itemPedido } = item;
-        const { data: itemInserido, error: itemErro } = await sb.from('itens_pedido')
-          .insert({ ...itemPedido, pedido_id: pedido.id })
-          .select('id').single();
-        if (itemErro) throw erroFluxoPedidoManual('Falha ao salvar itens', itemErro.message);
-        if (saboresIds.length > 1) {
-          const saboresParaInserir = saboresIds.map(produtoId => ({
-            item_pedido_id: itemInserido.id,
-            produto_id: produtoId,
-            preco_unitario: item.preco_unitario
-          }));
-          const { error: saboresErro } = await sb.from('itens_pedido_sabores').insert(saboresParaInserir);
-          if (saboresErro) throw erroFluxoPedidoManual('Falha ao salvar sabores', saboresErro.message);
-        }
+        troco_para: troco.valor,
+        observacoes: observacoes || null,
+        endereco,
+        itens: itensParaInserir,
+        desconto: descontoPayload
+      };
+      const chaveIdempotencia = recuperarChavePendenteManual(conteudoPedido);
+      rpcIniciada = true;
+      const { data, error } = await sb.rpc('criar_pedido_manual_v1', {
+        p_restaurante_id: restauranteId,
+        p_nome_cliente: nome,
+        p_telefone_cliente: telefoneNormalizado || null,
+        p_tipo: tipo,
+        p_forma_pagamento: forma,
+        p_troco_para: troco.valor,
+        p_observacoes: observacoes || null,
+        p_endereco: endereco,
+        p_itens: itensParaInserir,
+        p_desconto: descontoPayload,
+        p_senha_autorizador: desconto.ativo ? desconto.senhaAutorizador : null,
+        p_chave_idempotencia: chaveIdempotencia
+      });
+      if (error) throw erroFluxoPedidoManual('Pedido não lançado', error.message);
+      const resultado = Array.isArray(data) ? data[0] : data;
+      if (!resultado?.pedido_id || !Number.isFinite(Number(resultado.total))) {
+        throw erroFluxoPedidoManual('Pedido não lançado', 'O banco não confirmou o pedido e o total final.');
       }
 
-      let resultadoFinanceiro;
-      if (desconto.ativo) {
-        const { data: rpcData, error: rpcErro } = await sb.rpc('aplicar_desconto_manual_v2', {
-          p_pedido_id: pedido.id,
-          p_tipo: desconto.tipo,
-          p_valor: desconto.valorInformado,
-          p_motivo: desconto.motivo,
-          p_autorizado_por: desconto.autorizadoPor,
-          p_senha_autorizador: desconto.senhaAutorizador
-        });
-        if (rpcErro) {
-          const detalhe = mensagemErroRpcDesconto(rpcErro);
-          throw erroFluxoPedidoManual(detalhe.titulo, detalhe.mensagem);
-        }
-        resultadoFinanceiro = Array.isArray(rpcData) ? rpcData[0] : rpcData;
-      } else {
-        const { data: pedidoFinal, error: totalErro } = await sb.from('pedidos')
-          .select('id, numero_diario, subtotal, taxa_entrega, total')
-          .eq('id', pedido.id)
-          .single();
-        if (totalErro) throw erroFluxoPedidoManual('Falha ao recuperar total final', totalErro.message);
-        resultadoFinanceiro = pedidoFinal;
-      }
-
-      let totalDefinitivo = Number(resultadoFinanceiro?.total);
-      if (!Number.isFinite(totalDefinitivo)) {
-        const { data: pedidoFinal, error: totalErro } = await sb.from('pedidos').select('total').eq('id', pedido.id).single();
-        if (totalErro || !Number.isFinite(Number(pedidoFinal?.total))) {
-          throw erroFluxoPedidoManual('Falha ao recuperar total final', totalErro?.message || 'O banco não retornou um total válido.');
-        }
-        totalDefinitivo = Number(pedidoFinal.total);
-      }
-
-      if (troco.valor !== null && troco.valor < totalDefinitivo) {
-        throw erroFluxoPedidoManual(
-          'Troco insuficiente para o total final',
-          `O total definitivo do pedido é ${formatMoeda(totalDefinitivo)}, maior que o valor informado para troco (${formatMoeda(troco.valor)}).`
-        );
-      }
-
-      if (troco.valor !== null) {
-        const { data: pedidoComTroco, error: trocoErro } = await sb.from('pedidos')
-          .update({ troco_para: troco.valor })
-          .eq('id', pedido.id)
-          .select('id, troco_para')
-          .single();
-        if (trocoErro) throw erroFluxoPedidoManual('Falha ao salvar troco', trocoErro.message);
-        if (Number(pedidoComTroco?.troco_para) !== troco.valor) {
-          throw erroFluxoPedidoManual('Falha ao confirmar troco', 'O banco não confirmou o valor informado para troco.');
-        }
-      }
-
+      limparChavePendenteManual(chaveIdempotencia);
+      pedidosCriadosManualmente.add(resultado.pedido_id);
       pedidoManualSubmetendo = false;
       document.getElementById('manualModalBg').classList.remove('show');
       pedidoManualItens = [];
       limparCombinacaoPedidoManual();
-      showToast(`Pedido #${pedido.numero_diario || pedido.id} lançado`, `${nome} · ${formatMoeda(totalDefinitivo)}`);
-      pedidoManualPedidoCriado = null;
+      limparSenhaAutorizadorManual();
+      const numero = resultado.numero_diario || resultado.pedido_id;
+      showToast(`Pedido #${numero} confirmado`, resultado.reutilizado
+        ? `Confirmação anterior recuperada · ${formatMoeda(Number(resultado.total))}`
+        : `${nome} · ${formatMoeda(Number(resultado.total))}`);
       await loadPedidos();
     } catch (error) {
-      const titulo = error.titulo || 'Erro ao lançar pedido';
-      const prefixo = pedido ? `Pedido #${pedido.numero_diario || pedido.id} criado, mas a finalização falhou. ` : '';
-      mostrarErroPedidoManual(titulo, prefixo + (error.message || 'Tente novamente.'));
-      if (pedido) await loadPedidos();
+      if (rpcIniciada) {
+        mostrarErroPedidoManual(
+          'Pedido não confirmado',
+          'Não foi possível confirmar a resposta do servidor. Revise os dados e tente novamente; a chave de segurança impedirá a duplicação.'
+        );
+      } else {
+        mostrarErroPedidoManual(error.titulo || 'Revise o pedido', error.message || 'Confira os dados e tente novamente.');
+      }
     } finally {
       descartarCredencialDescontoManual(desconto);
       pedidoManualSubmetendo = false;
