@@ -555,6 +555,10 @@
 .rel-kpi-card--hero .rel-kpi-label { color: color-mix(in srgb, var(--green) 70%, var(--muted)); }
 
 .rel-kpi-card--indigo .rel-kpi-value { color: var(--indigo); }
+.rel-kpi-card--recebido { background: var(--indigo-soft); border-color: color-mix(in srgb, var(--indigo) 25%, var(--border)); }
+.rel-kpi-card--recebido .rel-kpi-value { color: var(--indigo); }
+.rel-kpi-card--pendente { background: var(--amber-soft); border-color: color-mix(in srgb, var(--amber) 25%, var(--border)); }
+.rel-kpi-card--pendente .rel-kpi-value { color: var(--amber); }
 .rel-kpi-card--cancel { background: var(--red-soft); border-color: color-mix(in srgb, var(--red) 25%, var(--border)); }
 .rel-kpi-card--cancel .rel-kpi-value { color: var(--red); }
 .rel-kpi-card--cancel .rel-kpi-sub { color: var(--red); font-weight:700; }
@@ -585,6 +589,7 @@
 .rel-resumo__stat .lbl { font-size:10.5px; color:#A1A1AA; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
 .rel-resumo__stat .val { font-size:15px; font-weight:800; font-variant-numeric: tabular-nums; }
 .rel-resumo__stat.destaque .val { color: #FCA5A5; }
+.rel-resumo__stat.pendente .val { color: #FCD34D; }
 
 /* Grade de 3 blocos (pagamento / tipo / top produtos) */
 .rel-grid-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; margin-bottom:16px; }

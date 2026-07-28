@@ -273,13 +273,19 @@
         <!-- KPIs -->
         <div class="rel-kpi-grid" id="relKpiGrid">
           <div class="rel-kpi-card rel-kpi-card--hero">
-            <div class="rel-kpi-label">Faturamento</div>
-            <div class="rel-kpi-value" id="relKpiFaturamento">R$ 0,00</div>
-            <div class="rel-kpi-sub" id="relKpiFaturamentoSub">0 pedidos concluídos</div>
+            <div class="rel-kpi-label">Vendido</div>
+            <div class="rel-kpi-value" id="relKpiVendido">R$ 0,00</div>
+            <div class="rel-kpi-sub" id="relKpiVendidoSub">0 pedidos vendidos</div>
           </div>
-          <div class="rel-kpi-card rel-kpi-card--indigo">
-            <div class="rel-kpi-label">Pedidos concluídos</div>
-            <div class="rel-kpi-value" id="relKpiPedidos">0</div>
+          <div class="rel-kpi-card rel-kpi-card--recebido">
+            <div class="rel-kpi-label">Recebido</div>
+            <div class="rel-kpi-value" id="relKpiRecebido">R$ 0,00</div>
+            <div class="rel-kpi-sub" id="relKpiRecebidoSub">0 pedidos recebidos</div>
+          </div>
+          <div class="rel-kpi-card rel-kpi-card--pendente">
+            <div class="rel-kpi-label">Pendente</div>
+            <div class="rel-kpi-value" id="relKpiPendente">R$ 0,00</div>
+            <div class="rel-kpi-sub" id="relKpiPendenteSub">0 pedidos pendentes</div>
           </div>
           <div class="rel-kpi-card rel-kpi-card--indigo">
             <div class="rel-kpi-label">Ticket médio</div>
@@ -313,7 +319,7 @@
         <!-- Formas de pagamento / Entrega x Retirada / Top produtos -->
         <div class="rel-grid-3">
           <div class="rel-block">
-            <h3 class="rel-block__title">Formas de pagamento</h3>
+            <h3 class="rel-block__title">Valores recebidos por forma de pagamento</h3>
             <div id="relFormaPagamentoBars" class="rel-bars"></div>
           </div>
           <div class="rel-block">
@@ -329,9 +335,9 @@
         <!-- Detalhamento -->
         <div class="rel-grid-2">
           <div class="rel-block">
-            <h3 class="rel-block__title">Detalhamento · Formas de pagamento</h3>
+            <h3 class="rel-block__title">Detalhamento · Valores recebidos por forma de pagamento</h3>
             <table class="data-table">
-              <thead><tr><th>Forma</th><th>Faturamento</th><th>%</th></tr></thead>
+              <thead><tr><th>Forma</th><th>Recebido</th><th>%</th></tr></thead>
               <tbody id="relFormaPagamentoBody"></tbody>
             </table>
           </div>

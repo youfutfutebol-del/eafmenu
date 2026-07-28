@@ -3,11 +3,9 @@
 // Único ponto de entrada externo: loadRelatorioFinanceiro(), chamada por switchView('relatorio')
 // no script principal do index.html — esse nome precisa continuar existindo com essa assinatura.
 //
-// Estratégia: a RPC relatorio_financeiro_v1 só devolve formas de pagamento / entrega x retirada /
-// top produtos completos dentro do bloco `periodo_personalizado` (os blocos hoje/semana/mes trazem
-// só faturamento/pedidos/ticket_medio/cancelados). Por isso, para QUALQUER filtro (Hoje, Últimos 7
-// dias, Este mês ou Personalizado), sempre chamamos a RPC com datas explícitas e usamos só o bloco
-// periodo_personalizado como fonte de dados — um único caminho de renderização pros 4 filtros.
+// Estratégia: para QUALQUER filtro (Hoje, Últimos 7 dias, Este mês ou Personalizado),
+// sempre chamamos a RPC com datas explícitas e usamos só o bloco `periodo_personalizado`
+// como fonte de dados — um único caminho de renderização pros 4 filtros.
 //
 // Depende de: sb, showToast, formatMoedaRel (utils.js). Continua global (sem type=module).
 
@@ -100,7 +98,7 @@
       // Primeira carga: descobre o "dia comercial" oficial do servidor (corte às 7h),
       // pra Hoje/Semana/Mês sempre baterem com o resto do painel.
       if (!relDiaComercialRef) {
-        const { data, error } = await sb.rpc('relatorio_financeiro_v1', { p_data_inicio: null, p_data_fim: null });
+        const { data, error } = await sb.rpc('relatorio_financeiro_v2', { p_data_inicio: null, p_data_fim: null });
         if (error) throw error;
         relDiaComercialRef = data.dia_comercial_referencia;
       }
@@ -120,7 +118,7 @@
         dataFim = relDiaComercialRef;
       }
 
-      const { data, error } = await sb.rpc('relatorio_financeiro_v1', { p_data_inicio: dataInicio, p_data_fim: dataFim });
+      const { data, error } = await sb.rpc('relatorio_financeiro_v2', { p_data_inicio: dataInicio, p_data_fim: dataFim });
       if (error) throw error;
 
       relDadosAtuais = data.periodo_personalizado;
@@ -139,7 +137,7 @@
     relRenderResumo(p);
     relRenderBarras('relFormaPagamentoBars', p.por_forma_pagamento);
     relRenderBarras('relTipoBars', p.por_tipo);
-    relRenderTabela('relFormaPagamentoBody', p.por_forma_pagamento);
+    relRenderTabela('relFormaPagamentoBody', p.por_forma_pagamento, 'Recebido');
     relRenderTabela('relTipoBody', p.por_tipo);
     relRenderTopProdutos(p.top_produtos);
     relRenderInsights(p);
@@ -147,11 +145,19 @@
 
   function relRenderKpis(p) {
     const cancelados = p.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
+    const vendido = p.vendido || { pedidos: 0, valor: 0 };
+    const recebido = p.recebido || { pedidos: 0, valor: 0 };
+    const pendente = p.pendente || { pedidos: 0, valor: 0 };
 
-    document.getElementById('relKpiFaturamento').textContent = formatMoedaRel(p.faturamento);
-    document.getElementById('relKpiFaturamentoSub').textContent =
-      `${p.pedidos} pedido${p.pedidos === 1 ? '' : 's'} concluído${p.pedidos === 1 ? '' : 's'}`;
-    document.getElementById('relKpiPedidos').textContent = p.pedidos;
+    document.getElementById('relKpiVendido').textContent = formatMoedaRel(vendido.valor);
+    document.getElementById('relKpiVendidoSub').textContent =
+      `${vendido.pedidos} pedido${vendido.pedidos === 1 ? '' : 's'} vendido${vendido.pedidos === 1 ? '' : 's'}`;
+    document.getElementById('relKpiRecebido').textContent = formatMoedaRel(recebido.valor);
+    document.getElementById('relKpiRecebidoSub').textContent =
+      `${recebido.pedidos} pedido${recebido.pedidos === 1 ? '' : 's'} recebido${recebido.pedidos === 1 ? '' : 's'}`;
+    document.getElementById('relKpiPendente').textContent = formatMoedaRel(pendente.valor);
+    document.getElementById('relKpiPendenteSub').textContent =
+      `${pendente.pedidos} pedido${pendente.pedidos === 1 ? '' : 's'} pendente${pendente.pedidos === 1 ? '' : 's'}`;
     document.getElementById('relKpiTicket').textContent = formatMoedaRel(p.ticket_medio);
     document.getElementById('relKpiCancelados').textContent = cancelados.pedidos;
     document.getElementById('relKpiValorCancelado').textContent = formatMoedaRel(cancelados.valor);
@@ -160,19 +166,22 @@
 
   function relRenderResumo(p) {
     const cancelados = p.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
+    const vendido = p.vendido || { pedidos: 0, valor: 0 };
+    const recebido = p.recebido || { pedidos: 0, valor: 0 };
+    const pendente = p.pendente || { pedidos: 0, valor: 0 };
     document.getElementById('relResumoData').textContent = relFormatarPeriodoBR(p.data_inicio, p.data_fim);
 
     const stats = [
-      { lbl: 'Faturamento', val: formatMoedaRel(p.faturamento) },
-      { lbl: 'Pedidos concluídos', val: String(p.pedidos) },
+      { lbl: 'Vendido', val: formatMoedaRel(vendido.valor) },
+      { lbl: 'Recebido', val: formatMoedaRel(recebido.valor) },
+      { lbl: 'Pendente', val: formatMoedaRel(pendente.valor), pendente: true },
       { lbl: 'Ticket médio', val: formatMoedaRel(p.ticket_medio) },
       { lbl: 'Cancelados', val: String(cancelados.pedidos), destaque: true },
-      { lbl: 'Valor cancelado', val: formatMoedaRel(cancelados.valor), destaque: true },
       { lbl: 'Taxa de cancelamento', val: `${cancelados.percentual}%`, destaque: true }
     ];
 
     document.getElementById('relResumoStats').innerHTML = stats.map(s => `
-      <div class="rel-resumo__stat ${s.destaque ? 'destaque' : ''}">
+      <div class="rel-resumo__stat ${s.destaque ? 'destaque' : ''} ${s.pendente ? 'pendente' : ''}">
         <span class="lbl">${s.lbl}</span>
         <span class="val">${s.val}</span>
       </div>`).join('');
@@ -202,7 +211,7 @@
       }).join('');
   }
 
-  function relRenderTabela(tbodyId, objValores) {
+  function relRenderTabela(tbodyId, objValores, valorLabel = 'Faturamento') {
     const tbody = document.getElementById(tbodyId);
     const entradas = Object.entries(objValores || {});
     if (entradas.length === 0) {
@@ -218,7 +227,7 @@
         return `
           <tr>
             <td data-label="Item">${nome}</td>
-            <td data-label="Faturamento">${formatMoedaRel(valor)}</td>
+            <td data-label="${valorLabel}">${formatMoedaRel(valor)}</td>
             <td data-label="%">${pct.toFixed(1)}%</td>
           </tr>`;
       }).join('');
@@ -246,9 +255,14 @@
   function relRenderInsights(p) {
     const el = document.getElementById('relInsights');
     const cancelados = p.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
+    const vendido = p.vendido || { pedidos: 0, valor: 0 };
+    const recebido = p.recebido || { pedidos: 0, valor: 0 };
+    const pendente = p.pendente || { pedidos: 0, valor: 0 };
     const insights = [];
 
-    insights.push(`Faturamento do período: <b>${formatMoedaRel(p.faturamento)}</b>, com <b>${p.pedidos}</b> pedido${p.pedidos === 1 ? '' : 's'} concluído${p.pedidos === 1 ? '' : 's'}.`);
+    insights.push(`Vendido no período: <b>${formatMoedaRel(vendido.valor)}</b>, em <b>${vendido.pedidos}</b> pedido${vendido.pedidos === 1 ? '' : 's'}.`);
+    insights.push(`Recebido no período: <b>${formatMoedaRel(recebido.valor)}</b>, em <b>${recebido.pedidos}</b> pedido${recebido.pedidos === 1 ? '' : 's'}.`);
+    insights.push(`Pendente de recebimento: <b>${formatMoedaRel(pendente.valor)}</b>, em <b>${pendente.pedidos}</b> pedido${pendente.pedidos === 1 ? '' : 's'}.`);
 
     if (cancelados.pedidos > 0) {
       insights.push(`<b>${cancelados.pedidos}</b> pedido${cancelados.pedidos === 1 ? '' : 's'} cancelado${cancelados.pedidos === 1 ? '' : 's'}, totalizando <b>${formatMoedaRel(cancelados.valor)}</b> (${cancelados.percentual}% dos pedidos do período).`);
@@ -259,7 +273,7 @@
     const formas = Object.entries(p.por_forma_pagamento || {});
     if (formas.length > 0) {
       const [nomeForma] = formas.sort((a, b) => Number(b[1]) - Number(a[1]))[0];
-      insights.push(`Forma de pagamento mais usada: <b>${escapeHtml(nomeForma.charAt(0).toUpperCase() + nomeForma.slice(1))}</b>.`);
+      insights.push(`Forma com maior valor recebido: <b>${escapeHtml(nomeForma.charAt(0).toUpperCase() + nomeForma.slice(1))}</b>.`);
     }
 
     const tipos = Object.entries(p.por_tipo || {});
@@ -347,20 +361,25 @@
 
     const p = relDadosAtuais;
     const cancelados = p.cancelados || { pedidos: 0, valor: 0, percentual: 0 };
+    const vendido = p.vendido || { pedidos: 0, valor: 0 };
+    const recebido = p.recebido || { pedidos: 0, valor: 0 };
+    const pendente = p.pendente || { pedidos: 0, valor: 0 };
     const linhas = [];
 
     linhas.push('Relatório Financeiro');
     linhas.push(`Período;${relFormatarPeriodoBR(p.data_inicio, p.data_fim)}`);
     linhas.push('');
-    linhas.push(`Faturamento;${relNumeroCSV(p.faturamento)}`);
-    linhas.push(`Pedidos concluídos;${p.pedidos}`);
+    linhas.push(`Vendido;${relNumeroCSV(vendido.valor)}`);
+    linhas.push(`Pedidos vendidos;${vendido.pedidos}`);
+    linhas.push(`Recebido;${relNumeroCSV(recebido.valor)}`);
+    linhas.push(`Pedidos recebidos;${recebido.pedidos}`);
+    linhas.push(`Pendente;${relNumeroCSV(pendente.valor)}`);
+    linhas.push(`Pedidos pendentes;${pendente.pedidos}`);
     linhas.push(`Ticket médio;${relNumeroCSV(p.ticket_medio)}`);
-    linhas.push(`Cancelados;${cancelados.pedidos}`);
-    linhas.push(`Valor cancelado;${relNumeroCSV(cancelados.valor)}`);
-    linhas.push(`Taxa de cancelamento;${relNumeroCSV(cancelados.percentual)}%`);
+    linhas.push(`Cancelamentos;${cancelados.pedidos}`);
     linhas.push('');
 
-    linhas.push('Formas de pagamento');
+    linhas.push('Valores recebidos por forma de pagamento');
     linhas.push('Forma;Valor');
     const formas = Object.entries(p.por_forma_pagamento || {});
     if (formas.length === 0) {
