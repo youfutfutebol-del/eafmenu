@@ -248,10 +248,10 @@
         // Edição: atualiza nome/telefone (usuarios) e veículo/placa (motoboys)
         const { error: errUsuario } = await sb.from('usuarios').update({ nome, telefone: telefoneNormalizado }).eq('id', id);
         if (errUsuario) {
-          console.error('Falha ao atualizar usuário do entregador:', errUsuario);
           if (errUsuario.message === 'Este telefone já está vinculado a outra conta de acesso.') {
             showToast('Telefone já utilizado', errUsuario.message);
           } else {
+            console.error('Falha ao atualizar usuário do entregador:', errUsuario);
             showToast('Erro ao salvar', 'Não foi possível salvar as alterações. Tente novamente.');
           }
           return;
@@ -281,10 +281,10 @@
         p_placa: placa
       });
       if (error) {
-        console.error('Falha ao criar entregador:', error);
         if (error.message === 'Este telefone já está vinculado a outra conta de acesso.') {
           showToast('Telefone já utilizado', error.message);
         } else {
+          console.error('Falha ao criar entregador:', error);
           showToast('Erro ao criar entregador', mensagemErroCriarEntregador(error));
         }
         return;
