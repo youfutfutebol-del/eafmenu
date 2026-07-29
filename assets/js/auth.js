@@ -152,42 +152,16 @@ function setLoginMsg(msg, isError) {
   el.className = 'login-msg' + (isError ? ' error' : '');
 }
 
-function abrirEsqueciSenha() {
-  document.getElementById('stepLogin').style.display = 'none';
-  document.getElementById('stepEsqueciSenha').style.display = 'block';
-  document.getElementById('loginMsg').textContent = '';
-}
-
-function fecharEsqueciSenha() {
-  document.getElementById('stepEsqueciSenha').style.display = 'none';
-  document.getElementById('stepLogin').style.display = 'block';
-  document.getElementById('loginMsg').textContent = '';
-}
-
-async function enviarRecuperacaoSenha() {
-  const identificador = document.getElementById('recIdentInput').value.trim();
-  if (!identificador) { setLoginMsg('Informe seu telefone ou e-mail cadastrado.', true); return; }
-
-  const recBtn = document.getElementById('recBtn');
-  if (recBtn.disabled) return;
-  recBtn.disabled = true;
-  try {
-    const { error } = await sb.functions.invoke('enviar-recuperacao-senha', {
-      body: { identificador, aplicativo: 'painel' }
-    });
-    if (error) console.warn('Falha técnica ao solicitar recuperação no painel:', error);
-  } catch (error) {
-    console.warn('Exceção técnica ao solicitar recuperação no painel:', error);
-  } finally {
-    setLoginMsg('Caso exista uma conta apta para recuperação, enviaremos as instruções.', false);
-    recBtn.disabled = false;
-  }
+function abrirRecuperacaoEafFlow() {
+  abrirWhatsapp(
+    '5541984213488',
+    'Olá! Sou responsável por um restaurante que utiliza o EAF Menu e esqueci minha senha de acesso. Preciso de ajuda para redefinir. Nome do restaurante:'
+  );
 }
 
 function mostrarTelaNovaSenhaRecuperacao() {
   showScreen(APP_SCREEN.LOGIN);
   document.getElementById('stepLogin').style.display = 'none';
-  document.getElementById('stepEsqueciSenha').style.display = 'none';
   document.getElementById('stepNovaSenha').style.display = 'block';
   document.getElementById('loginMsg').textContent = '';
 }

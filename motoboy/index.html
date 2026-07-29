@@ -282,13 +282,10 @@
       <input type="text" id="identInput" placeholder="Telefone ou e-mail" autocomplete="username">
       <input type="password" id="senhaInput" placeholder="Sua senha" autocomplete="current-password">
       <button class="primary" id="loginBtn" onclick="fazerLogin()">Entrar</button>
-      <a href="#" onclick="abrirEsqueciSenha(); return false;" style="display:block; text-align:center; margin-top:12px; font-size:12px; color:var(--muted);">Esqueci minha senha</a>
-    </div>
-
-    <div id="stepEsqueciSenha" style="display:none;">
-      <input type="text" id="recIdentInput" placeholder="Telefone ou e-mail cadastrado">
-      <button class="primary" id="recBtn" onclick="enviarRecuperacaoSenha()">Enviar link de recuperação</button>
-      <a href="#" onclick="fecharEsqueciSenha(); return false;" style="display:block; text-align:center; margin-top:12px; font-size:12px; color:var(--muted);">Voltar para o login</a>
+      <div style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border);">
+        <strong style="display:block; margin-bottom:6px;">Esqueceu sua senha?</strong>
+        <p style="margin:0; font-size:12.5px; line-height:1.5; color:var(--muted);">Solicite uma nova senha ao dono ou gerente do restaurante.</p>
+      </div>
     </div>
 
     <div id="stepNovaSenha" style="display:none;">
@@ -728,41 +725,9 @@
     el.className = 'login-msg' + (isError ? ' error' : '');
   }
 
-  function abrirEsqueciSenha() {
-    document.getElementById('stepLogin').style.display = 'none';
-    document.getElementById('stepEsqueciSenha').style.display = 'block';
-    document.getElementById('loginMsg').textContent = '';
-  }
-  function fecharEsqueciSenha() {
-    document.getElementById('stepEsqueciSenha').style.display = 'none';
-    document.getElementById('stepLogin').style.display = 'block';
-    document.getElementById('loginMsg').textContent = '';
-  }
-
-  async function enviarRecuperacaoSenha() {
-    const identificador = document.getElementById('recIdentInput').value.trim();
-    if (!identificador) { setLoginMsg('Informe seu telefone ou e-mail cadastrado.', true); return; }
-
-    const botao = document.getElementById('recBtn');
-    if (botao.disabled) return;
-    botao.disabled = true;
-    try {
-      const { error } = await sb.functions.invoke('enviar-recuperacao-senha', {
-        body: { identificador, aplicativo: 'motoboy' }
-      });
-      if (error) console.warn('Falha técnica ao solicitar recuperação do motoboy:', error);
-    } catch (error) {
-      console.warn('Exceção técnica ao solicitar recuperação do motoboy:', error);
-    } finally {
-      setLoginMsg('Caso exista uma conta apta para recuperação, enviaremos as instruções.', false);
-      botao.disabled = false;
-    }
-  }
-
   function mostrarTelaNovaSenhaRecuperacao() {
     showScreen(APP_SCREEN.LOGIN);
     document.getElementById('stepLogin').style.display = 'none';
-    document.getElementById('stepEsqueciSenha').style.display = 'none';
     document.getElementById('stepNovaSenha').style.display = 'block';
     document.getElementById('loginMsg').textContent = '';
   }
