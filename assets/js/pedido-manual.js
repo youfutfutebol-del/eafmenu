@@ -60,6 +60,17 @@
     }
   }
 
+  document.getElementById('mSaboresOpcoes')?.addEventListener('click', event => {
+    const botao = event.target.closest('[data-pm-action="sabor"][data-id]');
+    if (botao) toggleSaborPedidoManual(botao.dataset.id);
+  });
+  document.getElementById('mItens')?.addEventListener('click', event => {
+    const botao = event.target.closest('[data-pm-action][data-uid]');
+    if (!botao) return;
+    if (botao.dataset.pmAction === 'qtd') alterarQtdItemManual(botao.dataset.uid, Number(botao.dataset.delta));
+    if (botao.dataset.pmAction === 'remover') removerItemManual(botao.dataset.uid);
+  });
+
   function limparCombinacaoPedidoManual() {
     pedidoManualCombinacao = null;
     const bloco = document.getElementById('mSaboresBlock');
@@ -348,7 +359,7 @@
     document.getElementById('mSaboresPreco').textContent = formatMoeda(precoCombinacaoPedidoManual());
     document.getElementById('mSaboresOpcoes').innerHTML = estado.disponiveis.map(produto => {
       const selecionado = estado.saboresIds.includes(produto.id);
-      return `<button type="button" class="pm-sabor-opcao${selecionado ? ' selected' : ''}" aria-pressed="${selecionado}" onclick="toggleSaborPedidoManual('${escapeHtml(produto.id)}')">
+      return `<button type="button" class="pm-sabor-opcao${selecionado ? ' selected' : ''}" aria-pressed="${selecionado}" data-pm-action="sabor" data-id="${escapeHtml(produto.id)}">
         <span>${escapeHtml(produto.nome)}</span><b>${selecionado ? '✓' : '+'}</b>
       </button>`;
     }).join('');
@@ -474,12 +485,12 @@
             <p class="pm-item-preco">${formatMoeda(item.precoUnit)} un.</p>
           </div>
           <div class="pm-item-qtd">
-            <button type="button" onclick="alterarQtdItemManual(${uidArg}, -1)">−</button>
+            <button type="button" data-pm-action="qtd" data-uid="${escapeHtml(item.uid)}" data-delta="-1">−</button>
             <span>${item.qtd}</span>
-            <button type="button" onclick="alterarQtdItemManual(${uidArg}, 1)">+</button>
+            <button type="button" data-pm-action="qtd" data-uid="${escapeHtml(item.uid)}" data-delta="1">+</button>
           </div>
           <div class="pm-item-subtotal">${formatMoeda(item.precoUnit * item.qtd)}</div>
-          <button type="button" class="pm-item-remover" onclick="removerItemManual(${uidArg})" title="Remover">🗑</button>
+          <button type="button" class="pm-item-remover" data-pm-action="remover" data-uid="${escapeHtml(item.uid)}" title="Remover">🗑</button>
         </div>`;
       }).join('');
     }

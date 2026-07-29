@@ -17,7 +17,7 @@
   }
 
   function abrirPwaMotoboy() {
-    window.open('/motoboy/', '_blank');
+    window.open('/motoboy/', '_blank', 'noopener,noreferrer');
   }
 
   function abrirPwaCliente() {
@@ -26,7 +26,8 @@
       switchView('marca');
       return;
     }
-    window.open('/cliente/?r=' + restauranteSlugAtual, '_blank');
+    const destino = validarUrlSegura('/cliente/?r=' + encodeURIComponent(restauranteSlugAtual));
+    if (destino) window.open(destino, '_blank', 'noopener,noreferrer');
   }
 
   function toggleSound() {

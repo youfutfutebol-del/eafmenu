@@ -32,6 +32,32 @@
       .replace(/'/g, '&#039;');
   }
 
+  function validarUrlSegura(value, { permitirRelativa = true } = {}) {
+    const original = String(value ?? '').trim();
+    if (!original) return null;
+    if (permitirRelativa && original.startsWith('/') && !original.startsWith('//')) {
+      try {
+        const url = new URL(original, location.origin);
+        return url.origin === location.origin ? url.pathname + url.search + url.hash : null;
+      } catch (_) { return null; }
+    }
+    try {
+      const url = new URL(original);
+      return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+    } catch (_) { return null; }
+  }
+
+  function aplicarUrlSegura(elemento, atributo, value, opcoes) {
+    const segura = validarUrlSegura(value, opcoes);
+    if (!elemento || !['href', 'src'].includes(atributo)) return false;
+    if (!segura) {
+      elemento.removeAttribute(atributo);
+      return false;
+    }
+    elemento.setAttribute(atributo, segura);
+    return true;
+  }
+
   function getProdutoPlaceholder(produto) {
     const nome = typeof produto === 'string' ? produto : produto?.nome;
     const letra = String(nome || 'P').trim().charAt(0).toUpperCase() || 'P';

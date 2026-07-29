@@ -293,8 +293,8 @@
 
     <div id="stepNovaSenha" style="display:none;">
       <p style="margin:0 0 14px; font-size:12.5px; color:var(--muted);">Crie sua nova senha de acesso.</p>
-      <input type="password" id="novaSenhaRecInput" placeholder="Nova senha">
-      <input type="password" id="novaSenhaRecConfirm" placeholder="Confirmar nova senha">
+      <input type="password" id="novaSenhaRecInput" autocomplete="new-password" placeholder="Nova senha">
+      <input type="password" id="novaSenhaRecConfirm" autocomplete="new-password" placeholder="Confirmar nova senha">
       <button class="primary" id="novaSenhaRecBtn" onclick="salvarNovaSenhaRecuperacao()">Salvar nova senha</button>
     </div>
 
@@ -307,8 +307,8 @@
     <div class="badge"><img src="/icons/icon512.png" alt="EAF Menu"></div>
     <h2>Defina sua senha</h2>
     <p>Por segurança, crie uma nova senha de acesso antes de continuar</p>
-    <input type="password" id="paNovaSenha" placeholder="Nova senha">
-    <input type="password" id="paNovaSenhaConfirm" placeholder="Confirmar nova senha">
+    <input type="password" id="paNovaSenha" autocomplete="new-password" placeholder="Nova senha">
+    <input type="password" id="paNovaSenhaConfirm" autocomplete="new-password" placeholder="Confirmar nova senha">
     <button class="primary" id="paBtn" onclick="salvarSenhaPrimeiroAcesso()">Salvar e continuar</button>
     <div class="login-msg" id="paMsg"></div>
   </div>
@@ -406,6 +406,7 @@
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
 <script src="/assets/js/whatsapp.js"></script>
+<script src="/assets/js/utils.js"></script>
 <script src="/assets/js/sons.js"></script>
 <script>
   let sb = null;
@@ -691,21 +692,34 @@
     if (!identificador || !senha) { setLoginMsg('Preencha telefone/e-mail e senha.', true); return; }
 
     setLoginMsg('Entrando...', false);
-    document.getElementById('loginBtn').disabled = true;
-
-    const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
-    if (resolveErr || !emailResolvido) {
-      document.getElementById('loginBtn').disabled = false;
-      setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
-      return;
+    const botao = document.getElementById('loginBtn');
+    if (botao.disabled) return;
+    botao.disabled = true;
+    try {
+      const { data, error } = await sb.functions.invoke('login-seguro', {
+        body: { identificador, senha }
+      });
+      if (error || data?.ok !== true || !data?.session?.access_token || !data?.session?.refresh_token) {
+        setLoginMsg('Não foi possível entrar. Confira os dados informados.', true);
+        return;
+      }
+      const { error: sessionError } = await sb.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token
+      });
+      if (sessionError) {
+        console.warn('Não foi possível estabelecer a sessão do motoboy:', sessionError);
+        setLoginMsg('Não foi possível entrar. Confira os dados informados.', true);
+        return;
+      }
+      prepararSessionGuardMotoboy(true);
+      await bootSeguro();
+    } catch (error) {
+      console.warn('Falha técnica no login seguro do motoboy:', error);
+      setLoginMsg('Não foi possível entrar. Confira os dados informados.', true);
+    } finally {
+      botao.disabled = false;
     }
-
-    const { error } = await sb.auth.signInWithPassword({ email: emailResolvido, password: senha });
-    document.getElementById('loginBtn').disabled = false;
-    if (error) { setLoginMsg('Telefone/e-mail ou senha incorretos.', true); return; }
-
-    prepararSessionGuardMotoboy(true);
-    await bootSeguro();
   }
 
   function setLoginMsg(msg, isError) {
@@ -729,18 +743,20 @@
     const identificador = document.getElementById('recIdentInput').value.trim();
     if (!identificador) { setLoginMsg('Informe seu telefone ou e-mail cadastrado.', true); return; }
 
-    document.getElementById('recBtn').disabled = true;
-    const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
-    if (resolveErr || !emailResolvido) {
-      document.getElementById('recBtn').disabled = false;
-      setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
-      return;
+    const botao = document.getElementById('recBtn');
+    if (botao.disabled) return;
+    botao.disabled = true;
+    try {
+      const { error } = await sb.functions.invoke('enviar-recuperacao-senha', {
+        body: { identificador, aplicativo: 'motoboy' }
+      });
+      if (error) console.warn('Falha técnica ao solicitar recuperação do motoboy:', error);
+    } catch (error) {
+      console.warn('Exceção técnica ao solicitar recuperação do motoboy:', error);
+    } finally {
+      setLoginMsg('Caso exista uma conta apta para recuperação, enviaremos as instruções.', false);
+      botao.disabled = false;
     }
-
-    const { error } = await sb.auth.resetPasswordForEmail(emailResolvido, { redirectTo: location.origin + location.pathname });
-    document.getElementById('recBtn').disabled = false;
-    if (error) { setLoginMsg('Erro ao enviar o link: ' + error.message, true); return; }
-    setLoginMsg('Se o telefone/e-mail estiver cadastrado, um link de redefinição foi enviado por e-mail.', false);
   }
 
   function mostrarTelaNovaSenhaRecuperacao() {
@@ -757,14 +773,28 @@
     if (!nova || nova.length < 8) { setLoginMsg('A senha precisa ter pelo menos 8 caracteres.', true); return; }
     if (nova !== conf) { setLoginMsg('As senhas não coincidem.', true); return; }
 
-    document.getElementById('novaSenhaRecBtn').disabled = true;
-    const { error } = await sb.auth.updateUser({ password: nova });
-    document.getElementById('novaSenhaRecBtn').disabled = false;
-    if (error) { setLoginMsg('Erro ao salvar a senha: ' + error.message, true); return; }
+    const botao = document.getElementById('novaSenhaRecBtn');
+    if (botao.disabled) return;
+    botao.disabled = true;
+    try {
+      const { error } = await sb.auth.updateUser({ password: nova });
+      if (error) {
+        console.warn('Falha técnica ao salvar senha recuperada do motoboy:', error);
+        setLoginMsg('Não foi possível salvar a nova senha. Tente novamente.', true);
+        return;
+      }
+      document.getElementById('novaSenhaRecInput').value = '';
+      document.getElementById('novaSenhaRecConfirm').value = '';
 
-    history.replaceState(null, '', location.pathname);
-    setLoginMsg('Senha redefinida! Entrando...', false);
-    await bootSeguro();
+      history.replaceState(null, '', location.pathname);
+      setLoginMsg('Senha redefinida! Entrando...', false);
+      await bootSeguro();
+    } catch (error) {
+      console.warn('Exceção técnica ao salvar senha recuperada do motoboy:', error);
+      setLoginMsg('Não foi possível salvar a nova senha. Tente novamente.', true);
+    } finally {
+      botao.disabled = false;
+    }
   }
 
   async function logout() {
@@ -837,17 +867,28 @@
     if (!nova || nova.length < 8) { msgEl.textContent = 'A senha precisa ter pelo menos 8 caracteres.'; msgEl.className = 'login-msg error'; return; }
     if (nova !== conf) { msgEl.textContent = 'As senhas não coincidem.'; msgEl.className = 'login-msg error'; return; }
 
-    document.getElementById('paBtn').disabled = true;
-    const { error: authErr } = await sb.auth.updateUser({ password: nova });
-    if (authErr) {
-      document.getElementById('paBtn').disabled = false;
-      msgEl.textContent = 'Erro ao salvar: ' + authErr.message;
+    const botao = document.getElementById('paBtn');
+    if (botao.disabled) return;
+    botao.disabled = true;
+    try {
+      const { error: authErr } = await sb.auth.updateUser({ password: nova });
+      if (authErr) throw authErr;
+
+      const { error: perfilErr } = await sb.from('usuarios')
+        .update({ primeiro_acesso: false })
+        .eq('id', currentUser.id);
+      if (perfilErr) throw perfilErr;
+
+      document.getElementById('paNovaSenha').value = '';
+      document.getElementById('paNovaSenhaConfirm').value = '';
+      await bootSeguro();
+    } catch (error) {
+      console.warn('Falha técnica ao concluir o primeiro acesso do motoboy:', error);
+      msgEl.textContent = 'Não foi possível concluir o primeiro acesso. Tente novamente.';
       msgEl.className = 'login-msg error';
-      return;
+    } finally {
+      botao.disabled = false;
     }
-    await sb.from('usuarios').update({ primeiro_acesso: false }).eq('id', currentUser.id);
-    document.getElementById('paBtn').disabled = false;
-    await bootSeguro();
   }
 
   // =====================================================================
@@ -1059,9 +1100,7 @@
     return o.numero_diario != null ? ('#' + o.numero_diario) : ('#' + o.id.slice(0, 8).toUpperCase());
   }
 
-  function escaparHtml(valor) {
-    return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-  }
+  const escaparHtml = escapeHtml;
 
   function moeda(valor) {
     const numero = Number(valor);
@@ -1168,7 +1207,7 @@
       const contatoHtml = telLink
         ? `<div class="entrega-card__contato">
              <a class="btn" href="tel:${telLink}">📞 Ligar</a>
-             <a class="btn" href="https://wa.me/${telLink}" target="_blank" rel="noopener">💬 WhatsApp</a>
+             <a class="btn" href="https://wa.me/${telLink}" target="_blank" rel="noopener noreferrer">💬 WhatsApp</a>
            </div>`
         : '';
 
@@ -1181,7 +1220,7 @@
           ${end.complemento ? `<div class="entrega-card__detalhe-endereco"><b>Complemento:</b> ${escaparHtml(end.complemento)}</div>` : ''}
           ${end.referencia ? `<div class="entrega-card__detalhe-endereco"><b>Referência:</b> ${escaparHtml(end.referencia)}</div>` : ''}
           <div class="entrega-card__contato">
-            <a class="btn" href="${mapaUrl}" target="_blank" rel="noopener">🧭 Iniciar navegação</a>
+            <a class="btn" href="${escaparHtml(mapaUrl)}" target="_blank" rel="noopener noreferrer">🧭 Iniciar navegação</a>
             <button type="button" class="btn" data-acao="copiar-endereco" data-pedido-id="${escaparHtml(o.id)}">📋 Copiar endereço</button>
           </div>`;
       } else {
@@ -1204,8 +1243,8 @@
           <div class="entrega-card">
             ${pendenciaAnterior ? `<div class="entrega-card__anterior">Pendente do período anterior</div><div class="entrega-card__tempo">Aberto há ${tempoEmAberto(o.criado_em)}</div>` : ''}
             <div class="entrega-card__top">
-              <span class="entrega-card__codigo">${codigoEntrega(o)}</span>
-              <span class="entrega-card__status ${statusClasse}">${STATUS_LABEL[o.status] || o.status}</span>
+              <span class="entrega-card__codigo">${escaparHtml(codigoEntrega(o))}</span>
+              <span class="entrega-card__status ${statusClasse}">${escaparHtml(STATUS_LABEL[o.status] || o.status)}</span>
             </div>
             <div class="entrega-card__cliente">${cliente}</div>
             ${contatoHtml}
@@ -1346,7 +1385,7 @@
 
     const trechos = gerarTrechosRota(paradas);
     const trechosHtml = trechos.map((trecho, i) =>
-      `<a class="btn primary" href="${urlTrechoRota(trecho)}" target="_blank" rel="noopener">Abrir trecho ${i + 1} no Google Maps</a>`
+      `<a class="btn primary" href="${escaparHtml(urlTrechoRota(trecho))}" target="_blank" rel="noopener noreferrer">Abrir trecho ${i + 1} no Google Maps</a>`
     ).join('');
 
     const intro = roteirizacaoAtiva
@@ -1441,8 +1480,8 @@
       ${linhaComanda('Criado em',criado.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}))}${linhaComanda('Tipo',o.tipo==='retirada'?'Retirada':'Entrega')}
       ${linhaComanda('Tempo em aberto',tempoEmAberto(o.criado_em))}${anterior?'<div class="confirm-alert">Pendente do período anterior</div>':''}</section>
       <section class="comanda-secao"><h3>Cliente</h3>${linhaComanda('Nome',o.clientes?.nome)}${linhaComanda('Telefone',o.clientes?.telefone)}
-      ${tel?`<div class="modal-actions"><a class="btn" href="tel:${tel}">Ligar</a><a class="btn" href="https://wa.me/${tel}" target="_blank" rel="noopener">WhatsApp</a></div>`:''}</section>
-      ${endereco?`<section class="comanda-secao"><h3>Endereço</h3>${endereco}<div class="modal-actions"><a class="btn" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoTexto(end))}" target="_blank" rel="noopener">Iniciar navegação</a><button class="btn" data-acao="copiar-endereco" data-pedido-id="${escaparHtml(o.id)}">Copiar endereço</button></div></section>`:''}
+      ${tel?`<div class="modal-actions"><a class="btn" href="tel:${tel}">Ligar</a><a class="btn" href="https://wa.me/${tel}" target="_blank" rel="noopener noreferrer">WhatsApp</a></div>`:''}</section>
+      ${endereco?`<section class="comanda-secao"><h3>Endereço</h3>${endereco}<div class="modal-actions"><a class="btn" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoTexto(end))}" target="_blank" rel="noopener noreferrer">Iniciar navegação</a><button class="btn" data-acao="copiar-endereco" data-pedido-id="${escaparHtml(o.id)}">Copiar endereço</button></div></section>`:''}
       <section class="comanda-secao"><h3>Itens</h3>${itens||'<div class="comanda-obs">Sem itens detalhados.</div>'}</section>
       <section class="comanda-secao"><h3>Pedido e pagamento</h3>${linhaComanda('Observação',o.observacoes)}${linhaComanda('Previsão',previsao)}
       ${linhaComanda('Forma de pagamento',formaPagamentoTexto(o.forma_pagamento))}${linhaComanda('Situação',o.pago===true?'Pago':'Pagamento pendente')}

@@ -82,13 +82,17 @@
     document.getElementById('mkLogoUrl').value = data.logo_url || '';
     document.getElementById('mkLogoStatus').textContent = '';
     document.getElementById('mkLogoArquivo').value = '';
-    if (data.logo_url) {
-      document.getElementById('mkLogoPreview').src = data.logo_url;
-      document.getElementById('mkLogoPreview').style.display = 'block';
-      document.getElementById('mkLogoPlaceholder').style.display = 'none';
+    const logoPreview = document.getElementById('mkLogoPreview');
+    const logoPlaceholder = document.getElementById('mkLogoPlaceholder');
+    const logoUrlSegura = validarUrlSegura(data.logo_url);
+    if (logoUrlSegura) {
+      logoPreview.src = logoUrlSegura;
+      logoPreview.style.display = 'block';
+      logoPlaceholder.style.display = 'none';
     } else {
-      document.getElementById('mkLogoPreview').style.display = 'none';
-      document.getElementById('mkLogoPlaceholder').style.display = 'block';
+      logoPreview.removeAttribute('src');
+      logoPreview.style.display = 'none';
+      logoPlaceholder.style.display = 'block';
     }
     document.getElementById('mkCor').value = data.cor_destaque || '#E5342A';
     document.getElementById('mkWhatsapp').value = data.whatsapp || '';
@@ -246,6 +250,15 @@
     if (!nome) { showToast('Faltou o nome', 'Informe o nome do restaurante.'); return; }
     const slugDigitado = document.getElementById('mkSlug').value.trim();
     const slugFinal = slugDigitado ? slugify(slugDigitado) : null;
+    const logoUrlDigitada = document.getElementById('mkLogoUrl').value.trim();
+    const logoUrlSegura = logoUrlDigitada ? validarUrlSegura(logoUrlDigitada) : null;
+    if (logoUrlDigitada && !logoUrlSegura) {
+      showToast(
+        'URL da logo inválida',
+        'Use uma URL HTTP, HTTPS ou um caminho relativo do próprio sistema.'
+      );
+      return;
+    }
     const prazosEntrega = validarPrazosEntrega();
     if (!prazosEntrega.valido) {
       showToast('Prazo de entrega inválido', prazosEntrega.mensagem);
@@ -266,7 +279,7 @@
     const payload = {
       nome,
       slug: slugFinal,
-      logo_url: document.getElementById('mkLogoUrl').value.trim() || null,
+      logo_url: logoUrlSegura,
       cor_destaque: document.getElementById('mkCor').value || null,
       whatsapp: document.getElementById('mkWhatsapp').value.trim() || null,
       endereco: document.getElementById('mkEndereco').value.trim() || null,

@@ -116,31 +116,31 @@ async function fazerLogin() {
 
   setLoginMsg('Entrando...', false);
   const loginBtn = document.getElementById('loginBtn');
+  if (loginBtn.disabled) return;
   loginBtn.disabled = true;
   try {
-    const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
-
-    if (resolveErr) {
-      if (erroConflitoTelefoneLogin(resolveErr)) {
-        setLoginMsg('Existe um conflito neste telefone. Fale com o suporte do EAF Menu.', true);
-      } else {
-        setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
-      }
+    const { data, error } = await sb.functions.invoke('login-seguro', {
+      body: { identificador, senha }
+    });
+    if (error || data?.ok !== true || !data?.session?.access_token || !data?.session?.refresh_token) {
+      setLoginMsg('Não foi possível entrar. Confira os dados informados.', true);
       return;
     }
-    if (!emailResolvido) {
-      setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
+    const { error: sessionError } = await sb.auth.setSession({
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token
+    });
+    if (sessionError) {
+      console.warn('Não foi possível estabelecer a sessão do painel:', sessionError);
+      setLoginMsg('Não foi possível entrar. Confira os dados informados.', true);
       return;
     }
-
-    const { error } = await sb.auth.signInWithPassword({ email: emailResolvido, password: senha });
-    if (error) { setLoginMsg('Telefone/e-mail ou senha incorretos.', true); return; }
 
     prepararSessionGuardPainel(true);
     await bootSeguro();
   } catch (error) {
-    console.error('Exceção ao fazer login:', error);
-    setLoginMsg('Não foi possível entrar agora. Verifique sua conexão e tente novamente.', true);
+    console.warn('Falha técnica no login seguro do painel:', error);
+    setLoginMsg('Não foi possível entrar. Confira os dados informados.', true);
   } finally {
     loginBtn.disabled = false;
   }
@@ -169,34 +169,17 @@ async function enviarRecuperacaoSenha() {
   if (!identificador) { setLoginMsg('Informe seu telefone ou e-mail cadastrado.', true); return; }
 
   const recBtn = document.getElementById('recBtn');
+  if (recBtn.disabled) return;
   recBtn.disabled = true;
   try {
-    const { data: emailResolvido, error: resolveErr } = await sb.rpc('resolver_email_login', { p_identificador: identificador });
-
-    if (resolveErr) {
-      if (erroConflitoTelefoneLogin(resolveErr)) {
-        setLoginMsg('Existe um conflito neste telefone. Fale com o suporte do EAF Menu.', true);
-      } else {
-        setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
-      }
-      return;
-    }
-    if (!emailResolvido) {
-      setLoginMsg('Não encontramos uma conta com esse telefone ou e-mail.', true);
-      return;
-    }
-
-    const { error } = await sb.auth.resetPasswordForEmail(emailResolvido, { redirectTo: location.origin + location.pathname });
-    if (error) {
-      console.error('Falha ao enviar recuperação de senha:', error);
-      setLoginMsg('Não foi possível enviar o link agora. Tente novamente.', true);
-      return;
-    }
-    setLoginMsg('Se o telefone/e-mail estiver cadastrado, um link de redefinição foi enviado por e-mail.', false);
+    const { error } = await sb.functions.invoke('enviar-recuperacao-senha', {
+      body: { identificador, aplicativo: 'painel' }
+    });
+    if (error) console.warn('Falha técnica ao solicitar recuperação no painel:', error);
   } catch (error) {
-    console.error('Exceção ao enviar recuperação de senha:', error);
-    setLoginMsg('Não foi possível enviar o link agora. Verifique sua conexão e tente novamente.', true);
+    console.warn('Exceção técnica ao solicitar recuperação no painel:', error);
   } finally {
+    setLoginMsg('Caso exista uma conta apta para recuperação, enviaremos as instruções.', false);
     recBtn.disabled = false;
   }
 }
@@ -215,17 +198,30 @@ async function salvarNovaSenhaRecuperacao() {
   if (!nova || nova.length < 8) { setLoginMsg('A senha precisa ter pelo menos 8 caracteres.', true); return; }
   if (nova !== conf) { setLoginMsg('As senhas não coincidem.', true); return; }
 
-  document.getElementById('novaSenhaRecBtn').disabled = true;
-  const { error } = await sb.auth.updateUser({ password: nova });
-  document.getElementById('novaSenhaRecBtn').disabled = false;
+  const botao = document.getElementById('novaSenhaRecBtn');
+  if (botao.disabled) return;
+  botao.disabled = true;
+  try {
+    const { error } = await sb.auth.updateUser({ password: nova });
+    if (error) {
+      console.warn('Falha técnica ao salvar senha recuperada:', error);
+      setLoginMsg('Não foi possível salvar a nova senha. Tente novamente.', true);
+      return;
+    }
+    document.getElementById('novaSenhaRecInput').value = '';
+    document.getElementById('novaSenhaRecConfirm').value = '';
 
-  if (error) { setLoginMsg('Erro ao salvar a senha: ' + error.message, true); return; }
+    // Limpa o token da URL antes de entrar, senão um refresh de página cairia de novo nessa tela.
+    history.replaceState(null, '', location.pathname);
 
-  // Limpa o token da URL antes de entrar, senão um refresh de página cairia de novo nessa tela.
-  history.replaceState(null, '', location.pathname);
-
-  setLoginMsg('Senha redefinida! Entrando...', false);
-  await bootSeguro();
+    setLoginMsg('Senha redefinida! Entrando...', false);
+    await bootSeguro();
+  } catch (error) {
+    console.warn('Exceção técnica ao salvar senha recuperada:', error);
+    setLoginMsg('Não foi possível salvar a nova senha. Tente novamente.', true);
+  } finally {
+    botao.disabled = false;
+  }
 }
 
   function abrirTrocarMinhaSenha() {
@@ -234,24 +230,101 @@ async function salvarNovaSenhaRecuperacao() {
     document.getElementById('minhaSenhaModalBg').classList.add('show');
   }
 
-  function fecharTrocarMinhaSenha() { document.getElementById('minhaSenhaModalBg').classList.remove('show'); }
+  function fecharTrocarMinhaSenha() {
+    const nova = document.getElementById('msNovaSenha');
+    const confirmacao = document.getElementById('msNovaSenhaConfirm');
+    nova.value = '';
+    confirmacao.value = '';
+    nova.type = 'password';
+    confirmacao.type = 'password';
+    document.getElementById('minhaSenhaModalBg').classList.remove('show');
+  }
 
   async function submitTrocarMinhaSenha() {
+    const botao = document.getElementById('btnTrocarMinhaSenha');
+    if (botao?.disabled) return;
     const nova = document.getElementById('msNovaSenha').value;
     const conf = document.getElementById('msNovaSenhaConfirm').value;
     if (!nova || nova.length < 8) { showToast('Senha muito curta', 'Use pelo menos 8 caracteres.'); return; }
     if (nova !== conf) { showToast('Senhas diferentes', 'A confirmação não bateu com a nova senha.'); return; }
 
-    const { error } = await sb.auth.updateUser({ password: nova });
-    if (error) { showToast('Erro ao trocar senha', error.message); return; }
-    fecharTrocarMinhaSenha();
-    showToast('Senha atualizada', 'Sua senha foi trocada com sucesso.');
+    if (botao) botao.disabled = true;
+    try {
+      const { error } = await sb.auth.updateUser({ password: nova });
+      if (error) {
+        console.warn('Falha técnica ao trocar a própria senha:', error);
+        showToast('Senha não atualizada', 'Não foi possível atualizar a senha. Tente novamente.');
+        return;
+      }
+      document.getElementById('msNovaSenha').value = '';
+      document.getElementById('msNovaSenhaConfirm').value = '';
+      fecharTrocarMinhaSenha();
+      showToast('Senha atualizada', 'Sua senha foi trocada com sucesso.');
+    } catch (error) {
+      console.warn('Exceção técnica ao trocar a própria senha:', error);
+      showToast('Senha não atualizada', 'Não foi possível atualizar a senha. Tente novamente.');
+    } finally {
+      if (botao) botao.disabled = false;
+    }
   }
 
   async function logout() {
     localStorage.removeItem(SESSION_GUARD_PANEL_KEY);
     await sb.auth.signOut();
     location.reload();
+  }
+
+  let resetSenhaUsuarioAlvoId = null;
+
+  function abrirResetSenhaUsuario(id, nome) {
+    resetSenhaUsuarioAlvoId = id;
+    document.getElementById('resetSenhaUsuarioNome').textContent = nome || 'Usuário';
+    document.getElementById('resetSenhaUsuarioNova').value = '';
+    document.getElementById('resetSenhaUsuarioConfirm').value = '';
+    document.getElementById('resetSenhaUsuarioMostrar').checked = false;
+    alternarVisibilidadeResetSenhaUsuario(false);
+    document.getElementById('resetSenhaUsuarioModalBg').classList.add('show');
+  }
+
+  function fecharResetSenhaUsuario() {
+    resetSenhaUsuarioAlvoId = null;
+    document.getElementById('resetSenhaUsuarioNome').textContent = '';
+    document.getElementById('resetSenhaUsuarioNova').value = '';
+    document.getElementById('resetSenhaUsuarioConfirm').value = '';
+    document.getElementById('resetSenhaUsuarioModalBg').classList.remove('show');
+  }
+
+  function alternarVisibilidadeResetSenhaUsuario(mostrar) {
+    const tipo = mostrar ? 'text' : 'password';
+    document.getElementById('resetSenhaUsuarioNova').type = tipo;
+    document.getElementById('resetSenhaUsuarioConfirm').type = tipo;
+  }
+
+  async function confirmarResetSenhaUsuario() {
+    const id = resetSenhaUsuarioAlvoId;
+    const nova = document.getElementById('resetSenhaUsuarioNova').value;
+    const confirmacao = document.getElementById('resetSenhaUsuarioConfirm').value;
+    const botao = document.getElementById('resetSenhaUsuarioConfirmar');
+    if (!id) return;
+    if (nova.length < 8) { showToast('Senha muito curta', 'Use pelo menos 8 caracteres.'); return; }
+    if (nova !== confirmacao) { showToast('Senhas diferentes', 'A confirmação não coincide com a nova senha.'); return; }
+    if (botao.disabled) return;
+    botao.disabled = true;
+    try {
+      const { error } = await sb.rpc('redefinir_senha_usuario', { p_usuario_id: id, p_nova_senha: nova });
+      if (error) {
+        console.warn('Falha técnica ao redefinir senha de usuário:', error);
+        showToast('Senha não redefinida', 'Não foi possível redefinir a senha. Tente novamente.');
+        return;
+      }
+      fecharResetSenhaUsuario();
+      showToast('Senha redefinida', 'Senha redefinida. As sessões anteriores foram encerradas.');
+    } catch (error) {
+      console.warn('Exceção técnica ao redefinir senha de usuário:', error);
+      showToast('Senha não redefinida', 'Não foi possível redefinir a senha. Tente novamente.');
+    } finally {
+      botao.disabled = false;
+    }
   }
 
   async function salvarSenhaPrimeiroAcesso() {
@@ -261,16 +334,26 @@ async function salvarNovaSenhaRecuperacao() {
     if (!nova || nova.length < 8) { msgEl.textContent = 'A senha precisa ter pelo menos 8 caracteres.'; msgEl.className = 'login-msg error'; return; }
     if (nova !== conf) { msgEl.textContent = 'As senhas não coincidem.'; msgEl.className = 'login-msg error'; return; }
 
-    document.getElementById('paBtn').disabled = true;
-    const { error: authErr } = await sb.auth.updateUser({ password: nova });
-    if (authErr) {
-      document.getElementById('paBtn').disabled = false;
-      msgEl.textContent = 'Erro ao salvar: ' + authErr.message;
-      msgEl.className = 'login-msg error';
-      return;
-    }
+    const botao = document.getElementById('paBtn');
+    if (botao.disabled) return;
+    botao.disabled = true;
+    try {
+      const { error: authErr } = await sb.auth.updateUser({ password: nova });
+      if (authErr) throw authErr;
 
-    await sb.from('usuarios').update({ primeiro_acesso: false }).eq('id', currentUser.id);
-    document.getElementById('paBtn').disabled = false;
-    await bootSeguro();
+      const { error: perfilErr } = await sb.from('usuarios')
+        .update({ primeiro_acesso: false })
+        .eq('id', currentUser.id);
+      if (perfilErr) throw perfilErr;
+
+      document.getElementById('paNovaSenha').value = '';
+      document.getElementById('paNovaSenhaConfirm').value = '';
+      await bootSeguro();
+    } catch (error) {
+      console.warn('Falha técnica ao concluir o primeiro acesso:', error);
+      msgEl.textContent = 'Não foi possível concluir o primeiro acesso. Tente novamente.';
+      msgEl.className = 'login-msg error';
+    } finally {
+      botao.disabled = false;
+    }
   }

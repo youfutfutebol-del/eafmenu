@@ -12,6 +12,6 @@ function montarLinkWhatsapp(numero, mensagem) {
 function abrirWhatsapp(numero, mensagem) {
   const link = montarLinkWhatsapp(numero, mensagem);
   if (!link) return false;
-  window.open(link, '_blank');
+  window.open(link, '_blank', 'noopener,noreferrer');
   return true;
 }

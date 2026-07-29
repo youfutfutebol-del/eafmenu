@@ -495,6 +495,7 @@
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
 <script src="/assets/js/whatsapp.js"></script>
+<script src="/assets/js/utils.js"></script>
 <script src="/assets/js/sons.js"></script>
 <script>
   // =====================================================================
@@ -741,10 +742,19 @@
     }
     document.title = restaurante.nome || 'Cardápio';
     document.getElementById('topNome').textContent = restaurante.nome || 'Restaurante';
-    document.getElementById('topLogoLetra').textContent = (restaurante.nome || 'R').trim().charAt(0).toUpperCase();
-    if (restaurante.logo_url) {
-      const logo = document.getElementById('topLogo');
-      logo.innerHTML = `<img src="${restaurante.logo_url}" alt="">`;
+    const logo = document.getElementById('topLogo');
+    while (logo.firstChild) logo.removeChild(logo.firstChild);
+    const urlLogo = validarUrlSegura(restaurante.logo_url);
+    if (urlLogo) {
+      const imagem = document.createElement('img');
+      imagem.src = urlLogo;
+      imagem.alt = '';
+      logo.appendChild(imagem);
+    } else {
+      const letra = document.createElement('span');
+      letra.id = 'topLogoLetra';
+      letra.textContent = (restaurante.nome || 'R').trim().charAt(0).toUpperCase();
+      logo.appendChild(letra);
     }
     document.getElementById('btnWhatsappRestaurante').classList.toggle('show', !!restaurante.whatsapp);
     aplicarPrazoEntrega();
@@ -1121,7 +1131,7 @@
     const wrap = document.getElementById('catTabs');
     if (categorias.length === 0) { wrap.innerHTML = ''; return; }
     wrap.innerHTML = categorias.map((c, i) =>
-      `<button class="cat-tab ${i === 0 ? 'active' : ''}" data-cat="${c.id}" onclick="irParaCategoria('${c.id}', this)">${c.nome}</button>`
+      `<button class="cat-tab ${i === 0 ? 'active' : ''}" data-action="categoria" data-cat="${escapeHtml(c.id)}">${escapeHtml(c.nome)}</button>`
     ).join('');
   }
 
@@ -1146,19 +1156,19 @@
     if (semCategoria.length) grupos.push({ cat: { id: 'sem-categoria', nome: 'Outros' }, itens: semCategoria });
 
     wrap.innerHTML = grupos.map(g => `
-      <div class="cat-section" id="sec-${g.cat.id}">
-        <div class="cat-section__title">${g.cat.nome}</div>
+      <div class="cat-section" id="sec-${escapeHtml(g.cat.id)}">
+        <div class="cat-section__title">${escapeHtml(g.cat.nome)}</div>
         ${g.itens.map(p => `
-          <div class="prod-card" onclick="abrirDetalheProduto('${p.id}')">
+          <div class="prod-card" data-action="produto" data-id="${escapeHtml(p.id)}">
             <div class="prod-card__info">
-              <p class="prod-card__nome">${p.nome}</p>
-              ${p.descricao ? `<p class="prod-card__desc">${p.descricao}</p>` : ''}
+              <p class="prod-card__nome">${escapeHtml(p.nome)}</p>
+              ${p.descricao ? `<p class="prod-card__desc">${escapeHtml(p.descricao)}</p>` : ''}
               <div class="prod-card__footer">
                 <p class="prod-card__preco">${precoBaseTexto(p)}</p>
                 <span class="prod-card__selecionar">Selecionar <span aria-hidden="true">›</span></span>
               </div>
             </div>
-            <div class="prod-card__thumb">${p.imagem_url ? `<img src="${p.imagem_url}">` : getProdutoPlaceholder(p)}</div>
+            <div class="prod-card__thumb">${validarUrlSegura(p.imagem_url) ? `<img src="${escapeHtml(validarUrlSegura(p.imagem_url))}" alt="">` : getProdutoPlaceholder(p)}</div>
           </div>
         `).join('')}
       </div>
@@ -1180,7 +1190,8 @@
     document.getElementById('detDesc').textContent = p.descricao || '';
     document.getElementById('detQtd').textContent = '1';
     const thumb = document.getElementById('detThumb');
-    thumb.innerHTML = p.imagem_url ? `<img src="${p.imagem_url}">` : getProdutoPlaceholder(p);
+    const imagemSegura = validarUrlSegura(p.imagem_url);
+    thumb.innerHTML = imagemSegura ? `<img src="${escapeHtml(imagemSegura)}" alt="">` : getProdutoPlaceholder(p);
 
     const precos = precosAtivos(p);
     const temTamanho = precos.some(pp => pp.opcao_tamanho_id);
@@ -1194,8 +1205,8 @@
       const opcoes = precos.map(pp => pp.opcoes_tamanho).filter(Boolean).sort((a, b) => a.ordem - b.ordem);
       document.getElementById('detTamanhoOpcoes').innerHTML = opcoes.map(o => {
         const pp = precos.find(preco => preco.opcao_tamanho_id === o.id);
-        return `<div class="opcao-row" data-tam="${o.id}" onclick="selecionarTamanho('${o.id}')">
-          <span>${o.nome}</span><span class="preco">${precoHtml(pp)}</span>
+        return `<div class="opcao-row" data-action="tamanho" data-tam="${escapeHtml(o.id)}">
+          <span>${escapeHtml(o.nome)}</span><span class="preco">${precoHtml(pp)}</span>
         </div>`;
       }).join('');
       if (opcoes.length) selecionarTamanho(opcoes[0].id);
@@ -1227,8 +1238,8 @@
       : '';
 
     document.getElementById('detSaboresOpcoes').innerHTML = outrosDoGrupo.map(sabor => `
-      <div class="opcao-row ${detalheSaboresSelecionados.includes(sabor.id) ? 'selected' : ''}" data-sabor="${sabor.id}" onclick="toggleSabor('${sabor.id}')">
-        <span>${sabor.nome}</span><span class="preco">${detalheSaboresSelecionados.includes(sabor.id) ? '✓' : ''}</span>
+      <div class="opcao-row ${detalheSaboresSelecionados.includes(sabor.id) ? 'selected' : ''}" data-action="sabor" data-sabor="${escapeHtml(sabor.id)}">
+        <span>${escapeHtml(sabor.nome)}</span><span class="preco">${detalheSaboresSelecionados.includes(sabor.id) ? '✓' : ''}</span>
       </div>
     `).join('');
   }
@@ -1350,14 +1361,14 @@
     wrap.innerHTML = cart.map(i => `
       <div class="cart-item">
         <div class="cart-item__info">
-          <p class="cart-item__nome">${i.nome}</p>
+          <p class="cart-item__nome">${escapeHtml(i.nome)}</p>
           <p class="cart-item__preco">${formatMoeda(i.precoUnit)} un.</p>
-          <button class="cart-item__remove" onclick="removerDoCarrinho('${i.uid}')">Remover</button>
+          <button class="cart-item__remove" data-action="remover-cart" data-uid="${escapeHtml(i.uid)}">Remover</button>
         </div>
         <div class="cart-item__qtd">
-          <button onclick="alterarQtdCarrinho('${i.uid}', -1)">−</button>
+          <button data-action="qtd-cart" data-delta="-1" data-uid="${escapeHtml(i.uid)}">−</button>
           <span>${i.qtd}</span>
-          <button onclick="alterarQtdCarrinho('${i.uid}', 1)">+</button>
+          <button data-action="qtd-cart" data-delta="1" data-uid="${escapeHtml(i.uid)}">+</button>
         </div>
       </div>
     `).join('');
@@ -1807,6 +1818,29 @@
     }
   }
 
+  document.getElementById('catTabs').addEventListener('click', event => {
+    const botao = event.target.closest('[data-action="categoria"][data-cat]');
+    if (botao) irParaCategoria(botao.dataset.cat, botao);
+  });
+  document.getElementById('cardapioWrap').addEventListener('click', event => {
+    const card = event.target.closest('[data-action="produto"][data-id]');
+    if (card) abrirDetalheProduto(card.dataset.id);
+  });
+  document.getElementById('detTamanhoOpcoes').addEventListener('click', event => {
+    const opcao = event.target.closest('[data-action="tamanho"][data-tam]');
+    if (opcao) selecionarTamanho(opcao.dataset.tam);
+  });
+  document.getElementById('detSaboresOpcoes').addEventListener('click', event => {
+    const opcao = event.target.closest('[data-action="sabor"][data-sabor]');
+    if (opcao) toggleSabor(opcao.dataset.sabor);
+  });
+  document.getElementById('carrinhoLista').addEventListener('click', event => {
+    const botao = event.target.closest('[data-action][data-uid]');
+    if (!botao) return;
+    if (botao.dataset.action === 'remover-cart') removerDoCarrinho(botao.dataset.uid);
+    if (botao.dataset.action === 'qtd-cart') alterarQtdCarrinho(botao.dataset.uid, Number(botao.dataset.delta));
+  });
+
   // =====================================================================
   // MEUS PEDIDOS / ACOMPANHAMENTO EM TEMPO REAL
   // =====================================================================
@@ -1934,14 +1968,14 @@
       }).join('');
 
       return `
-        <div class="pedido-card" id="pedido-${o.id}">
+        <div class="pedido-card" id="pedido-${escapeHtml(o.id)}">
           <div class="pedido-card__top">
-            <span class="pedido-card__codigo">#${o.id.slice(0,8).toUpperCase()}</span>
-            <span class="pedido-card__status">${STATUS_LABEL[o.status] || o.status}</span>
+            <span class="pedido-card__codigo">#${escapeHtml(o.id.slice(0,8).toUpperCase())}</span>
+            <span class="pedido-card__status">${escapeHtml(STATUS_LABEL[o.status] || o.status)}</span>
           </div>
           <div class="flow-bar">${barras}</div>
           ${previsaoHtml}
-          <div class="pedido-card__itens">${itens || 'sem itens'}</div>
+          <div class="pedido-card__itens">${escapeHtml(itens || 'sem itens')}</div>
           <div class="pedido-card__total">${formatMoeda(o.total)}</div>
         </div>`;
     }).join('');
@@ -1999,21 +2033,6 @@
   function closeSheet(id) { document.getElementById(id).classList.remove('show'); }
 
   function formatMoeda(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
-
-  function escapeHtml(value) {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  function getProdutoPlaceholder(produto) {
-    const nome = typeof produto === 'string' ? produto : produto?.nome;
-    const letra = String(nome || 'P').trim().charAt(0).toUpperCase() || 'P';
-    return `<div class="produto-placeholder">${escapeHtml(letra)}</div>`;
-  }
 
   function showToast(title, body) {
     const t = document.getElementById('toast');

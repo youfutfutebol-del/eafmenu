@@ -43,12 +43,12 @@
     }
     tbody.innerHTML = filtrados.map(c => `
       <tr>
-        <td data-label="Nome"><b>${c.nome}</b></td>
-        <td data-label="Telefone">${c.telefone || '—'}</td>
+        <td data-label="Nome"><b>${escapeHtml(c.nome)}</b></td>
+        <td data-label="Telefone">${escapeHtml(c.telefone || '—')}</td>
         <td data-label="Pedidos">${c.stats.qtd}</td>
         <td data-label="Total gasto">${formatMoeda(c.stats.total)}</td>
         <td data-label="Último pedido">${c.stats.ultimo ? formatData(c.stats.ultimo) : '—'}</td>
-        <td data-label="Ações"><div class="row-actions"><button onclick='openClienteEdit(${JSON.stringify({ id: c.id, nome: c.nome, telefone: c.telefone })})'>Editar</button></div></td>
+        <td data-label="Ações"><div class="row-actions"><button data-action="editar-cliente" data-id="${escapeHtml(c.id)}">Editar</button></div></td>
       </tr>`).join('');
   }
 
@@ -127,19 +127,19 @@
       const mb = e.motoboys || {};
       return `
       <tr>
-        <td data-label="Nome"><b>${e.nome}</b></td>
-        <td data-label="Telefone">${e.telefone || '—'}</td>
-        <td data-label="Veículo / Placa">${VEICULO_LABEL[mb.veiculo] || mb.veiculo || '—'}${mb.placa ? ' · ' + mb.placa : ''}</td>
+        <td data-label="Nome"><b>${escapeHtml(e.nome)}</b></td>
+        <td data-label="Telefone">${escapeHtml(e.telefone || '—')}</td>
+        <td data-label="Veículo / Placa">${escapeHtml(VEICULO_LABEL[mb.veiculo] || mb.veiculo || '—')}${mb.placa ? ' · ' + escapeHtml(mb.placa) : ''}</td>
         <td data-label="Status"><span class="status-pill ${e.ativo ? 'ativo' : 'inativo'}">${e.ativo ? 'Conta ativa' : 'Conta desativada'}</span></td>
         <td class="col-liberacao-hoje" data-label="Liberação de hoje">${celulaLiberacaoHoje(e, mb)}</td>
         <td data-label="Disponível">${mb.disponivel ? '🟢 Sim' : '⚪ Não'}</td>
         <td data-label="Entregas">${e.entregasHoje ?? 0} / ${e.entregasTotal ?? 0}</td>
         <td data-label="Ações">
           <div class="row-actions">
-            <button onclick='openEntregador(${JSON.stringify({ id: e.id, nome: e.nome, telefone: e.telefone, veiculo: mb.veiculo, placa: mb.placa })})'>Editar</button>
-            <button onclick="toggleEntregadorAtivo('${e.id}', ${e.ativo})">${e.ativo ? 'Desativar conta' : 'Reativar conta'}</button>
-            <button onclick="abrirResetSenhaEntregador('${e.id}', '${e.nome.replace(/'/g, "\\'")}')">Redefinir senha</button>
-            <button class="danger" onclick="removerEntregador('${e.id}', '${e.nome.replace(/'/g, "\\'")}')">Remover</button>
+            <button data-action="editar-entregador" data-id="${escapeHtml(e.id)}">Editar</button>
+            <button data-action="toggle-entregador" data-id="${escapeHtml(e.id)}">${e.ativo ? 'Desativar conta' : 'Reativar conta'}</button>
+            ${(currentUser?.role === 'dono' || currentUser?.role === 'gerente') ? `<button data-action="reset-senha-entregador" data-id="${escapeHtml(e.id)}">Redefinir senha</button>` : ''}
+            <button class="danger" data-action="remover-entregador" data-id="${escapeHtml(e.id)}">Remover</button>
           </div>
         </td>
       </tr>`;
@@ -161,14 +161,14 @@
         <div class="liberacao-hoje">
           <span class="liberacao-status ligada">🟢 Ligado hoje</span>
           <span class="liberacao-horario">desde ${horario}</span>
-          <button class="btn" onclick="toggleLiberacaoDiariaMotoboy('${e.id}', false, this)">Desligar hoje</button>
+          <button class="btn" data-action="liberacao-diaria" data-id="${escapeHtml(e.id)}" data-liberar="false">Desligar hoje</button>
         </div>`;
     }
 
     return `
       <div class="liberacao-hoje">
         <span class="liberacao-status desligada">⚪ Não ligado hoje</span>
-        <button class="btn primary" onclick="toggleLiberacaoDiariaMotoboy('${e.id}', true, this)">Ligar hoje</button>
+        <button class="btn primary" data-action="liberacao-diaria" data-id="${escapeHtml(e.id)}" data-liberar="true">Ligar hoje</button>
       </div>`;
   }
 
@@ -315,17 +315,26 @@
     await loadEntregadores();
   }
 
-  function abrirResetSenhaEntregador(id, nome) {    const novaSenha = prompt(`Nova senha de acesso para ${nome} (mín. 8 caracteres):`);
-    if (novaSenha === null) return;
-    if (novaSenha.trim().length < 8) { showToast('Senha muito curta', 'Use pelo menos 8 caracteres.'); return; }
-    redefinirSenhaEntregador(id, novaSenha.trim(), nome);
-  }
+  document.getElementById('clientesTableBody')?.addEventListener('click', event => {
+    const alvo = event.target.closest('[data-action="editar-cliente"][data-id]');
+    const cliente = clientesCache.find(item => String(item.id) === String(alvo?.dataset.id));
+    if (cliente) openClienteEdit(cliente);
+  });
 
-  async function redefinirSenhaEntregador(id, novaSenha, nome) {
-    const { error } = await sb.rpc('redefinir_senha_usuario', { p_usuario_id: id, p_nova_senha: novaSenha });
-    if (error) { showToast('Erro ao redefinir senha', error.message); return; }
-    showToast('Senha redefinida', `Nova senha de ${nome} definida.`);
-  }
+  document.getElementById('entregadoresTableBody')?.addEventListener('click', event => {
+    const alvo = event.target.closest('[data-action][data-id]');
+    if (!alvo) return;
+    const entregador = entregadoresCache.find(item => String(item.id) === String(alvo.dataset.id));
+    if (!entregador) return;
+    const motoboy = entregador.motoboys || {};
+    if (alvo.dataset.action === 'editar-entregador') {
+      openEntregador({ id: entregador.id, nome: entregador.nome, telefone: entregador.telefone, veiculo: motoboy.veiculo, placa: motoboy.placa });
+    }
+    if (alvo.dataset.action === 'toggle-entregador') toggleEntregadorAtivo(entregador.id, entregador.ativo);
+    if (alvo.dataset.action === 'reset-senha-entregador' && ['dono', 'gerente'].includes(currentUser?.role)) abrirResetSenhaUsuario(entregador.id, entregador.nome);
+    if (alvo.dataset.action === 'remover-entregador') removerEntregador(entregador.id, entregador.nome);
+    if (alvo.dataset.action === 'liberacao-diaria') toggleLiberacaoDiariaMotoboy(entregador.id, alvo.dataset.liberar === 'true', alvo);
+  });
 
   // Permissão do restaurante para o motoboy reorganizar a ordem das entregas na rota (só dono altera).
   // Não controla acesso a GPS/navegação nem à rota com várias entregas — essas ficam sempre disponíveis.

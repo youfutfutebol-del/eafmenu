@@ -1,9 +1,10 @@
-const CACHE_NAME = 'eaf-super-admin-v5';
+const CACHE_NAME = 'eaf-super-admin-v6';
 const CACHE_PREFIX = 'eaf-super-admin-';
 const APP_SHELL = [
   '/admin/',
   '/admin/index.html',
   '/admin/manifest.webmanifest',
+  '/assets/js/utils.js',
   '/admin/icons/admin-icon-192.png',
   '/admin/icons/admin-icon-512.png'
 ];

@@ -154,11 +154,9 @@
           ? `<div class="order-previsao">⏱ Entrega prevista para: ${escapeHtml(horarioFinalPrevisao)}</div>`
           : '');
 
-      const pedidoIdArg = escapeHtml(JSON.stringify(o.id));
-      const statusArg = escapeHtml(JSON.stringify(o.status));
-      const tipoArg = escapeHtml(JSON.stringify(o.tipo));
+      const pedidoId = escapeHtml(o.id);
       const motoboySelect = (o.tipo === 'entrega' && !STATUS_FINAIS.includes(o.status))
-        ? `<select class="order-motoboy-select" onchange="atribuirMotoboy(${pedidoIdArg}, this.value)">
+        ? `<select class="order-motoboy-select" data-order-action="motoboy" data-order-id="${pedidoId}">
              <option value="">🛵 Sem motoboy</option>
              ${motoboysAtivosCache.map(m => `<option value="${escapeHtml(m.id)}" ${o.motoboy_id === m.id ? 'selected' : ''}>${escapeHtml(m.nome)}</option>`).join('')}
            </select>`
@@ -172,14 +170,14 @@
           actionHtml = `<div class="done">✓ ${STATUS_LABEL[o.status] || 'Concluído'}</div>`;
         }
       } else {
-        actionHtml = `<button class="order-btn order-btn--primary" onclick="advanceStatus(${pedidoIdArg}, ${statusArg}, ${tipoArg})">${escapeHtml(NEXT_LABEL[o.status] || 'Avançar')}</button>`;
+        actionHtml = `<button class="order-btn order-btn--primary" data-order-action="avancar" data-order-id="${pedidoId}">${escapeHtml(NEXT_LABEL[o.status] || 'Avançar')}</button>`;
       }
       if (!o.pago && o.status !== 'cancelado') {
-        actionHtml += `<button class="order-btn order-btn--secondary pago-btn" onclick="marcarPago(${pedidoIdArg})">Marcar pago</button>`;
+        actionHtml += `<button class="order-btn order-btn--secondary pago-btn" data-order-action="pagar" data-order-id="${pedidoId}">Marcar pago</button>`;
       }
-      actionHtml += `<button class="order-btn order-btn--secondary pago-btn" onclick="imprimirComanda(${pedidoIdArg})">🖨️ Imprimir</button>`;
+      actionHtml += `<button class="order-btn order-btn--secondary pago-btn" data-order-action="imprimir" data-order-id="${pedidoId}">🖨️ Imprimir</button>`;
       if (o.status !== 'cancelado') {
-        actionHtml += `<button class="order-btn order-btn--danger pago-btn" onclick="abrirCancelarPedido(${pedidoIdArg})">✕ Cancelar</button>`;
+        actionHtml += `<button class="order-btn order-btn--danger pago-btn" data-order-action="cancelar" data-order-id="${pedidoId}">✕ Cancelar</button>`;
       }
 
       return `
@@ -207,3 +205,20 @@
         </div>`;
     }).join('');
   }
+
+  document.getElementById('orderList')?.addEventListener('click', event => {
+    const botao = event.target.closest('[data-order-action][data-order-id]');
+    if (!botao) return;
+    const pedido = orders.find(item => String(item.id) === String(botao.dataset.orderId))
+      || (typeof pedidosHistorico !== 'undefined' ? pedidosHistorico.find(item => String(item.id) === String(botao.dataset.orderId)) : null);
+    if (!pedido) return;
+    if (botao.dataset.orderAction === 'avancar') advanceStatus(pedido.id, pedido.status, pedido.tipo);
+    if (botao.dataset.orderAction === 'pagar') marcarPago(pedido.id);
+    if (botao.dataset.orderAction === 'imprimir') imprimirComanda(pedido.id);
+    if (botao.dataset.orderAction === 'cancelar') abrirCancelarPedido(pedido.id);
+    if (botao.dataset.orderAction === 'resolver-financeiro') abrirResolverCancelamentoFinanceiro(pedido.id);
+  });
+  document.getElementById('orderList')?.addEventListener('change', event => {
+    const select = event.target.closest('[data-order-action="motoboy"][data-order-id]');
+    if (select) atribuirMotoboy(select.dataset.orderId, select.value);
+  });

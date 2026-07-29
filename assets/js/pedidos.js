@@ -316,7 +316,7 @@
         cancelamentoFinanceiroBadge = '<span class="badge cancelamento-financeiro cancelamento-financeiro--mantido">Valor mantido</span>';
       } else if (estadoFinanceiro === 'pendente') {
         cancelamentoFinanceiroBadge = '<span class="badge cancelamento-financeiro cancelamento-financeiro--pendente">Decisão financeira pendente</span>';
-        botaoResolverFinanceiro = `<button class="order-btn order-btn--warning" type="button" onclick="abrirResolverCancelamentoFinanceiro(${escapeHtml(JSON.stringify(pedido.id))})">Resolver financeiro</button>`;
+        botaoResolverFinanceiro = `<button class="order-btn order-btn--warning" type="button" data-order-action="resolver-financeiro" data-order-id="${escapeHtml(pedido.id)}">Resolver financeiro</button>`;
       }
     }
     const endereco = pedido.enderecos_cliente;
@@ -339,9 +339,9 @@
     const trocoLinha = pedido.forma_pagamento === 'dinheiro' && pedido.troco_para
       ? `<div class="order-detail order-detail--change">💵 Troco: R$ ${(Number(pedido.troco_para) - Number(pedido.total)).toFixed(2).replace('.', ',')} (paga com R$ ${Number(pedido.troco_para).toFixed(2).replace('.', ',')})</div>`
       : '';
-    const pedidoIdArg = escapeHtml(JSON.stringify(pedido.id));
+    const pedidoId = escapeHtml(pedido.id);
     const botaoCancelar = pedidoFinalizadoPodeSerCancelado(pedido)
-      ? `<button class="order-btn order-btn--danger" type="button" onclick="abrirCancelarPedido(${pedidoIdArg})">Cancelar pedido</button>`
+      ? `<button class="order-btn order-btn--danger" type="button" data-order-action="cancelar" data-order-id="${pedidoId}">Cancelar pedido</button>`
       : '';
 
     return `
@@ -370,7 +370,7 @@
             </div>
           </div>
           <div class="order-history-actions">
-            <button class="order-btn order-btn--secondary" type="button" onclick="imprimirComanda(${pedidoIdArg})">🖨️ Imprimir</button>
+            <button class="order-btn order-btn--secondary" type="button" data-order-action="imprimir" data-order-id="${pedidoId}">🖨️ Imprimir</button>
             ${botaoCancelar}
             ${botaoResolverFinanceiro}
           </div>

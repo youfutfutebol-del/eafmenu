@@ -19,7 +19,7 @@
   const podeAdministrar = () => currentUser?.role === 'dono' || currentUser?.role === 'gerente';
   const tipoTelaParaBanco = tipo => tipo === 'lista' ? 'lista_produtos' : tipo;
   const tipoBancoParaTela = tipo => tipo === 'lista_produtos' ? 'lista' : tipo;
-  const h = valor => String(valor ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+  const h = escapeHtml;
   const numero = (id, padrao = 0) => Number(el(id)?.value || padrao);
   const erroAmigavel = erro => {
     const msg = erro?.message || String(erro || 'Não foi possível concluir a operação.');
@@ -181,16 +181,26 @@
     }
     tbody.innerHTML = promocoesCache.map(p => {
       const status = statusPromo(p);
-      const leitura = `<button onclick="openPromocao('${p.id}', true)">Ver detalhes</button>`;
+      const id = h(p.id);
+      const leitura = `<button data-promo-acao="detalhes" data-promo-id="${id}">Ver detalhes</button>`;
       let acoes = leitura;
       if (podeAdministrar() && !p.arquivado_em) {
-        if (!p.ativo) acoes += `<button onclick="openPromocao('${p.id}')">Editar</button><button onclick="acaoPromocao('ativar', '${p.id}')">Ativar</button>`;
-        else acoes += `<button onclick="acaoPromocao('desativar', '${p.id}')">Desativar</button>`;
-        acoes += `<button class="danger" onclick="acaoPromocao('arquivar', '${p.id}')">Arquivar</button>`;
+        if (!p.ativo) acoes += `<button data-promo-acao="editar" data-promo-id="${id}">Editar</button><button data-promo-acao="ativar" data-promo-id="${id}">Ativar</button>`;
+        else acoes += `<button data-promo-acao="desativar" data-promo-id="${id}">Desativar</button>`;
+        acoes += `<button class="danger" data-promo-acao="arquivar" data-promo-id="${id}">Arquivar</button>`;
       }
       return `<tr><td data-label="Nome"><b>${h(p.nome)}</b></td><td data-label="Condição">${h(resumoEscopo(encontrarEscopo(p, 'condicao'), p.condicao_quantidade, 'Compre'))}</td><td data-label="Benefício">${h(resumoBeneficio(p))}</td><td data-label="Status"><span class="promo-status promo-status--${status.chave}">${status.nome}</span></td><td data-label="Limite/pedido">${p.max_aplicacoes_por_pedido || 'Sem limite'}</td><td data-label="Ações"><div class="row-actions">${acoes}</div></td></tr>`;
     }).join('');
   }
+
+  el('promocoesTableBody')?.addEventListener('click', evento => {
+    const botao = evento.target.closest('[data-promo-acao][data-promo-id]');
+    if (!botao) return;
+    const id = botao.dataset.promoId;
+    if (botao.dataset.promoAcao === 'detalhes') openPromocao(id, true);
+    else if (botao.dataset.promoAcao === 'editar') openPromocao(id);
+    else acaoPromocao(botao.dataset.promoAcao, id);
+  });
 
   function opcoesProduto(selecionado) {
     return '<option value="">Selecione um produto</option>' + promoProdutos.map(p => `<option value="${h(p.id)}" ${String(p.id) === String(selecionado) ? 'selected' : ''}>${h(p.nome)}</option>`).join('');

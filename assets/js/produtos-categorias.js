@@ -49,13 +49,13 @@
     }
     tbody.innerHTML = categoriasCache.map(c => `
       <tr>
-        <td data-label="Nome"><b>${c.nome}</b></td>
-        <td data-label="Ordem">${c.ordem}</td>
+        <td data-label="Nome"><b>${escapeHtml(c.nome)}</b></td>
+        <td data-label="Ordem">${escapeHtml(c.ordem)}</td>
         <td data-label="Produtos">${contagem[c.id] || 0} produto(s)</td>
         <td data-label="Ações">
           <div class="row-actions">
-            <button onclick='openCategoria(${JSON.stringify(c)})'>Editar</button>
-            <button class="danger" onclick="deleteCategoria('${c.id}', ${contagem[c.id] || 0})">Excluir</button>
+            <button data-categoria-acao="editar" data-categoria-id="${escapeHtml(c.id)}">Editar</button>
+            <button class="danger" data-categoria-acao="excluir" data-categoria-id="${escapeHtml(c.id)}" data-quantidade="${contagem[c.id] || 0}">Excluir</button>
           </div>
         </td>
       </tr>`).join('');
@@ -65,7 +65,7 @@
     const sel = document.getElementById('pCategoria');
     const atual = sel.value;
     sel.innerHTML = '<option value="">Sem categoria</option>' +
-      categoriasCache.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+      categoriasCache.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.nome)}</option>`).join('');
     sel.value = atual;
   }
 
@@ -183,8 +183,9 @@
           .join('') + '</div>';
       }
 
-      const thumb = p.imagem_url
-        ? `<img src="${escapeHtml(p.imagem_url)}" alt="">`
+      const imagemSegura = validarUrlSegura(p.imagem_url);
+      const thumb = imagemSegura
+        ? `<img src="${escapeHtml(imagemSegura)}" alt="">`
         : getProdutoPlaceholder(p);
       const produtoId = escapeHtml(String(p.id));
 
@@ -249,6 +250,15 @@
       renderProdutosTable();
     });
   }
+
+  document.getElementById('categoriasTableBody')?.addEventListener('click', event => {
+    const botao = event.target.closest('[data-categoria-acao][data-categoria-id]');
+    if (!botao) return;
+    const categoria = categoriasCache.find(item => String(item.id) === String(botao.dataset.categoriaId));
+    if (!categoria) return;
+    if (botao.dataset.categoriaAcao === 'editar') openCategoria(categoria);
+    if (botao.dataset.categoriaAcao === 'excluir') deleteCategoria(categoria.id, Number(botao.dataset.quantidade));
+  });
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inicializarProdutosCategorias);
   else inicializarProdutosCategorias();

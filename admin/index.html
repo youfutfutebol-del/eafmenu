@@ -208,11 +208,25 @@
     <div class="field"><label>Nome</label><input id="nrDonoNome" placeholder="Nome completo"></div>
     <div class="field"><label>Telefone</label><input id="nrDonoTelefone" placeholder="(41) 9...."></div>
     <div class="field"><label>E-mail (opcional)</label><input id="nrDonoEmail" type="email" placeholder="email@exemplo.com"></div>
-    <div class="field"><label>Senha</label><input id="nrDonoSenha" placeholder="Defina a senha (mín. 8 caracteres)"></div>
+    <div class="field"><label>Senha</label><input id="nrDonoSenha" type="password" autocomplete="new-password" placeholder="Defina a senha (mín. 8 caracteres)"></div>
 
     <div class="modal-actions">
       <button class="btn" onclick="fecharNovoRestaurante()">Cancelar</button>
       <button class="btn primary" id="nrSubmitBtn" onclick="submitNovoRestaurante()">Criar restaurante</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="resetSenhaDonoModalBg">
+  <div class="modal">
+    <h3>Redefinir senha do dono</h3>
+    <p class="sub">Usuário: <b id="resetSenhaDonoNome"></b></p>
+    <div class="field"><label>Nova senha</label><input id="resetSenhaDonoNova" type="password" autocomplete="new-password" minlength="8"></div>
+    <div class="field"><label>Confirmar nova senha</label><input id="resetSenhaDonoConfirm" type="password" autocomplete="new-password" minlength="8"></div>
+    <label style="display:flex;gap:8px;align-items:center;margin:8px 0 14px;"><input id="resetSenhaDonoMostrar" type="checkbox" onchange="alternarVisibilidadeResetSenhaDono(this.checked)" style="width:auto;"> Mostrar senha</label>
+    <div class="modal-actions">
+      <button class="btn" type="button" onclick="fecharResetSenhaDono()">Cancelar</button>
+      <button class="btn primary" id="resetSenhaDonoBtn" type="button" onclick="confirmarResetSenhaDono()">Confirmar</button>
     </div>
   </div>
 </div>
@@ -232,8 +246,11 @@
   </div>
 </div>
 
+<script src="/assets/js/utils.js"></script>
 <script>
   let sb = null;
+  const restaurantesPorId = new Map();
+  let resetSenhaDonoAlvoId = null;
   async function initSupabase() {
     const res = await fetch('/api/config');
     if (!res.ok) throw new Error('Falha ao buscar /api/config');
@@ -299,31 +316,43 @@
   }
 
   async function fazerLogin() {
-    const email = document.getElementById('emailInput').value.trim();
+    const identificador = document.getElementById('emailInput').value.trim();
     const senha = document.getElementById('senhaInput').value;
-    if (!email || !senha) { setLoginMsg('Preencha e-mail e senha.', true); return; }
+    if (!identificador || !senha) { setLoginMsg('Preencha e-mail e senha.', true); return; }
 
-    document.getElementById('loginBtn').disabled = true;
-    const { error } = await sb.auth.signInWithPassword({ email, password: senha });
-    document.getElementById('loginBtn').disabled = false;
-    if (error) { setLoginMsg('E-mail ou senha incorretos.', true); return; }
-
-    await bootSeguro();
+    const botao = document.getElementById('loginBtn');
+    if (botao.disabled) return;
+    botao.disabled = true;
+    try {
+      const { data, error } = await sb.functions.invoke('login-seguro', {
+        body: { identificador, senha }
+      });
+      if (error || data?.ok !== true || !data?.session?.access_token || !data?.session?.refresh_token) {
+        setLoginMsg('Não foi possível entrar. Confira os dados informados.', true);
+        return;
+      }
+      const { error: sessionError } = await sb.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token
+      });
+      if (sessionError) {
+        console.warn('Não foi possível estabelecer a sessão do Super Admin:', sessionError);
+        setLoginMsg('Não foi possível entrar. Confira os dados informados.', true);
+        return;
+      }
+      await bootSeguro();
+    } catch (error) {
+      console.warn('Falha técnica no login seguro do Super Admin:', error);
+      setLoginMsg('Não foi possível entrar. Confira os dados informados.', true);
+    } finally {
+      botao.disabled = false;
+    }
   }
 
   function setLoginMsg(msg, isError) {
     const el = document.getElementById('loginMsg');
     el.textContent = msg;
     el.className = 'login-msg' + (isError ? ' error' : '');
-  }
-
-  function escapeHtml(value) {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
   }
 
   async function logout() {
@@ -360,15 +389,11 @@
       return;
     }
 
+    restaurantesPorId.clear();
+    data.forEach(r => restaurantesPorId.set(String(r.id), r));
     wrap.innerHTML = data.map(r => {
-      const restauranteJson = escapeHtml(JSON.stringify({ id: r.id, nome: r.nome, slug: r.slug }));
-      const donoIdJson = escapeHtml(JSON.stringify(r.dono_id));
-      const donoNomeJson = escapeHtml(JSON.stringify(r.dono_nome || ''));
-      const restauranteIdJson = escapeHtml(JSON.stringify(r.id));
-      const restauranteNomeJson = escapeHtml(JSON.stringify(r.nome || ''));
-
       return `
-      <div class="rest-card">
+      <div class="rest-card" data-restaurante-id="${escapeHtml(r.id)}">
         <div class="rest-card__info">
           <div class="rest-card__nome">${escapeHtml(r.nome)}</div>
           <div class="rest-card__slug">${r.slug ? '/cliente/?r=' + escapeHtml(r.slug) : 'sem link ainda'}</div>
@@ -376,9 +401,9 @@
         </div>
         <div class="rest-card__meta">
           <div class="rest-card__stat"><div class="num">${escapeHtml(r.total_usuarios)}</div><div class="label">Usuários</div></div>
-          <button class="btn" onclick='abrirEditarRestaurante(${restauranteJson})'>Editar</button>
-          ${r.dono_id ? `<button class="btn reset-password-btn" onclick="abrirResetSenhaDono(${donoIdJson}, ${donoNomeJson})">Redefinir senha do dono</button>` : ''}
-          <button class="btn remove-btn" style="color:var(--accent); border-color:#FCA5A5;" onclick="removerRestaurante(${restauranteIdJson}, ${restauranteNomeJson})">Remover</button>
+          <button class="btn" data-action="editar-restaurante">Editar</button>
+          ${r.dono_id ? `<button class="btn reset-password-btn" data-action="reset-senha-dono">Redefinir senha do dono</button>` : ''}
+          <button class="btn remove-btn" data-action="remover-restaurante" style="color:var(--accent); border-color:#FCA5A5;">Remover</button>
         </div>
       </div>
     `;
@@ -408,17 +433,65 @@
     await carregarRestaurantes();
   }
 
+  document.getElementById('restList').addEventListener('click', event => {
+    const botao = event.target.closest('[data-action]');
+    const card = botao?.closest('[data-restaurante-id]');
+    const restaurante = card ? restaurantesPorId.get(card.dataset.restauranteId) : null;
+    if (!botao || !restaurante) return;
+    if (botao.dataset.action === 'editar-restaurante') abrirEditarRestaurante(restaurante);
+    if (botao.dataset.action === 'reset-senha-dono' && restaurante.dono_id) abrirResetSenhaDono(restaurante.dono_id, restaurante.dono_nome);
+    if (botao.dataset.action === 'remover-restaurante') removerRestaurante(restaurante.id, restaurante.nome);
+  });
+
   function abrirResetSenhaDono(donoId, donoNome) {
-    const novaSenha = prompt(`Nova senha de acesso para ${donoNome} (mín. 8 caracteres):`);
-    if (novaSenha === null) return;
-    if (novaSenha.trim().length < 8) { showToast('Senha muito curta', 'Use pelo menos 8 caracteres.'); return; }
-    redefinirSenhaDono(donoId, novaSenha.trim(), donoNome);
+    resetSenhaDonoAlvoId = donoId;
+    document.getElementById('resetSenhaDonoNome').textContent = donoNome || 'Dono';
+    document.getElementById('resetSenhaDonoNova').value = '';
+    document.getElementById('resetSenhaDonoConfirm').value = '';
+    document.getElementById('resetSenhaDonoMostrar').checked = false;
+    alternarVisibilidadeResetSenhaDono(false);
+    document.getElementById('resetSenhaDonoModalBg').classList.add('show');
   }
 
-  async function redefinirSenhaDono(donoId, novaSenha, donoNome) {
-    const { error } = await sb.rpc('super_admin_redefinir_senha', { p_usuario_id: donoId, p_nova_senha: novaSenha });
-    if (error) { showToast('Erro ao redefinir senha', error.message); return; }
-    showToast('Senha redefinida', `Nova senha de ${donoNome} definida.`);
+  function fecharResetSenhaDono() {
+    resetSenhaDonoAlvoId = null;
+    document.getElementById('resetSenhaDonoNome').textContent = '';
+    document.getElementById('resetSenhaDonoNova').value = '';
+    document.getElementById('resetSenhaDonoConfirm').value = '';
+    document.getElementById('resetSenhaDonoModalBg').classList.remove('show');
+  }
+
+  function alternarVisibilidadeResetSenhaDono(mostrar) {
+    const tipo = mostrar ? 'text' : 'password';
+    document.getElementById('resetSenhaDonoNova').type = tipo;
+    document.getElementById('resetSenhaDonoConfirm').type = tipo;
+  }
+
+  async function confirmarResetSenhaDono() {
+    const donoId = resetSenhaDonoAlvoId;
+    const novaSenha = document.getElementById('resetSenhaDonoNova').value;
+    const confirmacao = document.getElementById('resetSenhaDonoConfirm').value;
+    const botao = document.getElementById('resetSenhaDonoBtn');
+    if (!donoId) return;
+    if (novaSenha.length < 8) { showToast('Senha muito curta', 'Use pelo menos 8 caracteres.'); return; }
+    if (novaSenha !== confirmacao) { showToast('Senhas diferentes', 'A confirmação não coincide com a nova senha.'); return; }
+    if (botao.disabled) return;
+    botao.disabled = true;
+    try {
+      const { error } = await sb.rpc('super_admin_redefinir_senha', { p_usuario_id: donoId, p_nova_senha: novaSenha });
+      if (error) {
+        console.warn('Falha técnica ao redefinir senha do dono:', error);
+        showToast('Senha não redefinida', 'Não foi possível redefinir a senha. Tente novamente.');
+        return;
+      }
+      fecharResetSenhaDono();
+      showToast('Senha redefinida', 'Senha redefinida. As sessões anteriores foram encerradas.');
+    } catch (error) {
+      console.warn('Exceção técnica ao redefinir senha do dono:', error);
+      showToast('Senha não redefinida', 'Não foi possível redefinir a senha. Tente novamente.');
+    } finally {
+      botao.disabled = false;
+    }
   }
 
   async function removerRestaurante(id, nome) {

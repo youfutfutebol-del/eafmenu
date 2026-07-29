@@ -57,8 +57,8 @@
 
     <div id="stepNovaSenha" style="display:none;">
       <p style="margin:0 0 14px; font-size:12.5px; color:var(--muted);">Crie sua nova senha de acesso.</p>
-      <input type="password" id="novaSenhaRecInput" placeholder="Nova senha">
-      <input type="password" id="novaSenhaRecConfirm" placeholder="Confirmar nova senha">
+      <input type="password" id="novaSenhaRecInput" autocomplete="new-password" placeholder="Nova senha">
+      <input type="password" id="novaSenhaRecConfirm" autocomplete="new-password" placeholder="Confirmar nova senha">
       <button class="primary" id="novaSenhaRecBtn" onclick="salvarNovaSenhaRecuperacao()">Salvar nova senha</button>
     </div>
 
@@ -71,8 +71,8 @@
     <div class="badge"><img src="/icons/icon512.png" alt="EAF Menu"></div>
     <h2>Defina sua senha</h2>
     <p>Por segurança, crie uma nova senha de acesso antes de continuar</p>
-    <input type="password" id="paNovaSenha" placeholder="Nova senha">
-    <input type="password" id="paNovaSenhaConfirm" placeholder="Confirmar nova senha">
+    <input type="password" id="paNovaSenha" autocomplete="new-password" placeholder="Nova senha">
+    <input type="password" id="paNovaSenhaConfirm" autocomplete="new-password" placeholder="Confirmar nova senha">
     <button class="primary" id="paBtn" onclick="salvarSenhaPrimeiroAcesso()">Salvar e continuar</button>
     <div class="login-msg" id="paMsg"></div>
   </div>
@@ -740,7 +740,7 @@
         </div>
         <div class="field">
           <label for="mDescontoSenhaAutorizador">Senha do autorizador</label>
-          <input id="mDescontoSenhaAutorizador" type="password" autocomplete="off" placeholder="Confirme a autorização">
+          <input id="mDescontoSenhaAutorizador" type="password" autocomplete="current-password" placeholder="Confirme a autorização">
         </div>
       </div>
 
@@ -905,7 +905,7 @@
     <input type="hidden" id="entId">
     <div class="field"><label>Nome</label><input id="entNome" placeholder="Ex: João Silva"></div>
     <div class="field"><label>Telefone</label><input id="entTelefone" placeholder="(41) 9...."></div>
-    <div class="field" id="entSenhaField"><label>Senha de acesso</label><input id="entSenha" placeholder="Defina a senha (mín. 8 caracteres)"></div>
+    <div class="field" id="entSenhaField"><label>Senha de acesso</label><input id="entSenha" type="password" autocomplete="new-password" placeholder="Defina a senha (mín. 8 caracteres)"></div>
     <div class="field"><label>Veículo</label>
       <select id="entVeiculo">
         <option value="moto">Moto</option>
@@ -931,7 +931,7 @@
     <div class="field"><label>E-mail (opcional)</label><input id="mbEmail" type="email" placeholder="email@exemplo.com"></div>
     <div class="field">
       <label>Senha de acesso</label>
-      <input id="mbSenha" placeholder="Defina a senha (mín. 8 caracteres)">
+      <input id="mbSenha" type="password" autocomplete="new-password" placeholder="Defina a senha (mín. 8 caracteres)">
     </div>
     <div class="field"><label>Cargo</label>
       <select id="mbRole">
@@ -961,14 +961,28 @@
   </div>
 </div>
 
+<div class="modal-bg" id="resetSenhaUsuarioModalBg">
+  <div class="modal">
+    <h3>Redefinir senha</h3>
+    <p class="sub">Usuário: <b id="resetSenhaUsuarioNome"></b></p>
+    <div class="field"><label>Nova senha</label><input type="password" id="resetSenhaUsuarioNova" autocomplete="new-password" minlength="8"></div>
+    <div class="field"><label>Confirmar nova senha</label><input type="password" id="resetSenhaUsuarioConfirm" autocomplete="new-password" minlength="8"></div>
+    <label style="display:flex;gap:8px;align-items:center;margin:8px 0 14px;"><input type="checkbox" id="resetSenhaUsuarioMostrar" onchange="alternarVisibilidadeResetSenhaUsuario(this.checked)" style="width:auto;"> Mostrar senha</label>
+    <div class="modal-actions">
+      <button class="btn" type="button" onclick="fecharResetSenhaUsuario()">Cancelar</button>
+      <button class="btn primary" id="resetSenhaUsuarioConfirmar" type="button" onclick="confirmarResetSenhaUsuario()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="minhaSenhaModalBg">
   <div class="modal">
     <h3>Trocar minha senha</h3>
-    <div class="field"><label>Nova senha</label><input type="password" id="msNovaSenha" placeholder="Mín. 8 caracteres"></div>
-    <div class="field"><label>Confirmar nova senha</label><input type="password" id="msNovaSenhaConfirm"></div>
+    <div class="field"><label>Nova senha</label><input type="password" id="msNovaSenha" autocomplete="new-password" placeholder="Mín. 8 caracteres"></div>
+    <div class="field"><label>Confirmar nova senha</label><input type="password" id="msNovaSenhaConfirm" autocomplete="new-password"></div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharTrocarMinhaSenha()">Cancelar</button>
-      <button class="btn primary" onclick="submitTrocarMinhaSenha()">Salvar nova senha</button>
+      <button class="btn primary" id="btnTrocarMinhaSenha" onclick="submitTrocarMinhaSenha()">Salvar nova senha</button>
     </div>
   </div>
 </div>
@@ -994,7 +1008,7 @@
       </label>
     </fieldset>
     <div class="cancelamento-impacto" id="cpImpactoFinanceiro"></div>
-    <div class="field"><label>Senha de confirmação (gerente ou dono)</label><input type="password" id="cpSenha" placeholder="Sua senha, ou a de um gerente/dono"></div>
+    <div class="field"><label>Senha de confirmação (gerente ou dono)</label><input type="password" id="cpSenha" autocomplete="current-password" placeholder="Sua senha, ou a de um gerente/dono"></div>
     <p class="sub error hidden" id="cpErro" style="color:var(--red); font-size:12.5px; margin:-6px 0 12px;"></p>
     <div class="modal-actions">
       <button class="btn" onclick="fecharCancelarPedido()">Voltar</button>
@@ -1022,7 +1036,7 @@
       </label>
     </fieldset>
     <div class="cancelamento-impacto" id="rcfImpactoFinanceiro"></div>
-    <div class="field"><label>Senha de confirmação (gerente ou dono)</label><input type="password" id="rcfSenha" placeholder="Sua senha, ou a de um gerente/dono"></div>
+    <div class="field"><label>Senha de confirmação (gerente ou dono)</label><input type="password" id="rcfSenha" autocomplete="current-password" placeholder="Sua senha, ou a de um gerente/dono"></div>
     <p class="sub error hidden" id="rcfErro" style="color:var(--red); font-size:12.5px; margin:-6px 0 12px;"></p>
     <div class="modal-actions">
       <button class="btn" onclick="fecharResolverCancelamentoFinanceiro()">Voltar</button>

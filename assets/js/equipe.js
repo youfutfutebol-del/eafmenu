@@ -30,20 +30,20 @@
     } else {
       tbody.innerHTML = equipeCache.map(u => `
         <tr>
-          <td data-label="Nome"><b>${u.nome}</b></td>
-          <td data-label="Telefone">${u.telefone || u.email || '—'}</td>
-          <td data-label="Cargo"><span class="status-pill ativo">${ROLE_LABEL[u.role] || u.role}</span></td>
+          <td data-label="Nome"><b>${escapeHtml(u.nome)}</b></td>
+          <td data-label="Telefone">${escapeHtml(u.telefone || u.email || '—')}</td>
+          <td data-label="Cargo"><span class="status-pill ativo">${escapeHtml(ROLE_LABEL[u.role] || u.role)}</span></td>
           <td data-label="Status">
             <span class="status-pill ${u.ativo ? 'ativo' : 'inativo'}">${u.ativo ? 'Ativo' : 'Desativado'}</span>
           </td>
           <td data-label="Ações">
             <div class="row-actions">
-              <select onchange="mudarRole('${u.id}', this.value)" style="border:1px solid var(--border); border-radius:7px; padding:5px 8px; font-size:11.5px;" ${u.id === currentUser.id ? 'disabled' : ''}>
-                ${Object.keys(ROLE_LABEL).map(r => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}
+              <select data-action="mudar-role" data-id="${escapeHtml(u.id)}" style="border:1px solid var(--border); border-radius:7px; padding:5px 8px; font-size:11.5px;" ${u.id === currentUser.id ? 'disabled' : ''}>
+                ${Object.keys(ROLE_LABEL).map(r => `<option value="${escapeHtml(r)}" ${r === u.role ? 'selected' : ''}>${escapeHtml(ROLE_LABEL[r])}</option>`).join('')}
               </select>
-              ${u.id === currentUser.id ? '' : `<button onclick="toggleAtivoUsuario('${u.id}', ${u.ativo})">${u.ativo ? 'Desligar acesso' : 'Liberar acesso'}</button>`}
-              ${(u.id !== currentUser.id && currentUser.role === 'dono') ? `<button onclick="abrirResetSenhaEquipe('${u.id}', '${u.nome.replace(/'/g, "\\'")}')">Redefinir senha</button>` : ''}
-              ${u.id === currentUser.id ? '' : `<button class="danger" onclick="removerMembro('${u.id}', '${u.nome.replace(/'/g, "\\'")}')">Remover</button>`}
+              ${u.id === currentUser.id ? '' : `<button data-action="toggle-ativo" data-id="${escapeHtml(u.id)}" data-ativo="${u.ativo}">${u.ativo ? 'Desligar acesso' : 'Liberar acesso'}</button>`}
+              ${podeRedefinirSenhaEquipe(u) ? `<button data-action="reset-senha" data-id="${escapeHtml(u.id)}">Redefinir senha</button>` : ''}
+              ${u.id === currentUser.id ? '' : `<button class="danger" data-action="remover" data-id="${escapeHtml(u.id)}">Remover</button>`}
             </div>
           </td>
         </tr>`).join('');
@@ -55,26 +55,41 @@
     } else {
       tbodyConv.innerHTML = convitesCache.map(c => `
         <tr>
-          <td data-label="Nome"><b>${c.nome}</b></td>
-          <td data-label="E-mail">${c.email}</td>
-          <td data-label="Cargo"><span class="status-pill inativo">${ROLE_LABEL[c.role] || c.role}</span></td>
-          <td data-label="Ações"><div class="row-actions"><button class="danger" onclick="cancelarConvite('${c.id}')">Cancelar convite</button></div></td>
+          <td data-label="Nome"><b>${escapeHtml(c.nome)}</b></td>
+          <td data-label="E-mail">${escapeHtml(c.email)}</td>
+          <td data-label="Cargo"><span class="status-pill inativo">${escapeHtml(ROLE_LABEL[c.role] || c.role)}</span></td>
+          <td data-label="Ações"><div class="row-actions"><button class="danger" data-action="cancelar-convite" data-id="${escapeHtml(c.id)}">Cancelar convite</button></div></td>
         </tr>`).join('');
     }
   }
 
-  function abrirResetSenhaEquipe(id, nome) {
-    const novaSenha = prompt(`Nova senha de acesso para ${nome} (mín. 8 caracteres):`);
-    if (novaSenha === null) return;
-    if (novaSenha.trim().length < 8) { showToast('Senha muito curta', 'Use pelo menos 8 caracteres.'); return; }
-    redefinirSenhaEquipe(id, novaSenha.trim(), nome);
+  function podeRedefinirSenhaEquipe(usuario) {
+    if (!usuario || usuario.id === currentUser.id) return false;
+    if (currentUser.role === 'dono') return ['gerente', 'atendente'].includes(usuario.role);
+    return currentUser.role === 'gerente' && usuario.role === 'atendente';
   }
 
-  async function redefinirSenhaEquipe(id, novaSenha, nome) {
-    const { error } = await sb.rpc('redefinir_senha_usuario', { p_usuario_id: id, p_nova_senha: novaSenha });
-    if (error) { showToast('Erro ao redefinir senha', error.message); return; }
-    showToast('Senha redefinida', `Nova senha de ${nome} definida.`);
+  function registroEquipePorId(id) {
+    return equipeCache.find(usuario => String(usuario.id) === String(id));
   }
+
+  document.getElementById('equipeTableBody')?.addEventListener('click', event => {
+    const alvo = event.target.closest('[data-action][data-id]');
+    if (!alvo) return;
+    const usuario = registroEquipePorId(alvo.dataset.id);
+    if (!usuario) return;
+    if (alvo.dataset.action === 'toggle-ativo') toggleAtivoUsuario(usuario.id, usuario.ativo);
+    if (alvo.dataset.action === 'reset-senha' && podeRedefinirSenhaEquipe(usuario)) abrirResetSenhaUsuario(usuario.id, usuario.nome);
+    if (alvo.dataset.action === 'remover') removerMembro(usuario.id, usuario.nome);
+  });
+  document.getElementById('equipeTableBody')?.addEventListener('change', event => {
+    const alvo = event.target.closest('[data-action="mudar-role"][data-id]');
+    if (alvo) mudarRole(alvo.dataset.id, alvo.value);
+  });
+  document.getElementById('convitesTableBody')?.addEventListener('click', event => {
+    const alvo = event.target.closest('[data-action="cancelar-convite"][data-id]');
+    if (alvo) cancelarConvite(alvo.dataset.id);
+  });
 
   async function toggleAtivoUsuario(id, ativoAtual) {
     const { error } = await sb.from('usuarios').update({ ativo: !ativoAtual }).eq('id', id);
