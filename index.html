@@ -46,11 +46,9 @@
       <input type="text" id="identInput" placeholder="Telefone ou e-mail" autocomplete="username">
       <input type="password" id="senhaInput" placeholder="Sua senha" autocomplete="current-password">
       <button class="primary" id="loginBtn" onclick="fazerLogin()">Entrar</button>
-      <div style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border);">
-        <strong style="display:block; margin-bottom:6px;">Esqueceu sua senha?</strong>
-        <p style="margin:0 0 12px; font-size:12.5px; line-height:1.5; color:var(--muted);">Se você é o dono do restaurante, fale com o suporte da EAF Flow. Membros da equipe e entregadores devem solicitar a redefinição ao responsável pelo restaurante.</p>
-        <button type="button" onclick="abrirRecuperacaoEafFlow()">Falar com a EAF Flow no WhatsApp</button>
-      </div>
+      <button type="button" class="forgot-password-link" onclick="abrirModalSuporteSenha()">
+        Esqueci minha senha
+      </button>
     </div>
 
     <div id="stepNovaSenha" style="display:none;">
@@ -61,6 +59,18 @@
     </div>
 
     <div class="login-msg" id="loginMsg"></div>
+  </div>
+</div>
+
+<div class="modal-bg password-support-overlay" id="modalSuporteSenha" onclick="if(event.target===this) fecharModalSuporteSenha()">
+  <div class="modal password-support-modal" role="dialog" aria-modal="true" aria-labelledby="modalSuporteSenhaTitulo">
+    <div class="password-support-icon" aria-hidden="true">🔐</div>
+    <h3 id="modalSuporteSenhaTitulo">Esqueceu sua senha?</h3>
+    <p class="password-support-lead">Não se preocupe, vamos ajudar você a recuperar o acesso.</p>
+    <p>Se você é o dono do restaurante, fale com o suporte da EAF Flow pelo WhatsApp.</p>
+    <p>Membros da equipe e entregadores devem solicitar uma nova senha ao responsável pelo restaurante.</p>
+    <button type="button" class="password-support-primary" onclick="abrirRecuperacaoEafFlow()">💬 Falar com o suporte</button>
+    <button type="button" class="password-support-back" onclick="fecharModalSuporteSenha()">Voltar</button>
   </div>
 </div>
 

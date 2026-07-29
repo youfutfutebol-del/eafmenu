@@ -159,6 +159,18 @@ function abrirRecuperacaoEafFlow() {
   );
 }
 
+function abrirModalSuporteSenha() {
+  document.getElementById('modalSuporteSenha').classList.add('show');
+}
+
+function fecharModalSuporteSenha() {
+  document.getElementById('modalSuporteSenha').classList.remove('show');
+}
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') fecharModalSuporteSenha();
+});
+
 function mostrarTelaNovaSenhaRecuperacao() {
   showScreen(APP_SCREEN.LOGIN);
   document.getElementById('stepLogin').style.display = 'none';
