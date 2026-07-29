@@ -4,33 +4,91 @@
 // e das funcoes showToast/formatMoeda/formatData. So chamadas apos o script principal rodar.
 // Continuam globais (sem type=module). Nao inclui relatorio_financeiro_v1 (fica no script principal).
 
-  function periodoInicio() {
-    const agora = new Date();
-    if (periodo === 'hoje') {
-      const inicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
-      return inicio.toISOString();
+  let despesaEmAndamento = false;
+  let aberturaCaixaEmAndamento = false;
+  let fechamentoCaixaEmAndamento = false;
+
+  function normalizarRegistroRpc(data, nomeRpc) {
+    if (Array.isArray(data)) {
+      if (data.length !== 1 || !data[0] || typeof data[0] !== 'object') {
+        throw new Error(`Resposta inválida de ${nomeRpc}.`);
+      }
+      return data[0];
     }
-    if (periodo === '7dias') return new Date(agora.getTime() - 7 * 86400000).toISOString();
-    if (periodo === '30dias') return new Date(agora.getTime() - 30 * 86400000).toISOString();
-    return null;
+    if (!data || typeof data !== 'object') {
+      throw new Error(`Resposta inválida de ${nomeRpc}.`);
+    }
+    return data;
+  }
+
+  function normalizarListaRpc(data, nomeRpc) {
+    if (!Array.isArray(data)) {
+      throw new Error(`Resposta inválida de ${nomeRpc}.`);
+    }
+    return data;
+  }
+
+  function mensagemRpcConhecida(erro, operacao) {
+    const mensagem = String(erro?.message || '');
+    const mensagensConhecidas = [
+      'Já existe um caixa aberto para este restaurante.',
+      'Não existe caixa aberto para este restaurante.',
+      'Você não tem permissão para abrir o caixa.',
+      'Você não tem permissão para fechar o caixa.',
+      'Você não tem permissão para lançar despesas.',
+      'Seu usuário não possui restaurante.',
+      'Informe um valor de abertura válido.',
+      'Informe um valor contado válido.',
+      'Informe um valor válido.',
+      'Informe a descrição da despesa.',
+      'Informe uma forma de pagamento válida.'
+    ];
+    const conhecida = mensagensConhecidas.find(item => mensagem.includes(item));
+    if (conhecida) return conhecida;
+    console.warn(`Falha técnica ao ${operacao}:`, erro);
+    return 'Não foi possível concluir a operação. Tente novamente.';
+  }
+
+  function definirBotaoCarregando(botao, carregando, textoCarregando) {
+    if (!botao) return;
+    if (carregando) {
+      botao.dataset.textoOriginal = botao.textContent;
+      botao.textContent = textoCarregando;
+      botao.disabled = true;
+      return;
+    }
+    botao.textContent = botao.dataset.textoOriginal || botao.textContent;
+    delete botao.dataset.textoOriginal;
+    botao.disabled = false;
   }
 
   async function loadMovimentacoes() {
-    let query = sb.from('movimentacoes_financeiras')
-      .select('id, tipo, descricao, valor, pedido_id, criado_em, forma_pagamento, origem')
-      .eq('restaurante_id', restauranteId)
-      .order('criado_em', { ascending: false });
-
-    const inicio = periodoInicio();
-    if (inicio) query = query.gte('criado_em', inicio);
-
-    const { data, error } = await query;
-    if (error) { showToast('Erro ao carregar', error.message); return; }
-    movimentacoes = data || [];
-    renderExtrato();
+    try {
+      const { data, error } = await sb.rpc('listar_movimentacoes_financeiras_v2', {
+        p_periodo: periodo
+      });
+      if (error) throw error;
+      movimentacoes = normalizarListaRpc(data, 'listar_movimentacoes_financeiras_v2');
+      renderExtrato();
+    } catch (erro) {
+      console.warn('Falha técnica ao carregar o extrato financeiro:', erro);
+      movimentacoes = [];
+      document.getElementById('totalEntradas').textContent = formatMoeda(0);
+      document.getElementById('totalSaidas').textContent = formatMoeda(0);
+      document.getElementById('filterCountFinanceiro').textContent = 'Extrato não carregado';
+      document.getElementById('extratoList').innerHTML = `
+        <div class="empty-state">
+          <div class="ic">⚠️</div>
+          <h4>Não foi possível carregar o extrato</h4>
+          <p>Tente novamente para consultar os lançamentos deste período.</p>
+          <button class="btn" type="button" onclick="loadMovimentacoes()">Tentar novamente</button>
+        </div>`;
+      showToast('Extrato indisponível', 'Não foi possível carregar o extrato. Tente novamente.');
+    }
   }
 
   function setPeriodo(p) {
+    if (!['hoje', '7dias', '30dias', 'tudo'].includes(p)) return;
     periodo = p;
     document.querySelectorAll('#filterTabsFinanceiro .tab').forEach(t => t.classList.toggle('active', t.dataset.p === p));
     loadMovimentacoes();
@@ -78,29 +136,40 @@
     document.getElementById('despesaModalBg').classList.add('show');
   }
 
-  function closeDespesa() { document.getElementById('despesaModalBg').classList.remove('show'); }
+  function closeDespesa(forcar = false) {
+    if (despesaEmAndamento && !forcar) return;
+    document.getElementById('despesaModalBg').classList.remove('show');
+  }
 
   async function submitDespesa() {
+    if (despesaEmAndamento) return;
     const descricao = document.getElementById('dDescricao').value.trim();
     const valor = parseFloat(document.getElementById('dValor').value);
     const formaPagamento = document.getElementById('dFormaPagamento').value;
     if (!descricao) { showToast('Faltou a descrição', 'Informe do que se trata a despesa.'); return; }
     if (!valor || valor <= 0) { showToast('Valor inválido', 'Informe um valor maior que zero.'); return; }
 
-    const { error } = await sb.from('movimentacoes_financeiras').insert({
-      restaurante_id: restauranteId,
-      tipo: 'despesa',
-      descricao,
-      valor,
-      criado_por: currentUser.id,
-      forma_pagamento: formaPagamento
-    });
-    if (error) { showToast('Erro ao lançar', error.message); return; }
-
-    closeDespesa();
-    showToast('Despesa lançada', descricao + ' · ' + formatMoeda(valor));
-    await loadMovimentacoes();
-    await loadCaixaAtual();
+    const botao = document.getElementById('btnSubmitDespesa');
+    despesaEmAndamento = true;
+    definirBotaoCarregando(botao, true, 'Lançando...');
+    try {
+      const { data, error } = await sb.rpc('registrar_despesa_v2', {
+        p_descricao: descricao,
+        p_valor: valor,
+        p_forma_pagamento: formaPagamento
+      });
+      if (error) throw error;
+      normalizarRegistroRpc(data, 'registrar_despesa_v2');
+      closeDespesa(true);
+      showToast('Despesa lançada', descricao + ' · ' + formatMoeda(valor));
+      await loadMovimentacoes();
+      await loadCaixaAtual();
+    } catch (erro) {
+      showToast('Despesa não lançada', mensagemRpcConhecida(erro, 'lançar a despesa'));
+    } finally {
+      despesaEmAndamento = false;
+      definirBotaoCarregando(botao, false);
+    }
   }
 
   async function loadCaixaAtual() {
@@ -161,22 +230,36 @@
     document.getElementById('abrirCaixaModalBg').classList.add('show');
   }
 
-  function closeAbrirCaixa() { document.getElementById('abrirCaixaModalBg').classList.remove('show'); }
+  function closeAbrirCaixa(forcar = false) {
+    if (aberturaCaixaEmAndamento && !forcar) return;
+    document.getElementById('abrirCaixaModalBg').classList.remove('show');
+  }
 
   async function submitAbrirCaixa() {
+    if (aberturaCaixaEmAndamento) return;
     const valorAbertura = parseFloat(document.getElementById('acValorAbertura').value);
     if (isNaN(valorAbertura) || valorAbertura < 0) { showToast('Valor inválido', 'Informe o valor do fundo de troco (pode ser 0).'); return; }
 
-    const { error } = await sb.from('fechamentos_caixa').insert({
-      restaurante_id: restauranteId,
-      valor_abertura: valorAbertura,
-      aberto_por: currentUser.id
-    });
-    if (error) { showToast('Erro ao abrir caixa', error.message); return; }
-
-    closeAbrirCaixa();
-    showToast('Caixa aberto', 'Fundo de troco: ' + formatMoeda(valorAbertura));
-    await loadCaixaAtual();
+    const botao = document.getElementById('btnSubmitAbrirCaixa');
+    aberturaCaixaEmAndamento = true;
+    definirBotaoCarregando(botao, true, 'Abrindo...');
+    try {
+      const { data, error } = await sb.rpc('abrir_caixa_v2', {
+        p_valor_abertura: valorAbertura
+      });
+      if (error) throw error;
+      caixaAtual = normalizarRegistroRpc(data, 'abrir_caixa_v2');
+      closeAbrirCaixa(true);
+      showToast('Caixa aberto', 'Fundo de troco: ' + formatMoeda(caixaAtual.valor_abertura));
+      await renderCaixaStatus();
+      await loadMovimentacoes();
+      await loadCaixaAtual();
+    } catch (erro) {
+      showToast('Caixa não aberto', mensagemRpcConhecida(erro, 'abrir o caixa'));
+    } finally {
+      aberturaCaixaEmAndamento = false;
+      definirBotaoCarregando(botao, false);
+    }
   }
 
   async function openFecharCaixa() {
@@ -187,7 +270,7 @@
     document.getElementById('fcValorAbertura').textContent = formatMoeda(caixaAtual.valor_abertura);
     document.getElementById('fcEntradasDinheiro').textContent = formatMoeda(entradas);
     document.getElementById('fcSaidasDinheiro').textContent = formatMoeda(saidas);
-    document.getElementById('fcEsperado').textContent = formatMoeda(esperado);
+    document.getElementById('fcEsperado').textContent = formatMoeda(esperado) + ' (estimativa)';
     document.getElementById('fcEsperado').dataset.valor = esperado;
     document.getElementById('fcValorContado').value = '';
     document.getElementById('fcObservacoes').value = '';
@@ -195,7 +278,10 @@
     document.getElementById('fecharCaixaModalBg').classList.add('show');
   }
 
-  function closeFecharCaixa() { document.getElementById('fecharCaixaModalBg').classList.remove('show'); }
+  function closeFecharCaixa(forcar = false) {
+    if (fechamentoCaixaEmAndamento && !forcar) return;
+    document.getElementById('fecharCaixaModalBg').classList.remove('show');
+  }
 
   function atualizarDiferencaFechamento() {
     const esperado = Number(document.getElementById('fcEsperado').dataset.valor || 0);
@@ -216,28 +302,44 @@
   }
 
   async function submitFecharCaixa() {
-    const esperado = Number(document.getElementById('fcEsperado').dataset.valor || 0);
+    if (fechamentoCaixaEmAndamento) return;
     const contado = parseFloat(document.getElementById('fcValorContado').value);
     if (isNaN(contado) || contado < 0) { showToast('Valor inválido', 'Informe o valor contado na gaveta.'); return; }
 
-    const diferenca = contado - esperado;
     const observacoes = document.getElementById('fcObservacoes').value.trim() || null;
-
-    const { error } = await sb.from('fechamentos_caixa').update({
-      status: 'fechado',
-      valor_dinheiro_esperado: esperado,
-      valor_dinheiro_informado: contado,
-      diferenca,
-      observacoes,
-      fechado_por: currentUser.id,
-      fechado_em: new Date().toISOString()
-    }).eq('id', caixaAtual.id);
-
-    if (error) { showToast('Erro ao fechar caixa', error.message); return; }
-
-    closeFecharCaixa();
-    showToast('Caixa fechado', Math.abs(diferenca) < 0.005 ? 'Bateu certinho!' : 'Diferença: ' + formatMoeda(diferenca));
-    await loadCaixaAtual();
+    const botao = document.getElementById('btnSubmitFecharCaixa');
+    fechamentoCaixaEmAndamento = true;
+    definirBotaoCarregando(botao, true, 'Fechando...');
+    try {
+      const { data, error } = await sb.rpc('fechar_caixa_v2', {
+        p_valor_contado: contado,
+        p_observacoes: observacoes
+      });
+      if (error) throw error;
+      const fechamento = normalizarRegistroRpc(data, 'fechar_caixa_v2');
+      const esperadoOficial = Number(fechamento.valor_dinheiro_esperado);
+      const informadoOficial = Number(fechamento.valor_dinheiro_informado);
+      const diferencaOficial = Number(fechamento.diferenca);
+      if (![esperadoOficial, informadoOficial, diferencaOficial].every(Number.isFinite)
+        || !fechamento.fechado_em || !fechamento.fechado_por) {
+        throw new Error('Resposta inválida de fechar_caixa_v2.');
+      }
+      caixaAtual = null;
+      closeFecharCaixa(true);
+      showToast(
+        'Caixa fechado',
+        Math.abs(diferencaOficial) < 0.005
+          ? 'Bateu certinho!'
+          : 'Diferença confirmada: ' + formatMoeda(diferencaOficial)
+      );
+      await loadMovimentacoes();
+      await loadCaixaAtual();
+    } catch (erro) {
+      showToast('Caixa não fechado', mensagemRpcConhecida(erro, 'fechar o caixa'));
+    } finally {
+      fechamentoCaixaEmAndamento = false;
+      definirBotaoCarregando(botao, false);
+    }
   }
 
   async function loadFechamentosHistorico() {

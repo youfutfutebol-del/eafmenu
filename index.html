@@ -804,7 +804,7 @@
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeDespesa()">Cancelar</button>
-      <button class="btn primary" onclick="submitDespesa()">Lançar despesa</button>
+      <button class="btn primary" id="btnSubmitDespesa" onclick="submitDespesa()">Lançar despesa</button>
     </div>
   </div>
 </div>
@@ -816,7 +816,7 @@
     <div class="field"><label>Valor de abertura (R$)</label><input id="acValorAbertura" type="number" step="0.01" min="0" placeholder="0,00"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeAbrirCaixa()">Cancelar</button>
-      <button class="btn primary" onclick="submitAbrirCaixa()">Abrir caixa</button>
+      <button class="btn primary" id="btnSubmitAbrirCaixa" onclick="submitAbrirCaixa()">Abrir caixa</button>
     </div>
   </div>
 </div>
@@ -836,7 +836,7 @@
     <div class="field"><label>Observações (opcional)</label><input id="fcObservacoes" placeholder="Ex: faltou trocado, sobrou de uma gorjeta..."></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeFecharCaixa()">Cancelar</button>
-      <button class="btn primary" onclick="submitFecharCaixa()">Confirmar fechamento</button>
+      <button class="btn primary" id="btnSubmitFecharCaixa" onclick="submitFecharCaixa()">Confirmar fechamento</button>
     </div>
   </div>
 </div>
