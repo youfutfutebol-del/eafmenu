@@ -530,8 +530,11 @@
   let checkoutPrecisaTroco = false;
   let confirmarPedidoEmAndamento = false;
 
-  let restauranteAbertoAgora = true;
-  let statusAbertoInterval = null;
+  let restauranteAbertoAgora = false;
+  let statusLojaServidorAtual = null;
+  let statusLojaServidorTimer = null;
+  let statusLojaServidorCarregando = false;
+  let statusLojaServidorConsulta = null;
   let restauranteConfigChannel = null;
 
   // Dia comercial (vira às 07:00 America/Sao_Paulo) — o relógio local é só um
@@ -584,15 +587,19 @@
     atualizarCartFab();
     await atualizarBadgePedidos();
 
-    atualizarStatusAberto();
-    if (statusAbertoInterval) clearInterval(statusAbertoInterval);
-    statusAbertoInterval = setInterval(atualizarStatusAberto, 60 * 1000);
+    await consultarStatusLojaServidor();
 
     agendarProximaVerificacaoDiaComercial();
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') consultarDiaComercialServidor();
+      if (document.visibilityState === 'visible') {
+        consultarDiaComercialServidor();
+        consultarStatusLojaServidor();
+      }
     });
-    window.addEventListener('focus', () => consultarDiaComercialServidor());
+    window.addEventListener('focus', () => {
+      consultarDiaComercialServidor();
+      consultarStatusLojaServidor();
+    });
 
     document.getElementById('screenLoading').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
@@ -787,7 +794,7 @@
 
     restaurante = restauranteAtualizado;
     aplicarMarca();
-    atualizarStatusAberto();
+    await consultarStatusLojaServidor();
   }
 
   function subscribeConfiguracaoPublica() {
@@ -840,95 +847,78 @@
   }
 
   // =====================================================================
-  // HORÁRIO DE FUNCIONAMENTO (aberto/fechado agora)
+  // HORÁRIO DE FUNCIONAMENTO (fonte de verdade: servidor)
   // =====================================================================
-  // Le a hora atual em Brasília a partir de um Date, sem depender do fuso do navegador do cliente.
-  function agoraEmBrasilia() {
-    const partes = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Sao_Paulo',
-      weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false
-    }).formatToParts(new Date());
-
-    const mapaDia = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-    const diaSemana = mapaDia[partes.find(p => p.type === 'weekday').value];
-    let hora = parseInt(partes.find(p => p.type === 'hour').value, 10);
-    const minuto = parseInt(partes.find(p => p.type === 'minute').value, 10);
-    if (hora === 24) hora = 0; // alguns navegadores retornam "24" pra meia-noite com hour12:false
-    return { diaSemana, minutosDoDia: hora * 60 + minuto };
-  }
-
-  function janelaAbrange(configDia, minutosAlvo, mesmoDia) {
-    if (!configDia || !configDia.aberto || !configDia.abre || !configDia.fecha) return false;
-    const [abreH, abreM] = configDia.abre.split(':').map(Number);
-    const [fechaH, fechaM] = configDia.fecha.split(':').map(Number);
-    const abreMin = abreH * 60 + abreM;
-    const fechaMin = fechaH * 60 + fechaM;
-    const cruzaMeiaNoite = fechaMin <= abreMin;
-
-    if (mesmoDia) {
-      return cruzaMeiaNoite ? (minutosAlvo >= abreMin) : (minutosAlvo >= abreMin && minutosAlvo < fechaMin);
-    }
-    // checando o dia anterior (só importa se ele cruza a meia-noite e ainda não chegou no horário de fechar)
-    return cruzaMeiaNoite && minutosAlvo < fechaMin;
-  }
-
-  function calcularEstaAberto() {
-    const horarios = restaurante?.horarios_semana;
-    if (!Array.isArray(horarios) || horarios.length === 0) return false;
-
-    const { diaSemana, minutosDoDia } = agoraEmBrasilia();
-    const diaAnterior = (diaSemana + 6) % 7;
-
-    const configHoje = horarios.find(h => h.dia === diaSemana);
-    const configOntem = horarios.find(h => h.dia === diaAnterior);
-
-    return janelaAbrange(configHoje, minutosDoDia, true) || janelaAbrange(configOntem, minutosDoDia, false);
-  }
-
-  function proximoHorarioAbertura() {
-    const horarios = restaurante?.horarios_semana;
-    if (!Array.isArray(horarios)) return null;
-    const { diaSemana } = agoraEmBrasilia();
-    for (let i = 0; i < 7; i++) {
-      const dia = (diaSemana + i) % 7;
-      const cfg = horarios.find(h => h.dia === dia && h.aberto);
-      if (cfg) return { hoje: i === 0, abre: cfg.abre };
-    }
-    return null;
-  }
-
-  function atualizarStatusAberto() {
-    const semConfiguracao = !Array.isArray(restaurante?.horarios_semana) || restaurante.horarios_semana.length === 0;
-    restauranteAbertoAgora = calcularEstaAberto();
-
+  function renderizarStatusLojaServidor(status) {
     const statusEl = document.getElementById('topStatus');
     const txtEl = document.getElementById('topStatusTxt');
     const bannerEl = document.getElementById('bannerFechado');
     const bannerTxtEl = document.getElementById('bannerFechadoTexto');
-
+    const motivo = status?.motivo;
+    restauranteAbertoAgora = status?.aberto === true;
     statusEl.classList.toggle('closed', !restauranteAbertoAgora);
-    txtEl.textContent = semConfiguracao
-      ? 'Horário não configurado'
-      : (restauranteAbertoAgora ? 'Aberto agora' : 'Fechado no momento');
-
     if (restauranteAbertoAgora) {
+      txtEl.textContent = motivo === 'aberto_24h' ? 'Aberto 24 horas' : 'Aberto agora';
       bannerEl.classList.remove('show');
     } else {
-      if (semConfiguracao) {
+      if (motivo === 'fechado') {
+        txtEl.textContent = 'Fechado no momento';
+        bannerTxtEl.textContent = status.mensagem || 'Estamos fechados no momento.';
+      } else if (motivo === 'sem_configuracao') {
+        txtEl.textContent = 'Horário não configurado';
         bannerTxtEl.textContent = 'Este restaurante ainda não configurou o horário de funcionamento e não está aceitando pedidos no momento.';
+      } else if (motivo === 'horario_invalido') {
+        txtEl.textContent = 'Horário indisponível';
+        bannerTxtEl.textContent = 'O horário de funcionamento está indisponível. Entre em contato com o restaurante.';
       } else {
-        const prox = proximoHorarioAbertura();
-        bannerTxtEl.textContent = prox
-          ? `Estamos fechados agora. ${prox.hoje ? 'Abrimos hoje às ' : 'Abrimos às '}${prox.abre}.`
-          : 'Estamos fechados no momento.';
+        txtEl.textContent = 'Não foi possível confirmar o horário da loja';
+        bannerTxtEl.textContent = 'Não foi possível confirmar o horário da loja. Tente novamente.';
       }
       bannerEl.classList.add('show');
     }
-
     const btnFinalizar = document.getElementById('btnFinalizarPedido');
     if (btnFinalizar) btnFinalizar.disabled = !restauranteAbertoAgora;
-
+    const btnConfirmar = document.getElementById('btnConfirmarPedido');
+    if (btnConfirmar && !confirmarPedidoEmAndamento) btnConfirmar.disabled = !restauranteAbertoAgora;
     return restauranteAbertoAgora;
+  }
+
+  function agendarStatusLojaServidor(status) {
+    if (statusLojaServidorTimer) clearTimeout(statusLojaServidorTimer);
+    let esperaMs = 60 * 1000;
+    if (status?.proxima_mudanca && status?.servidor_agora) {
+      const duracaoServidor = Date.parse(status.proxima_mudanca) - Date.parse(status.servidor_agora);
+      if (Number.isFinite(duracaoServidor)) esperaMs = Math.max(1000, duracaoServidor + 1000);
+    }
+    statusLojaServidorTimer = setTimeout(consultarStatusLojaServidor, esperaMs);
+  }
+
+  async function consultarStatusLojaServidor() {
+    if (statusLojaServidorConsulta) return statusLojaServidorConsulta;
+    if (!sb || !restauranteSlug) return null;
+    statusLojaServidorCarregando = true;
+    statusLojaServidorConsulta = (async () => {
+      try {
+        const { data, error } = await sb.rpc('status_publico_restaurante', { p_slug: restauranteSlug });
+        if (error) throw error;
+        const status = Array.isArray(data) ? data[0] : data;
+        if (!status || typeof status.aberto !== 'boolean') throw new Error('Resposta inválida ao consultar o status da loja.');
+        statusLojaServidorAtual = status;
+        renderizarStatusLojaServidor(status);
+        agendarStatusLojaServidor(status);
+        return status;
+      } catch (erro) {
+        console.error('Não foi possível consultar o status público da loja:', erro);
+        statusLojaServidorAtual = null;
+        renderizarStatusLojaServidor(null);
+        agendarStatusLojaServidor(null);
+        return null;
+      } finally {
+        statusLojaServidorCarregando = false;
+        statusLojaServidorConsulta = null;
+      }
+    })();
+    return statusLojaServidorConsulta;
   }
 
   // =====================================================================
@@ -1391,11 +1381,15 @@
   // =====================================================================
   // CHECKOUT — passo 1: identificação (Supabase Auth Anonymous Sign-in por trás)
   // =====================================================================
-  function abrirCheckout() {
+  async function abrirCheckout() {
     if (cart.length === 0) { showToast('Carrinho vazio', 'Adicione itens antes de finalizar.'); return; }
 
-    if (!atualizarStatusAberto()) {
-      showToast('Restaurante fechado', 'Restaurante fechado no momento. Volte no próximo horário de funcionamento.');
+    const status = await consultarStatusLojaServidor();
+    if (!status?.aberto) {
+      showToast(
+        status?.motivo === 'fechado' ? 'Restaurante fechado' : 'Pedido indisponível',
+        status?.mensagem || 'Não foi possível confirmar o horário da loja. Tente novamente.'
+      );
       return;
     }
 
@@ -1708,17 +1702,19 @@
 
   async function confirmarPedido() {
     const btn = document.getElementById('btnConfirmarPedido');
-    if (confirmarPedidoEmAndamento || btn.disabled) return;
-    if (!atualizarStatusAberto()) {
-      showToast('Restaurante fechado', 'Restaurante fechado no momento. Volte no próximo horário de funcionamento.');
-      closeSheet('sheetCheckout');
-      return;
-    }
-
+    if (confirmarPedidoEmAndamento) return;
     confirmarPedidoEmAndamento = true;
     btn.disabled = true; btn.textContent = 'Enviando pedido...';
-    let rpcIniciada = false;
+    let chamadaPedidoSemResposta = false;
     try {
+      const statusAntesDoEnvio = await consultarStatusLojaServidor();
+      if (!statusAntesDoEnvio?.aberto) {
+        showToast(
+          statusAntesDoEnvio?.motivo === 'fechado' ? 'Restaurante fechado' : 'Pedido indisponível',
+          statusAntesDoEnvio?.mensagem || 'Não foi possível confirmar o horário da loja. Tente novamente.'
+        );
+        return;
+      }
       // A trava já está ativa antes desta espera, impedindo dois cliques concorrentes.
       if (!(await garantirClienteSessaoValida())) return;
 
@@ -1745,19 +1741,34 @@
         itens
       };
       const chaveIdempotencia = recuperarChavePendenteCliente(conteudoPedido);
-      rpcIniciada = true;
-      const { data, error } = await sb.rpc('criar_pedido_cliente_v1', {
-        p_restaurante_id: restaurante.id,
-        p_tipo: checkoutTipo,
-        p_forma_pagamento: forma,
-        p_troco_para: troco.valor,
-        p_endereco: conteudoPedido.endereco,
-        p_itens: itens,
-        p_chave_idempotencia: chaveIdempotencia
-      });
-      if (error) throw new Error(error.message);
+      let respostaRpc;
+      try {
+        chamadaPedidoSemResposta = true;
+        respostaRpc = await sb.rpc('criar_pedido_cliente_v1', {
+          p_restaurante_id: restaurante.id,
+          p_tipo: checkoutTipo,
+          p_forma_pagamento: forma,
+          p_troco_para: troco.valor,
+          p_endereco: conteudoPedido.endereco,
+          p_itens: itens,
+          p_chave_idempotencia: chaveIdempotencia
+        });
+        chamadaPedidoSemResposta = false;
+      } catch (erroRede) {
+        throw erroRede;
+      }
+      const { data, error } = respostaRpc;
+      if (error) {
+        const erroConfirmado = new Error(error.message || 'O banco não confirmou a criação do pedido.');
+        erroConfirmado.respostaConfirmada = true;
+        throw erroConfirmado;
+      }
       const resultado = Array.isArray(data) ? data[0] : data;
-      if (!resultado?.pedido_id) throw new Error('O banco não confirmou a criação do pedido.');
+      if (!resultado?.pedido_id) {
+        const erroConfirmado = new Error('O banco não confirmou a criação do pedido.');
+        erroConfirmado.respostaConfirmada = true;
+        throw erroConfirmado;
+      }
 
       limparChavePendenteCliente(chaveIdempotencia);
       cart = [];
@@ -1770,17 +1781,29 @@
       await atualizarBadgePedidos();
       openMeusPedidos();
     } catch (erro) {
-      if (rpcIniciada) {
+      const mensagem = erro?.message || String(erro);
+      const erroLojaFechada = mensagem === 'O restaurante está fechado no momento. Consulte o próximo horário de funcionamento.';
+      if (erroLojaFechada) {
+        showToast('Restaurante fechado', mensagem);
+        await consultarStatusLojaServidor();
+      } else if (chamadaPedidoSemResposta) {
         showToast(
           'Pedido não confirmado',
           'Não foi possível confirmar a resposta do servidor. Tente novamente; a mesma tentativa será recuperada com segurança, sem duplicar o pedido.'
         );
+      } else if (erro?.respostaConfirmada) {
+        console.warn('Pedido recusado pelo servidor:', erro);
+        showToast(
+          'Pedido não confirmado',
+          'Não foi possível confirmar o pedido. Revise os dados e tente novamente.'
+        );
       } else {
-        showToast('Revise o pedido', erro?.message || String(erro));
+        showToast('Revise o pedido', mensagem);
       }
     } finally {
       confirmarPedidoEmAndamento = false;
-      btn.disabled = false; btn.textContent = 'Confirmar pedido';
+      btn.disabled = !statusLojaServidorAtual?.aberto;
+      btn.textContent = 'Confirmar pedido';
     }
   }
 

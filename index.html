@@ -540,8 +540,16 @@
           </div>
           <div class="field">
             <label>Horário de funcionamento</label>
-            <div class="horarios-grid" id="horariosGrid"></div>
-            <p style="font-size:11px; color:var(--muted); margin:2px 0 0;">Esse horário aparece no cardápio do cliente como informação — ele não bloqueia pedidos automaticamente fora do horário.</p>
+            <label style="display:flex; align-items:center; gap:10px; margin:8px 0 12px; cursor:pointer;">
+              <input id="mkAceitaPedidos24h" type="checkbox" onchange="toggleAceitaPedidos24h(this.checked)" style="width:auto;">
+              <span>Aceitar pedidos 24 horas</span>
+            </label>
+            <p id="mkAceitaPedidos24hInfo" class="hidden" style="font-size:12px; color:var(--muted); margin:0 0 10px;">Pedidos públicos serão aceitos a qualquer horário.</p>
+            <div id="horariosSemanaWrap">
+              <div class="horarios-grid" id="horariosGrid"></div>
+            </div>
+            <p id="mkHorarioSemDiasAlerta" class="hidden" style="font-size:12px; color:#b45309; margin:8px 0 0;">Configure o horário de funcionamento para liberar pedidos no cardápio.</p>
+            <p style="font-size:11px; color:var(--muted); margin:8px 0 0;">O horário é usado pelo servidor para liberar ou bloquear pedidos públicos. Pedidos manuais da equipe continuam disponíveis fora do horário.</p>
           </div>
           <div class="modal-actions" style="margin-top:6px;">
             <button class="btn primary" onclick="submitMarca()" style="flex:none; padding:10px 20px;">Salvar alterações</button>

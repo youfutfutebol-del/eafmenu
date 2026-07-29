@@ -46,6 +46,19 @@
           : `<span class="horario-dia-fechado-label">Fechado nesse dia</span>`
         }
       </div>`).join('');
+    atualizarVisibilidadeHorarios();
+  }
+
+  function atualizarVisibilidadeHorarios() {
+    const aceita24h = !!document.getElementById('mkAceitaPedidos24h')?.checked;
+    document.getElementById('horariosSemanaWrap')?.classList.toggle('hidden', aceita24h);
+    document.getElementById('mkAceitaPedidos24hInfo')?.classList.toggle('hidden', !aceita24h);
+    const semDiasAbertos = !horariosSemanaState.some(d => d.aberto);
+    document.getElementById('mkHorarioSemDiasAlerta')?.classList.toggle('hidden', aceita24h || !semDiasAbertos);
+  }
+
+  function toggleAceitaPedidos24h() {
+    atualizarVisibilidadeHorarios();
   }
 
   function toggleDiaAberto(idx) {
@@ -59,7 +72,7 @@
 
   async function loadMarca() {
     const { data, error } = await sb.from('restaurantes')
-      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horarios_semana, prazo_entrega_min_minutos, prazo_entrega_max_minutos')
+      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horarios_semana, aceita_pedidos_24h, prazo_entrega_min_minutos, prazo_entrega_max_minutos')
       .eq('id', restauranteId)
       .single();
     if (error) { showToast('Erro ao carregar dados da marca', error.message); return; }
@@ -83,6 +96,7 @@
     document.getElementById('mkInstagram').value = data.instagram || '';
     document.getElementById('mkPrazoEntregaMin').value = data.prazo_entrega_min_minutos == null ? '' : String(data.prazo_entrega_min_minutos);
     document.getElementById('mkPrazoEntregaMax').value = data.prazo_entrega_max_minutos == null ? '' : String(data.prazo_entrega_max_minutos);
+    document.getElementById('mkAceitaPedidos24h').checked = data.aceita_pedidos_24h === true;
 
     horariosSemanaState = normalizarHorariosSemana(data.horarios_semana);
     renderHorariosGrid();
@@ -237,6 +251,17 @@
       showToast('Prazo de entrega inválido', prazosEntrega.mensagem);
       return;
     }
+    const horarioInvalido = horariosSemanaState.find(d => d.aberto && (!d.abre || !d.fecha || d.abre === d.fecha));
+    if (horarioInvalido) {
+      showToast(
+        'Horário inválido',
+        horarioInvalido.abre === horarioInvalido.fecha
+          ? 'Abertura e fechamento não podem ser iguais. Use a opção 24 horas quando necessário.'
+          : 'Preencha a abertura e o fechamento de todos os dias abertos.'
+      );
+      return;
+    }
+    const aceitaPedidos24h = document.getElementById('mkAceitaPedidos24h').checked;
 
     const payload = {
       nome,
@@ -248,7 +273,8 @@
       instagram: document.getElementById('mkInstagram').value.trim() || null,
       prazo_entrega_min_minutos: prazosEntrega.minimo,
       prazo_entrega_max_minutos: prazosEntrega.maximo,
-      horarios_semana: horariosSemanaState
+      horarios_semana: horariosSemanaState,
+      aceita_pedidos_24h: aceitaPedidos24h
     };
 
     const { error } = await sb.from('restaurantes').update(payload).eq('id', restauranteId);
@@ -266,12 +292,16 @@
     restauranteSlugAtual = slugFinal;
     restauranteInfo = {
       ...(restauranteInfo || {}),
+      nome,
+      slug: slugFinal,
+      aceita_pedidos_24h: aceitaPedidos24h,
+      horarios_semana: horariosSemanaState,
       prazo_entrega_min_minutos: prazosEntrega.minimo,
       prazo_entrega_max_minutos: prazosEntrega.maximo
     };
     atualizarBotaoPrazoEntrega();
     horariosLojaAtual = horariosSemanaState;
-    atualizarStatusLoja();
+    await atualizarStatusLoja();
     atualizarLinkCardapioPreview();
     showToast('Marca atualizada', 'As alterações já valem para o cardápio público.');
   }
