@@ -1,0 +1,1 @@
+drop policy if exists "restaurantes_publico_leitura" on public.restaurantes;
