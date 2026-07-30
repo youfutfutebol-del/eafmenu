@@ -1,0 +1,1 @@
+drop policy if exists "usuario logado cria seu proprio registro ao aceitar convite" on public.usuarios;

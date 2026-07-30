@@ -1,0 +1,1 @@
+drop policy if exists "cliente_cria_proprios_pedidos" on public.pedidos;

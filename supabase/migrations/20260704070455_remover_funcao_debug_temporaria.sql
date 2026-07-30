@@ -1,0 +1,1 @@
+drop function if exists public.debug_auth_contexto();
