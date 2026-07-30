@@ -1,0 +1,1 @@
+alter view public.restaurantes_publico set (security_invoker = false);

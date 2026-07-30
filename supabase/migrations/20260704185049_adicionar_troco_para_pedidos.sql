@@ -1,0 +1,2 @@
+alter table pedidos add column if not exists troco_para numeric(10,2);
+comment on column pedidos.troco_para is 'Valor que o cliente vai pagar em dinheiro (pra calcular o troco). NULL se não for pagamento em dinheiro ou não precisar de troco.';

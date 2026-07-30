@@ -1,0 +1,1 @@
+drop function if exists public.proximo_numero_diario(uuid, date);
