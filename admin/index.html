@@ -97,6 +97,9 @@
   .rest-card__actions .reset-password-btn { color:#52525B; background:#fff; }
   .rest-card__actions .remove-btn { width:auto; min-width:92px; color:#B42318; border-color:#F5B7B1; background:#FFF8F7; }
   .rest-card__badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .rest-card__plan { margin-top:10px; padding:8px 10px; border-radius:9px; background:#F8F8F8; }
+  .rest-card__plan-name { font-size:12px; font-weight:800; }
+  .rest-card__plan-price { margin-top:2px; font-size:11px; color:var(--muted); }
   .badge { display:inline-flex; align-items:center; border-radius:999px; padding:4px 8px; font-size:10px; font-weight:800; }
   .badge.ok { background:#DCFCE7; color:#166534; }
   .badge.warn { background:#FEF3C7; color:#92400E; }
@@ -106,6 +109,23 @@
   .restaurant-checks { display:grid; gap:7px; max-height:180px; overflow:auto; border:1px solid #E4E4E7; border-radius:8px; padding:10px; }
   .restaurant-checks label { display:flex; gap:8px; align-items:center; font-size:12px; }
   .empty-state { padding:60px 20px; text-align:center; color:var(--muted); }
+  .plans-section { margin-top:30px; padding-top:24px; border-top:1px solid #D4D4D8; }
+  .plans-section__header { margin-bottom:14px; }
+  .plans-section__header h2 { margin:0; font-size:17px; }
+  .plans-section__header p { margin:3px 0 0; color:var(--muted); font-size:12.5px; }
+  .plans-list { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px; }
+  .plan-card { min-width:0; padding:15px; border:1px solid #E4E4E7; border-radius:11px; background:#fff; display:grid; gap:8px; }
+  .plan-card__name { font-size:14px; font-weight:850; overflow-wrap:anywhere; }
+  .plan-card__price { font-size:16px; font-weight:850; }
+  .plan-card__meta { font-size:11.5px; color:var(--muted); }
+  .plan-card .btn { width:100%; min-height:36px; padding:8px 10px; }
+  .plan-choices { display:grid; gap:8px; }
+  .plan-choice { display:grid; grid-template-columns:auto minmax(0, 1fr); gap:10px; align-items:start; padding:11px 12px; border:1px solid #D4D4D8; border-radius:9px; cursor:pointer; }
+  .plan-choice:has(input:checked) { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .plan-choice input { margin-top:3px; }
+  .plan-choice__name { display:block; font-size:13px; font-weight:800; }
+  .plan-choice__price { display:block; margin-top:2px; color:var(--muted); font-size:11.5px; }
+  .plan-choice__current { color:var(--green); font-weight:800; }
 
   .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:80; align-items:center; justify-content:center; }
   .modal-bg.show { display:flex; }
@@ -153,6 +173,7 @@
     .rest-card__actions-secondary { grid-template-columns:1fr; gap:8px; padding-top:8px; }
     .rest-card__actions .btn { min-height:40px; padding:9px 10px; }
     .rest-card__actions .remove-btn { width:100%; min-width:0; }
+    .plans-list { grid-template-columns:1fr; }
 
     .modal-bg { padding:16px; align-items:flex-start; overflow:auto; }
     .modal { width:100%; max-width:420px; max-height:none; padding:22px 20px; margin:auto 0; }
@@ -226,6 +247,16 @@
     <div class="rest-list" id="restList">
       <div class="empty-state">Carregando...</div>
     </div>
+
+    <section class="plans-section" aria-labelledby="plansTitle">
+      <div class="plans-section__header">
+        <h2 id="plansTitle">Planos</h2>
+        <p>Preços e apresentação comercial usados pela plataforma.</p>
+      </div>
+      <div class="plans-list" id="plansList">
+        <div class="empty-state">Carregando...</div>
+      </div>
+    </section>
   </div>
 </div>
 
@@ -235,6 +266,7 @@
     <p class="sub">Cria o restaurante e a conta do primeiro dono, tudo de uma vez.</p>
 
     <div class="field"><label>Nome do restaurante</label><input id="nrNomeRestaurante" placeholder="Ex: Pizzaria do João"></div>
+    <div class="field"><label for="nrPlanoCodigo">Plano</label><select id="nrPlanoCodigo" required><option value="">Carregando planos...</option></select></div>
 
     <div class="divider-label">Primeiro usuário (dono)</div>
     <div class="field"><label>Nome</label><input id="nrDonoNome" placeholder="Nome completo"></div>
@@ -274,6 +306,36 @@
     <div class="modal-actions">
       <button class="btn" onclick="fecharPausaRestaurante()">Cancelar</button>
       <button class="btn primary" id="pausaRestBtn" onclick="confirmarPausaRestaurante()">Confirmar pausa</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="editarPlanoModalBg">
+  <div class="modal">
+    <h3>Editar plano</h3>
+    <p class="sub">O preço atualizado será usado imediatamente nas interfaces administrativas.</p>
+    <input type="hidden" id="epCodigo">
+    <div class="field"><label for="epNome">Nome comercial</label><input id="epNome" maxlength="80"></div>
+    <div class="field"><label for="epPreco">Preço mensal</label><input id="epPreco" inputmode="decimal" placeholder="99,90"></div>
+    <div class="field"><label for="epMedalha">Medalha</label><input id="epMedalha" maxlength="16"></div>
+    <div class="field"><label for="epOrdem">Ordem</label><input id="epOrdem" type="number" min="1" max="32767" step="1"></div>
+    <label style="display:flex;gap:8px;align-items:center;margin:8px 0;"><input id="epAtivo" type="checkbox"> Plano ativo</label>
+    <div class="modal-actions">
+      <button class="btn" type="button" onclick="fecharEditarPlano()">Cancelar</button>
+      <button class="btn primary" id="epSalvarBtn" type="button" onclick="salvarPlano()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="alterarPlanoRestModalBg">
+  <div class="modal">
+    <h3>Alterar plano</h3>
+    <p class="sub">Restaurante: <b id="aprRestauranteNome"></b></p>
+    <input type="hidden" id="aprRestauranteId">
+    <div class="plan-choices" id="aprPlanos"></div>
+    <div class="modal-actions">
+      <button class="btn" type="button" onclick="fecharAlterarPlanoRestaurante()">Cancelar</button>
+      <button class="btn primary" id="aprSalvarBtn" type="button" onclick="salvarPlanoRestaurante()">Alterar plano</button>
     </div>
   </div>
 </div>
@@ -332,6 +394,7 @@
 <script>
   let sb = null;
   const restaurantesPorId = new Map();
+  const planosPorCodigo = new Map();
   const notificacoesHistoricoPorId = new Map();
   let resetSenhaDonoAlvoId = null;
   async function initSupabase() {
@@ -459,7 +522,69 @@
     if (!ehAdmin) throw new Error('PROFILE_INVALID');
 
     showScreen(APP_SCREEN.APP);
-    void carregarRestaurantes();
+    void carregarDadosAdministrativos();
+  }
+
+  function formatarPrecoMensal(valor) {
+    const numero = Number(valor);
+    if (!Number.isFinite(numero)) return 'Preço indisponível';
+    return `${numero.toLocaleString('pt-BR', { style:'currency', currency:'BRL' })}/mês`;
+  }
+
+  function converterPrecoDecimal(valor) {
+    const texto = String(valor || '').trim().replace(',', '.');
+    if (!/^\d+(?:\.\d{1,2})?$/.test(texto)) return null;
+    const numero = Number(texto);
+    return Number.isFinite(numero) && numero >= 0 ? numero : null;
+  }
+
+  function erroPlanoAmigavel(error, fallback) {
+    const mensagem = String(error?.message || '');
+    if (mensagem.includes('Apenas administradores')) return 'Sua sessão não tem permissão para esta ação.';
+    if (mensagem.includes('Preço mensal inválido')) return 'Informe um preço mensal válido e não negativo.';
+    if (mensagem.includes('Nome de plano inválido')) return 'Informe o nome comercial do plano.';
+    if (mensagem.includes('Medalha inválida')) return 'Informe a medalha do plano.';
+    if (mensagem.includes('Ordem inválida')) return 'Informe uma ordem positiva.';
+    if (mensagem.includes('vinculado a restaurantes')) return mensagem;
+    if (mensagem.includes('inativo') || mensagem.includes('não encontrado') || mensagem.includes('inexistente')) return mensagem;
+    return fallback;
+  }
+
+  async function carregarDadosAdministrativos() {
+    await carregarPlanos();
+    await carregarRestaurantes();
+  }
+
+  async function carregarPlanos() {
+    const wrap = document.getElementById('plansList');
+    const { data, error } = await sb.rpc('super_admin_listar_planos');
+    if (error) {
+      wrap.innerHTML = '<div class="empty-state">Não foi possível carregar os planos.</div>';
+      return false;
+    }
+    planosPorCodigo.clear();
+    (data || []).forEach(plano => planosPorCodigo.set(String(plano.codigo), plano));
+    wrap.innerHTML = data?.length ? data.map(plano => `
+      <article class="plan-card" data-plano-codigo="${escapeHtml(plano.codigo)}">
+        <div class="plan-card__name">${escapeHtml(plano.medalha)} ${escapeHtml(plano.nome)}</div>
+        <div class="plan-card__price">${escapeHtml(formatarPrecoMensal(plano.preco_mensal))}</div>
+        <div class="plan-card__meta">${escapeHtml(plano.quantidade_restaurantes)} restaurante(s)</div>
+        <span class="badge ${plano.ativo ? 'ok' : 'off'}">${plano.ativo ? 'Ativo' : 'Inativo'}</span>
+        <button class="btn" type="button" data-action="editar-plano">Editar</button>
+      </article>
+    `).join('') : '<div class="empty-state">Nenhum plano cadastrado.</div>';
+    atualizarSelectNovoRestaurante();
+    return true;
+  }
+
+  function atualizarSelectNovoRestaurante() {
+    const select = document.getElementById('nrPlanoCodigo');
+    const valorAtual = select.value;
+    const ativos = [...planosPorCodigo.values()].filter(plano => plano.ativo);
+    select.innerHTML = '<option value="">Selecione um plano</option>' + ativos.map(plano =>
+      `<option value="${escapeHtml(plano.codigo)}">${escapeHtml(plano.medalha)} ${escapeHtml(plano.nome)} — ${escapeHtml(formatarPrecoMensal(plano.preco_mensal))}</option>`
+    ).join('');
+    if (ativos.some(plano => plano.codigo === valorAtual)) select.value = valorAtual;
   }
 
   async function carregarRestaurantes() {
@@ -481,6 +606,10 @@
           <div class="rest-card__nome">${escapeHtml(r.nome)}</div>
           <div class="rest-card__slug">${r.slug ? '/cliente/?r=' + escapeHtml(r.slug) : 'sem link ainda'}</div>
           ${r.dono_nome ? `<div class="rest-card__slug" style="margin-top:2px;">Dono: ${escapeHtml(r.dono_nome)}${r.dono_telefone ? ' · ' + escapeHtml(r.dono_telefone) : ''}</div>` : ''}
+          <div class="rest-card__plan">
+            <div class="rest-card__plan-name">${escapeHtml(r.plano_medalha || '')} Plano ${escapeHtml(r.plano_nome || r.plano_codigo || 'não informado')}</div>
+            <div class="rest-card__plan-price">${escapeHtml(formatarPrecoMensal(r.plano_preco_mensal))}</div>
+          </div>
           <div class="rest-card__badges">
             <span class="badge ${r.pausado ? 'off' : 'ok'}">${r.pausado ? 'Pausada' : 'Ativa'}</span>
             <span class="badge ${r.modulo_motoboy_ativo ? 'ok' : 'warn'}">${r.modulo_motoboy_ativo ? 'Motoboy ativo' : 'Motoboy não contratado'}</span>
@@ -493,6 +622,7 @@
             <button class="btn" data-action="pausar-restaurante">${r.pausado ? 'Reativar' : 'Pausar'}</button>
             <button class="btn" data-action="modulo-motoboy">${r.modulo_motoboy_ativo ? 'Desativar motoboy' : 'Ativar motoboy'}</button>
             <button class="btn" data-action="notificar-restaurante">Notificar</button>
+            <button class="btn" data-action="alterar-plano">Alterar plano</button>
           </div>
           <div class="rest-card__actions-secondary">
             ${r.dono_id ? `<button class="btn reset-password-btn" data-action="reset-senha-dono">Redefinir senha do dono</button>` : ''}
@@ -502,6 +632,99 @@
       </div>
     `;
     }).join('');
+  }
+
+  document.getElementById('plansList').addEventListener('click', event => {
+    const botao = event.target.closest('[data-action="editar-plano"]');
+    const card = botao?.closest('[data-plano-codigo]');
+    const plano = card ? planosPorCodigo.get(card.dataset.planoCodigo) : null;
+    if (plano) abrirEditarPlano(plano);
+  });
+
+  function abrirEditarPlano(plano) {
+    document.getElementById('epCodigo').value = plano.codigo;
+    document.getElementById('epNome').value = plano.nome;
+    document.getElementById('epPreco').value = Number(plano.preco_mensal).toFixed(2).replace('.', ',');
+    document.getElementById('epMedalha').value = plano.medalha;
+    document.getElementById('epOrdem').value = plano.ordem;
+    document.getElementById('epAtivo').checked = Boolean(plano.ativo);
+    document.getElementById('editarPlanoModalBg').classList.add('show');
+  }
+
+  function fecharEditarPlano() {
+    document.getElementById('editarPlanoModalBg').classList.remove('show');
+  }
+
+  async function salvarPlano() {
+    const codigo = document.getElementById('epCodigo').value;
+    const nome = document.getElementById('epNome').value.trim();
+    const preco = converterPrecoDecimal(document.getElementById('epPreco').value);
+    const medalha = document.getElementById('epMedalha').value.trim();
+    const ordemTexto = document.getElementById('epOrdem').value;
+    const ordem = Number(ordemTexto);
+    const ativo = document.getElementById('epAtivo').checked;
+    const btn = document.getElementById('epSalvarBtn');
+    if (!nome) { showToast('Nome obrigatório', 'Informe o nome comercial do plano.'); return; }
+    if (preco === null) { showToast('Preço inválido', 'Use um valor não negativo, com vírgula ou ponto e até duas casas decimais.'); return; }
+    if (!medalha) { showToast('Medalha obrigatória', 'Informe a medalha do plano.'); return; }
+    if (!ordemTexto || !Number.isInteger(ordem) || ordem <= 0) { showToast('Ordem inválida', 'Informe uma ordem positiva e inteira.'); return; }
+    if (btn.disabled) return;
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    try {
+      const { error } = await sb.rpc('super_admin_atualizar_plano', {
+        p_codigo:codigo, p_nome:nome, p_preco_mensal:preco,
+        p_medalha:medalha, p_ordem:ordem, p_ativo:ativo
+      });
+      if (error) { showToast('Plano não atualizado', erroPlanoAmigavel(error, 'Não foi possível atualizar o plano.')); return; }
+      fecharEditarPlano();
+      await carregarPlanos();
+      await carregarRestaurantes();
+      showToast('Plano atualizado', 'Plano atualizado com sucesso.');
+    } finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+  }
+
+  function abrirAlterarPlanoRestaurante(restaurante) {
+    const ativos = [...planosPorCodigo.values()].filter(plano => plano.ativo);
+    document.getElementById('aprRestauranteId').value = restaurante.id;
+    document.getElementById('aprRestauranteNome').textContent = restaurante.nome;
+    document.getElementById('aprPlanos').innerHTML = ativos.map(plano => `
+      <label class="plan-choice">
+        <input type="radio" name="aprPlanoCodigo" value="${escapeHtml(plano.codigo)}" ${plano.codigo === restaurante.plano_codigo ? 'checked' : ''}>
+        <span>
+          <span class="plan-choice__name">${escapeHtml(plano.medalha)} ${escapeHtml(plano.nome)} ${plano.codigo === restaurante.plano_codigo ? '<span class="plan-choice__current">· atual</span>' : ''}</span>
+          <span class="plan-choice__price">${escapeHtml(formatarPrecoMensal(plano.preco_mensal))}</span>
+        </span>
+      </label>
+    `).join('') || '<div class="empty-state">Nenhum plano ativo disponível.</div>';
+    document.getElementById('alterarPlanoRestModalBg').classList.add('show');
+  }
+
+  function fecharAlterarPlanoRestaurante() {
+    document.getElementById('alterarPlanoRestModalBg').classList.remove('show');
+  }
+
+  async function salvarPlanoRestaurante() {
+    const restaurante = restaurantesPorId.get(document.getElementById('aprRestauranteId').value);
+    const escolhido = document.querySelector('input[name="aprPlanoCodigo"]:checked')?.value;
+    const planoAtual = restaurante ? planosPorCodigo.get(restaurante.plano_codigo) : null;
+    const novoPlano = escolhido ? planosPorCodigo.get(escolhido) : null;
+    const btn = document.getElementById('aprSalvarBtn');
+    if (!restaurante || !novoPlano) { showToast('Plano obrigatório', 'Selecione um plano ativo.'); return; }
+    if (novoPlano.codigo === restaurante.plano_codigo) { fecharAlterarPlanoRestaurante(); return; }
+    if (!confirm(`Alterar o plano de “${restaurante.nome}” de ${planoAtual?.nome || restaurante.plano_nome} para ${novoPlano.nome}?`)) return;
+    if (btn.disabled) return;
+    btn.disabled = true; btn.textContent = 'Alterando...';
+    try {
+      const { data, error } = await sb.rpc('super_admin_definir_plano_restaurante', {
+        p_restaurante_id:restaurante.id, p_plano_codigo:novoPlano.codigo
+      });
+      if (error) { showToast('Plano não alterado', erroPlanoAmigavel(error, 'Não foi possível alterar o plano do restaurante.')); return; }
+      fecharAlterarPlanoRestaurante();
+      await carregarRestaurantes();
+      await carregarPlanos();
+      const retorno = data?.[0];
+      showToast('Plano alterado', `${retorno?.restaurante_nome || restaurante.nome} agora usa o plano ${retorno?.plano_nome || novoPlano.nome}.`);
+    } finally { btn.disabled = false; btn.textContent = 'Alterar plano'; }
   }
 
   function abrirEditarRestaurante(r) {
@@ -536,6 +759,7 @@
     if (botao.dataset.action === 'pausar-restaurante') restaurante.pausado ? reativarRestaurante(restaurante, botao) : abrirPausaRestaurante(restaurante);
     if (botao.dataset.action === 'modulo-motoboy') alternarModuloMotoboy(restaurante, botao);
     if (botao.dataset.action === 'notificar-restaurante') abrirNotificacao(restaurante.id);
+    if (botao.dataset.action === 'alterar-plano') abrirAlterarPlanoRestaurante(restaurante);
     if (botao.dataset.action === 'reset-senha-dono' && restaurante.dono_id) abrirResetSenhaDono(restaurante.dono_id, restaurante.dono_nome);
     if (botao.dataset.action === 'remover-restaurante') removerRestaurante(restaurante.id, restaurante.nome);
   });
@@ -772,6 +996,7 @@
     document.getElementById('nrDonoTelefone').value = '';
     document.getElementById('nrDonoEmail').value = '';
     document.getElementById('nrDonoSenha').value = '';
+    document.getElementById('nrPlanoCodigo').value = '';
     document.getElementById('novoRestModalBg').classList.add('show');
   }
   function fecharNovoRestaurante() { document.getElementById('novoRestModalBg').classList.remove('show'); }
@@ -787,6 +1012,7 @@
     const donoTelefoneNormalizado = normalizarTelefoneAcesso(donoTelefone);
     const donoEmail = document.getElementById('nrDonoEmail').value.trim();
     const donoSenha = document.getElementById('nrDonoSenha').value;
+    const planoCodigo = document.getElementById('nrPlanoCodigo').value;
     const submitBtn = document.getElementById('nrSubmitBtn');
 
     if (!nomeRestaurante) { showToast('Faltou o nome', 'Informe o nome do restaurante.'); return; }
@@ -794,6 +1020,7 @@
     if (!donoTelefone) { showToast('Faltou o telefone', 'Informe o telefone de login do dono.'); return; }
     if (donoTelefoneNormalizado.length < 10) { showToast('Telefone inválido', 'Informe um telefone com DDD e pelo menos 10 dígitos.'); return; }
     if (!donoSenha || donoSenha.length < 8) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 8 caracteres.'); return; }
+    if (!planoCodigo || !planosPorCodigo.get(planoCodigo)?.ativo) { showToast('Plano obrigatório', 'Selecione um plano ativo.'); return; }
     if (submitBtn?.disabled) return;
 
     if (submitBtn) submitBtn.disabled = true;
@@ -803,7 +1030,8 @@
         p_dono_nome: donoNome,
         p_dono_telefone: donoTelefoneNormalizado,
         p_dono_email: donoEmail || null,
-        p_dono_senha: donoSenha
+        p_dono_senha: donoSenha,
+        p_plano_codigo: planoCodigo
       });
 
       if (error) {
@@ -811,7 +1039,7 @@
           showToast('Telefone já utilizado', error.message);
         } else {
           console.error('Falha ao criar restaurante:', error);
-          showToast('Erro ao criar restaurante', 'Não foi possível criar o restaurante. Tente novamente.');
+          showToast('Erro ao criar restaurante', erroPlanoAmigavel(error, 'Não foi possível criar o restaurante. Tente novamente.'));
         }
         return;
       }
