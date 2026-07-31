@@ -311,6 +311,25 @@
   </div>
 </div>
 
+<div id="restauranteSuspensoScreen" hidden>
+  <div class="login-card">
+    <div class="badge">⏸</div>
+    <h2>Restaurante temporariamente suspenso</h2>
+    <p>O acesso ao restaurante está temporariamente suspenso. Entre em contato com a EAF Flow ou com o responsável pela loja.</p>
+    <button class="primary" onclick="abrirWhatsapp('5541984213488','Olá, preciso de ajuda com o acesso ao EAF Menu.')">Falar com a EAF Flow</button>
+    <button class="install-btn" onclick="logout()">Sair da conta</button>
+  </div>
+</div>
+
+<div id="moduloIndisponivelScreen" hidden>
+  <div class="login-card">
+    <div class="badge">🛵</div>
+    <h2>Módulo de motoboy não disponível</h2>
+    <p>Esta funcionalidade não está incluída no plano atual do restaurante. Fale com o responsável pela loja.</p>
+    <button class="primary" onclick="logout()">Sair da conta</button>
+  </div>
+</div>
+
 <div id="app" hidden>
   <div class="topbar">
     <div class="topbar__row">
@@ -483,9 +502,10 @@
     sb = supabase.createClient(url, anonKey, { auth: { storageKey: 'eaf-motoboy-auth' } });
   }
 
-  const APP_SCREEN = Object.freeze({ LOADING: 'loading', LOGIN: 'login', APP: 'app', ERROR: 'error', FIRST_ACCESS: 'firstAccess' });
+  const APP_SCREEN = Object.freeze({ LOADING: 'loading', LOGIN: 'login', APP: 'app', ERROR: 'error', FIRST_ACCESS: 'firstAccess', SUSPENDED:'suspended', MODULE_BLOCKED:'moduleBlocked' });
   const SCREEN_IDS = Object.freeze({
-    loading: 'initialLoading', error: 'initialLoading', login: 'loginScreen', app: 'app', firstAccess: 'primeiroAcessoScreen'
+    loading: 'initialLoading', error: 'initialLoading', login: 'loginScreen', app: 'app', firstAccess: 'primeiroAcessoScreen',
+    suspended:'restauranteSuspensoScreen', moduleBlocked:'moduloIndisponivelScreen'
   });
   const STARTUP_TIMEOUT_MS = 15000;
   let currentScreen = APP_SCREEN.LOADING;
@@ -550,6 +570,7 @@
   let entregas = [];
   let disponivel = true;
   let roteirizacaoAtiva = false;
+  let estadoRestauranteTimer = null;
   let rotaModalAberto = false;
   let rotaOrdemIds = [];
   let liberadoHoje = false;
@@ -787,9 +808,24 @@
       return;
     }
 
+    const { data: estadoRows, error: estadoError } = await sb.rpc('estado_acesso_restaurante_atual');
+    assertBootActive(sequence);
+    if (estadoError || !estadoRows?.[0]) throw new Error('PROFILE_INVALID');
+    const estadoAcesso = estadoRows[0];
+    if (estadoAcesso.pausado) {
+      showScreen(APP_SCREEN.SUSPENDED);
+      iniciarMonitorEstadoMotoboy();
+      return;
+    }
+    if (!estadoAcesso.modulo_motoboy_ativo) {
+      showScreen(APP_SCREEN.MODULE_BLOCKED);
+      iniciarMonitorEstadoMotoboy();
+      return;
+    }
+
     const { data: userRow, error: userErr } = await sb
       .from('usuarios')
-      .select('id, nome, role, restaurante_id, primeiro_acesso, ativo, restaurantes(nome, whatsapp, roteirizacao_motoboy_ativa)')
+      .select('id, nome, role, restaurante_id, primeiro_acesso, ativo, restaurantes(nome, whatsapp, roteirizacao_motoboy_ativa, modulo_motoboy_ativo)')
       .eq('id', session.user.id)
       .single();
     assertBootActive(sequence);
@@ -812,7 +848,26 @@
 
     assertBootActive(sequence);
     showScreen(APP_SCREEN.APP);
+    iniciarMonitorEstadoMotoboy();
     void carregarDadosIniciaisSecundarios();
+  }
+
+  function iniciarMonitorEstadoMotoboy() {
+    clearInterval(estadoRestauranteTimer);
+    estadoRestauranteTimer = setInterval(async () => {
+      const { data, error } = await sb.rpc('estado_acesso_restaurante_atual');
+      if (error || !data?.[0]) return;
+      const estado = data[0];
+      if (estado.pausado) {
+        await aplicarEstadoLiberacao(false);
+        showScreen(APP_SCREEN.SUSPENDED);
+      } else if (!estado.modulo_motoboy_ativo) {
+        await aplicarEstadoLiberacao(false);
+        showScreen(APP_SCREEN.MODULE_BLOCKED);
+      } else if (currentScreen === APP_SCREEN.SUSPENDED || currentScreen === APP_SCREEN.MODULE_BLOCKED) {
+        await bootSeguro();
+      }
+    }, 15000);
   }
 
   async function carregarDadosIniciaisSecundarios() {

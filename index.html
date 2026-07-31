@@ -95,6 +95,16 @@
   </div>
 </div>
 
+<div id="restauranteSuspensoScreen" hidden class="access-block-screen">
+  <div class="login-card">
+    <div class="badge">⏸</div>
+    <h2>Restaurante temporariamente suspenso</h2>
+    <p>O acesso ao seu restaurante está temporariamente suspenso. Entre em contato com a EAF Flow para solicitar a reativação.</p>
+    <button class="primary" onclick="abrirSuporteEafFlow()">Falar com a EAF Flow</button>
+    <button class="password-support-back" onclick="logout()">Sair da conta</button>
+  </div>
+</div>
+
 <div id="app" hidden>
   <div class="mobile-topbar">
     <button class="hamburger-btn" onclick="openDrawer()" aria-label="Abrir menu">☰</button>
@@ -102,7 +112,7 @@
       <div class="mobile-topbar__logo"><img src="/icons/icon512.png" alt="EAF Menu"></div>
       <div class="mobile-topbar__title" id="mobileRestauranteNome">EAF Menu</div>
     </div>
-    <div style="width:32px"></div>
+    <button class="notification-bell notification-bell--mobile" onclick="abrirNotificacoes()" aria-label="Abrir notificações">🔔<span id="notifContadorMobile" hidden>0</span></button>
   </div>
   <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
   <div class="layout">
@@ -127,8 +137,9 @@
       <div class="sidebar__divider"></div>
       <div class="sidebar__section-label">Acessar Apps</div>
       <button class="navitem" onclick="abrirPwaCliente()"><span class="ic">📱</span> App do Cliente</button>
-      <button class="navitem" onclick="abrirPwaMotoboy()"><span class="ic">🛵</span> App do Motoboy</button>
+      <button class="navitem" onclick="abrirModuloMotoboy()"><span class="ic">🛵</span> App do Motoboy</button>
       <div class="sidebar__divider"></div>
+      <button class="navitem" onclick="abrirNotificacoes()"><span class="ic">🔔</span> Notificações <span class="notification-count" id="notifContador" hidden>0</span></button>
       <button class="navitem" onclick="abrirSuporteEafFlow()"><span class="ic">🎧</span> Suporte EAF Flow</button>
       <div class="sidebar__footer">
         <button class="install-btn" id="installBtnApp" onclick="installApp()">⬇ Instalar aplicativo</button>
@@ -1066,6 +1077,26 @@
 
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
+<div class="modal-bg" id="moduloMotoboyModalBg">
+  <div class="modal">
+    <h3>Módulo de motoboy não disponível</h3>
+    <p>Esta funcionalidade não está incluída no plano atual do restaurante. Para ativar o módulo de entregas com motoboy próprio, entre em contato com a EAF Flow.</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('moduloMotoboyModalBg').classList.remove('show')">Agora não</button>
+      <button class="btn primary" onclick="abrirSuporteEafFlow()">Falar com a EAF Flow</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="notificacoesModalBg">
+  <div class="modal notifications-modal">
+    <h3>Notificações</h3>
+    <p class="main__subtitle">Mensagens da administração da EAF Flow</p>
+    <div id="notificacoesLista"><div class="empty-state">Carregando...</div></div>
+    <div class="modal-actions"><button class="btn" onclick="document.getElementById('notificacoesModalBg').classList.remove('show')">Fechar</button></div>
+  </div>
+</div>
+
 <script src="/assets/js/whatsapp.js"></script>
 <script src="/assets/js/utils.js"></script>
 <script src="/assets/js/sons.js"></script>
@@ -1081,6 +1112,7 @@
 <script src="/assets/js/marca.js"></script>
 <script src="/assets/js/pedido-manual.js"></script>
 <script src="/assets/js/status-loja.js"></script>
+<script src="/assets/js/notificacoes.js"></script>
 <script src="/assets/js/app-ui.js"></script>
 <script src="/assets/js/dia-comercial.js"></script>
 <script>
@@ -1102,11 +1134,12 @@
 
   const APP_SCREEN = Object.freeze({
     LOADING: 'loading', LOGIN: 'login', APP: 'app', ERROR: 'error',
-    FIRST_ACCESS: 'firstAccess', MOTOBOY_BLOCKED: 'motoboyBlocked'
+    FIRST_ACCESS: 'firstAccess', MOTOBOY_BLOCKED: 'motoboyBlocked', SUSPENDED: 'suspended'
   });
   const SCREEN_IDS = Object.freeze({
     loading: 'initialLoading', error: 'initialLoading', login: 'loginScreen', app: 'app',
-    firstAccess: 'primeiroAcessoScreen', motoboyBlocked: 'motoboyBloqueadoScreen'
+    firstAccess: 'primeiroAcessoScreen', motoboyBlocked: 'motoboyBloqueadoScreen',
+    suspended: 'restauranteSuspensoScreen'
   });
   const STARTUP_TIMEOUT_MS = 15000;
   let currentScreen = APP_SCREEN.LOADING;
@@ -1223,9 +1256,19 @@
       return;
     }
 
+    const { data: estadoRows, error: estadoErr } = await sb.rpc('estado_acesso_restaurante_atual');
+    assertBootActive(sequence);
+    if (estadoErr) throw new Error('PROFILE_LOAD_FAILED');
+    const estadoAcesso = estadoRows?.[0];
+    if (estadoAcesso?.pausado) {
+      showScreen(APP_SCREEN.SUSPENDED);
+      iniciarMonitorEstadoRestaurante();
+      return;
+    }
+
     let { data: userRow, error: userErr } = await sb
       .from('usuarios')
-      .select('id, nome, email, role, restaurante_id, primeiro_acesso, restaurantes(nome, slug, horarios_semana, endereco, whatsapp, taxa_entrega_padrao, prazo_entrega_min_minutos, prazo_entrega_max_minutos, prazo_retirada_min_minutos, prazo_retirada_max_minutos, roteirizacao_motoboy_ativa)')
+      .select('id, nome, email, role, restaurante_id, primeiro_acesso, restaurantes(nome, slug, horarios_semana, endereco, whatsapp, taxa_entrega_padrao, prazo_entrega_min_minutos, prazo_entrega_max_minutos, prazo_retirada_min_minutos, prazo_retirada_max_minutos, roteirizacao_motoboy_ativa, modulo_motoboy_ativo)')
       .eq('id', session.user.id)
       .single();
     assertBootActive(sequence);
@@ -1239,6 +1282,7 @@
     restauranteInfo = userRow.restaurantes || null;
     restauranteId = userRow.restaurante_id;
     restauranteSlugAtual = userRow.restaurantes?.slug || null;
+    restauranteInfo.modulo_motoboy_ativo = estadoAcesso?.modulo_motoboy_ativo === true;
 
     // Primeiro acesso: bloqueia o painel até a pessoa trocar a senha provisória.
     if (userRow.primeiro_acesso) {
@@ -1273,6 +1317,7 @@
     horariosLojaAtual = userRow.restaurantes?.horarios_semana || null;
     assertBootActive(sequence);
     showScreen(APP_SCREEN.APP);
+    iniciarMonitorEstadoRestaurante();
     void carregarDadosIniciaisSecundarios();
   }
 
@@ -1284,12 +1329,18 @@
       loadMotoboysAtivos(),
       loadPedidos()
     ]);
+    await carregarNotificacoes();
+    iniciarMonitorNotificacoes();
     subscribeRealtime();
     iniciarResetDiarioPedidos();
     iniciarStatusLoja();
   }
 
   function switchView(view) {
+    if (view === 'entregadores' && !restauranteInfo?.modulo_motoboy_ativo) {
+      abrirPaywallMotoboy();
+      return;
+    }
     if (view === 'financeiro' && !(currentUser?.role === 'dono' || currentUser?.role === 'gerente')) return;
     if (view === 'equipe' && !(currentUser?.role === 'dono' || currentUser?.role === 'gerente')) return;
     if (view === 'marca' && currentUser?.role !== 'dono') return;

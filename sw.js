@@ -4,7 +4,7 @@
 // cache só quando estiver offline. Isso evita mostrar pedidos desatualizados.
 
 const CACHE_PREFIX = 'eaf-menu-cache-';
-const CACHE_NAME = 'eaf-menu-cache-v0.6.17';
+const CACHE_NAME = 'eaf-menu-cache-v0.6.18';
 const APP_SHELL = [
   '/index.html',
   '/manifest.json',
@@ -24,6 +24,7 @@ const APP_SHELL = [
   '/assets/js/marca.js',
   '/assets/js/pedido-manual.js',
   '/assets/js/status-loja.js',
+  '/assets/js/notificacoes.js',
   '/assets/js/app-ui.js',
   '/assets/js/dia-comercial.js',
   '/icons/icon192.png',
