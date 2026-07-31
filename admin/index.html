@@ -72,16 +72,39 @@
   .main__header p { margin:2px 0 0; font-size:13px; color:var(--muted); }
   .btn { border-radius:9px; padding:11px 18px; font-size:13px; font-weight:700; border:1px solid var(--line); background:#fff; color:var(--ink); min-height:40px; white-space:normal; }
   .btn.primary { background: var(--accent); border-color: var(--accent); color:#fff; }
+  .admin-header-actions { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; width:100%; }
+  .admin-header-actions .btn { width:100%; min-width:0; white-space:normal; text-align:center; }
+  .admin-header-actions .btn-new-restaurant { grid-column:1 / -1; }
+
+  @media (min-width: 701px) {
+    .admin-header-actions { display:flex; flex-wrap:wrap; width:auto; }
+    .admin-header-actions .btn { width:auto; }
+  }
 
   .rest-list { display:grid; gap:12px; }
-  .rest-card { width:100%; min-width:0; background:#fff; border:1px solid #E4E4E7; border-radius:12px; padding:18px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
-  .rest-card__info { flex:1 1 auto; min-width:0; }
+  .rest-card { width:100%; min-width:0; background:#fff; border:1px solid #E4E4E7; border-radius:12px; padding:18px 20px; display:grid; grid-template-columns:minmax(0, 1fr) 76px minmax(380px, 1.7fr); align-items:center; gap:18px; }
+  .rest-card__info { min-width:0; }
   .rest-card__nome { font-weight:800; font-size:14.5px; overflow-wrap:anywhere; word-break:break-word; }
   .rest-card__slug { font-size:12px; color:var(--muted); font-family: ui-monospace, monospace; overflow-wrap:anywhere; word-break:break-word; }
-  .rest-card__meta { flex:0 0 auto; display:flex; gap:18px; align-items:center; min-width:0; }
-  .rest-card__stat { text-align:center; }
-  .rest-card__stat .num { font-weight:800; font-size:16px; }
+  .rest-card__stat { min-width:0; text-align:center; padding:10px 8px; border-left:1px solid #ECECEF; border-right:1px solid #ECECEF; }
+  .rest-card__stat .num { font-weight:900; font-size:19px; line-height:1; }
   .rest-card__stat .label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px; }
+  .rest-card__actions { min-width:0; display:grid; gap:9px; }
+  .rest-card__actions-primary { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+  .rest-card__actions-primary .btn { background:#FAFAFA; border-color:#D4D4D8; }
+  .rest-card__actions-secondary { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:8px; align-items:stretch; padding-top:9px; border-top:1px solid #ECECEF; }
+  .rest-card__actions .btn { width:100%; min-height:36px; padding:8px 11px; font-size:12px; }
+  .rest-card__actions .reset-password-btn { color:#52525B; background:#fff; }
+  .rest-card__actions .remove-btn { width:auto; min-width:92px; color:#B42318; border-color:#F5B7B1; background:#FFF8F7; }
+  .rest-card__badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .badge { display:inline-flex; align-items:center; border-radius:999px; padding:4px 8px; font-size:10px; font-weight:800; }
+  .badge.ok { background:#DCFCE7; color:#166534; }
+  .badge.warn { background:#FEF3C7; color:#92400E; }
+  .badge.off { background:#FEE2E2; color:#991B1B; }
+  .btn:disabled { opacity:.6; cursor:not-allowed; }
+  .field textarea, .field select { width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px; font:inherit; }
+  .restaurant-checks { display:grid; gap:7px; max-height:180px; overflow:auto; border:1px solid #E4E4E7; border-radius:8px; padding:10px; }
+  .restaurant-checks label { display:flex; gap:8px; align-items:center; font-size:12px; }
   .empty-state { padding:60px 20px; text-align:center; color:var(--muted); }
 
   .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:80; align-items:center; justify-content:center; }
@@ -117,14 +140,19 @@
     .main__header p { font-size:12.5px; line-height:1.45; overflow-wrap:anywhere; }
 
     .rest-list { gap:14px; }
-    .rest-card { flex-direction:column; align-items:stretch; padding:16px; gap:14px; }
     .rest-card__nome { font-size:15px; line-height:1.25; }
     .rest-card__slug { line-height:1.4; }
-    .rest-card__meta { width:100%; display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:stretch; }
-    .rest-card__stat { grid-column:1 / -1; display:flex; align-items:center; justify-content:space-between; gap:10px; text-align:left; padding:10px 12px; border-radius:9px; background:#F8F8F8; }
+  }
+
+  @media (max-width: 700px) {
+    .rest-card { grid-template-columns:1fr; align-items:stretch; padding:16px; gap:12px; }
+    .rest-card__stat { display:flex; align-items:center; justify-content:space-between; gap:10px; text-align:left; padding:9px 12px; border:0; border-radius:9px; background:#F8F8F8; }
     .rest-card__stat .label { font-size:10.5px; }
-    .rest-card__meta .btn { width:100%; min-height:44px; padding:11px 12px; order:1; }
-    .rest-card__meta .reset-password-btn { grid-column:1 / -1; order:2; }
+    .rest-card__actions { gap:8px; }
+    .rest-card__actions-primary { gap:8px; }
+    .rest-card__actions-secondary { grid-template-columns:1fr; gap:8px; padding-top:8px; }
+    .rest-card__actions .btn { min-height:40px; padding:9px 10px; }
+    .rest-card__actions .remove-btn { width:100%; min-width:0; }
 
     .modal-bg { padding:16px; align-items:flex-start; overflow:auto; }
     .modal { width:100%; max-width:420px; max-height:none; padding:22px 20px; margin:auto 0; }
@@ -140,8 +168,8 @@
     .login-card { padding:30px 22px; }
     .main__header .btn.primary { width:100%; }
     .rest-card { padding:14px; border-radius:10px; }
-    .rest-card__meta { gap:8px; }
-    .rest-card__meta .btn { font-size:12.5px; padding:10px 9px; }
+    .rest-card__actions-primary { gap:7px; }
+    .rest-card__actions .btn { font-size:12.5px; padding:10px 9px; }
     .modal-actions { flex-direction:column; }
     .toast { left:12px; right:12px; max-width:none; }
   }
@@ -188,7 +216,11 @@
         <h1>Restaurantes cadastrados</h1>
         <p>Cada restaurante roda de forma isolada, com seu próprio dono e equipe.</p>
       </div>
-      <button class="btn primary" onclick="abrirNovoRestaurante()">+ Novo restaurante</button>
+      <div class="admin-header-actions">
+        <button class="btn" onclick="abrirNotificacao(null)">🔔 Nova notificação</button>
+        <button class="btn" onclick="abrirHistoricoNotificacoes()">Histórico de notificações</button>
+        <button class="btn primary btn-new-restaurant" onclick="abrirNovoRestaurante()">+ Novo restaurante</button>
+      </div>
     </div>
 
     <div class="rest-list" id="restList">
@@ -233,6 +265,56 @@
 
 <div class="toast" id="toast"><b id="toastTitle">Aviso</b><span id="toastBody"></span></div>
 
+<div class="modal-bg" id="pausaRestModalBg">
+  <div class="modal">
+    <h3>Pausar restaurante</h3>
+    <p class="sub">A suspensão bloqueia novas operações, sem excluir dados.</p>
+    <input type="hidden" id="pausaRestId">
+    <div class="field"><label>Motivo interno</label><textarea id="pausaRestMotivo" rows="4" maxlength="1000"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharPausaRestaurante()">Cancelar</button>
+      <button class="btn primary" id="pausaRestBtn" onclick="confirmarPausaRestaurante()">Confirmar pausa</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="notificacaoModalBg">
+  <div class="modal">
+    <h3>Enviar notificação</h3>
+    <p class="sub">A mensagem ficará disponível no sino do painel dos restaurantes.</p>
+    <div class="field"><label>Título</label><input id="notifTitulo" maxlength="120"></div>
+    <div class="field"><label>Mensagem</label><textarea id="notifMensagem" rows="6" maxlength="4000"></textarea></div>
+    <div class="field"><label>Tipo</label><select id="notifTipo"><option value="informativa">Informativa</option><option value="atencao">Atenção</option><option value="urgente">Urgente</option></select></div>
+    <label style="display:flex;gap:8px;align-items:center;margin:8px 0;"><input id="notifTodos" type="checkbox" onchange="alternarNotifTodos()"> Enviar para todos os restaurantes</label>
+    <div class="restaurant-checks" id="notifRestaurantes"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharNotificacao()">Cancelar</button>
+      <button class="btn primary" id="notifEnviarBtn" onclick="enviarNotificacao()">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="historicoNotifModalBg">
+  <div class="modal" style="max-width:760px;">
+    <h3>Histórico de notificações</h3>
+    <p class="sub">Mensagens já enviadas e seus indicadores de leitura.</p>
+    <div id="historicoNotifLista" class="restaurant-checks"><div class="empty-state">Carregando...</div></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharHistoricoNotificacoes()">Fechar</button>
+      <button class="btn primary" onclick="fecharHistoricoNotificacoes();abrirNotificacao(null)">Nova mensagem</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="detalheNotifModalBg">
+  <div class="modal" style="max-width:760px;">
+    <h3 id="detalheNotifTitulo">Detalhes da notificação</h3>
+    <p class="sub" id="detalheNotifResumo"></p>
+    <div id="detalheNotifLista" class="restaurant-checks"><div class="empty-state">Carregando...</div></div>
+    <div class="modal-actions"><button class="btn" onclick="fecharDetalheNotificacao()">Fechar</button></div>
+  </div>
+</div>
+
 <div class="modal-bg" id="editarRestModalBg">
   <div class="modal">
     <h3>Editar restaurante</h3>
@@ -250,6 +332,7 @@
 <script>
   let sb = null;
   const restaurantesPorId = new Map();
+  const notificacoesHistoricoPorId = new Map();
   let resetSenhaDonoAlvoId = null;
   async function initSupabase() {
     const res = await fetch('/api/config');
@@ -398,12 +481,23 @@
           <div class="rest-card__nome">${escapeHtml(r.nome)}</div>
           <div class="rest-card__slug">${r.slug ? '/cliente/?r=' + escapeHtml(r.slug) : 'sem link ainda'}</div>
           ${r.dono_nome ? `<div class="rest-card__slug" style="margin-top:2px;">Dono: ${escapeHtml(r.dono_nome)}${r.dono_telefone ? ' · ' + escapeHtml(r.dono_telefone) : ''}</div>` : ''}
+          <div class="rest-card__badges">
+            <span class="badge ${r.pausado ? 'off' : 'ok'}">${r.pausado ? 'Pausada' : 'Ativa'}</span>
+            <span class="badge ${r.modulo_motoboy_ativo ? 'ok' : 'warn'}">${r.modulo_motoboy_ativo ? 'Motoboy ativo' : 'Motoboy não contratado'}</span>
+          </div>
         </div>
-        <div class="rest-card__meta">
-          <div class="rest-card__stat"><div class="num">${escapeHtml(r.total_usuarios)}</div><div class="label">Usuários</div></div>
-          <button class="btn" data-action="editar-restaurante">Editar</button>
-          ${r.dono_id ? `<button class="btn reset-password-btn" data-action="reset-senha-dono">Redefinir senha do dono</button>` : ''}
-          <button class="btn remove-btn" data-action="remover-restaurante" style="color:var(--accent); border-color:#FCA5A5;">Remover</button>
+        <div class="rest-card__stat"><div class="num">${escapeHtml(r.total_usuarios)}</div><div class="label">Usuários</div></div>
+        <div class="rest-card__actions">
+          <div class="rest-card__actions-primary">
+            <button class="btn" data-action="editar-restaurante">Editar</button>
+            <button class="btn" data-action="pausar-restaurante">${r.pausado ? 'Reativar' : 'Pausar'}</button>
+            <button class="btn" data-action="modulo-motoboy">${r.modulo_motoboy_ativo ? 'Desativar motoboy' : 'Ativar motoboy'}</button>
+            <button class="btn" data-action="notificar-restaurante">Notificar</button>
+          </div>
+          <div class="rest-card__actions-secondary">
+            ${r.dono_id ? `<button class="btn reset-password-btn" data-action="reset-senha-dono">Redefinir senha do dono</button>` : ''}
+            <button class="btn remove-btn" data-action="remover-restaurante">Remover</button>
+          </div>
         </div>
       </div>
     `;
@@ -439,9 +533,174 @@
     const restaurante = card ? restaurantesPorId.get(card.dataset.restauranteId) : null;
     if (!botao || !restaurante) return;
     if (botao.dataset.action === 'editar-restaurante') abrirEditarRestaurante(restaurante);
+    if (botao.dataset.action === 'pausar-restaurante') restaurante.pausado ? reativarRestaurante(restaurante, botao) : abrirPausaRestaurante(restaurante);
+    if (botao.dataset.action === 'modulo-motoboy') alternarModuloMotoboy(restaurante, botao);
+    if (botao.dataset.action === 'notificar-restaurante') abrirNotificacao(restaurante.id);
     if (botao.dataset.action === 'reset-senha-dono' && restaurante.dono_id) abrirResetSenhaDono(restaurante.dono_id, restaurante.dono_nome);
     if (botao.dataset.action === 'remover-restaurante') removerRestaurante(restaurante.id, restaurante.nome);
   });
+
+  function abrirPausaRestaurante(restaurante) {
+    document.getElementById('pausaRestId').value = restaurante.id;
+    document.getElementById('pausaRestMotivo').value = '';
+    document.getElementById('pausaRestModalBg').classList.add('show');
+  }
+  function fecharPausaRestaurante() { document.getElementById('pausaRestModalBg').classList.remove('show'); }
+
+  function erroAmigavel(error, fallback) {
+    const msg = String(error?.message || '');
+    if (msg.includes('pedido(s) em andamento')) return msg;
+    if (msg.includes('não encontrado')) return 'O restaurante não foi encontrado. Atualize a página.';
+    if (msg.includes('motoboy')) return 'Não foi possível alterar o módulo de motoboy.';
+    return fallback;
+  }
+
+  async function confirmarPausaRestaurante() {
+    const id = document.getElementById('pausaRestId').value;
+    const motivo = document.getElementById('pausaRestMotivo').value.trim();
+    const btn = document.getElementById('pausaRestBtn');
+    if (!motivo) { showToast('Motivo obrigatório', 'Informe o motivo interno da suspensão.'); return; }
+    if (btn.disabled) return;
+    btn.disabled = true; btn.textContent = 'Pausando...';
+    try {
+      const { error } = await sb.rpc('super_admin_definir_pausa_restaurante', { p_restaurante_id:id, p_pausado:true, p_motivo:motivo });
+      if (error) { showToast('Restaurante não pausado', erroAmigavel(error, 'Não foi possível pausar o restaurante.')); return; }
+      fecharPausaRestaurante();
+      showToast('Restaurante pausado', 'Novas operações foram bloqueadas.');
+      await carregarRestaurantes();
+    } finally { btn.disabled = false; btn.textContent = 'Confirmar pausa'; }
+  }
+
+  async function reativarRestaurante(restaurante, btn) {
+    if (!confirm(`Reativar "${restaurante.nome}" e restaurar o acesso operacional?`)) return;
+    if (btn.disabled) return;
+    btn.disabled = true; const texto = btn.textContent; btn.textContent = 'Reativando...';
+    try {
+      const { error } = await sb.rpc('super_admin_definir_pausa_restaurante', { p_restaurante_id:restaurante.id, p_pausado:false, p_motivo:null });
+      if (error) { showToast('Restaurante não reativado', erroAmigavel(error, 'Não foi possível reativar o restaurante.')); return; }
+      showToast('Restaurante reativado', 'O acesso operacional foi restaurado.');
+      await carregarRestaurantes();
+    } finally { btn.disabled = false; btn.textContent = texto; }
+  }
+
+  async function alternarModuloMotoboy(restaurante, btn) {
+    const novoEstado = !restaurante.modulo_motoboy_ativo;
+    if (!confirm(`${novoEstado ? 'Ativar' : 'Desativar'} o módulo de motoboy de "${restaurante.nome}"?`)) return;
+    if (btn.disabled) return;
+    btn.disabled = true; const texto = btn.textContent; btn.textContent = 'Salvando...';
+    try {
+      const { error } = await sb.rpc('super_admin_definir_modulo_motoboy', { p_restaurante_id:restaurante.id, p_ativo:novoEstado });
+      if (error) { showToast('Módulo não alterado', erroAmigavel(error, 'Não foi possível alterar o módulo.')); return; }
+      showToast('Módulo atualizado', novoEstado ? 'Motoboy ativado.' : 'Motoboy desativado sem apagar dados.');
+      await carregarRestaurantes();
+    } finally { btn.disabled = false; btn.textContent = texto; }
+  }
+
+  function abrirNotificacao(restauranteId) {
+    document.getElementById('notifTitulo').value = '';
+    document.getElementById('notifMensagem').value = '';
+    document.getElementById('notifTipo').value = 'informativa';
+    document.getElementById('notifTodos').checked = false;
+    document.getElementById('notifRestaurantes').innerHTML = [...restaurantesPorId.values()].map(r =>
+      `<label><input type="checkbox" value="${escapeHtml(r.id)}" ${r.id === restauranteId ? 'checked' : ''}> ${escapeHtml(r.nome)}</label>`
+    ).join('');
+    alternarNotifTodos();
+    document.getElementById('notificacaoModalBg').classList.add('show');
+  }
+  function fecharNotificacao() { document.getElementById('notificacaoModalBg').classList.remove('show'); }
+  function alternarNotifTodos() {
+    const todos = document.getElementById('notifTodos').checked;
+    document.querySelectorAll('#notifRestaurantes input').forEach(input => { input.disabled = todos; });
+  }
+  async function enviarNotificacao() {
+    const titulo = document.getElementById('notifTitulo').value.trim();
+    const mensagem = document.getElementById('notifMensagem').value.trim();
+    const todos = document.getElementById('notifTodos').checked;
+    const ids = [...document.querySelectorAll('#notifRestaurantes input:checked')].map(x => x.value);
+    const btn = document.getElementById('notifEnviarBtn');
+    if (!titulo || !mensagem) { showToast('Campos obrigatórios', 'Informe título e mensagem.'); return; }
+    if (!todos && ids.length === 0) { showToast('Destino obrigatório', 'Selecione ao menos um restaurante.'); return; }
+    if (btn.disabled) return;
+    btn.disabled = true; btn.textContent = 'Enviando...';
+    try {
+      const { data, error } = await sb.rpc('super_admin_enviar_notificacao', {
+        p_titulo:titulo, p_mensagem:mensagem, p_tipo:document.getElementById('notifTipo').value,
+        p_restaurante_ids:ids, p_todos:todos
+      });
+      if (error) { showToast('Notificação não enviada', 'Não foi possível enviar a mensagem.'); return; }
+      fecharNotificacao();
+      showToast('Notificação enviada', `Mensagem entregue a ${data?.[0]?.total_destinos || ids.length} restaurante(s).`);
+    } finally { btn.disabled = false; btn.textContent = 'Enviar'; }
+  }
+
+  async function abrirHistoricoNotificacoes() {
+    const modal = document.getElementById('historicoNotifModalBg');
+    const lista = document.getElementById('historicoNotifLista');
+    modal.classList.add('show');
+    lista.innerHTML = '<div class="empty-state">Carregando...</div>';
+    const { data, error } = await sb.rpc('super_admin_listar_notificacoes_enviadas');
+    if (error) {
+      lista.innerHTML = '<div class="empty-state">Não foi possível carregar o histórico.</div>';
+      return;
+    }
+    if (!data?.length) {
+      lista.innerHTML = '<div class="empty-state">Nenhuma notificação enviada.</div>';
+      return;
+    }
+    notificacoesHistoricoPorId.clear();
+    data.forEach(notificacao => notificacoesHistoricoPorId.set(String(notificacao.id), notificacao));
+    lista.innerHTML = data.map(n => `
+      <button type="button" class="btn" style="display:block;width:100%;text-align:left;margin-bottom:8px;"
+        onclick="abrirDetalheNotificacao('${escapeHtml(n.id)}')">
+        <strong>${escapeHtml(n.titulo)}</strong><br>
+        <span>${new Date(n.publicada_em).toLocaleString('pt-BR')} · ${escapeHtml(n.administrador_nome)}
+          · ${escapeHtml(n.total_destinatarios)} destino(s) · ${escapeHtml(n.total_leituras)} leitura(s)</span>
+      </button>
+    `).join('');
+  }
+
+  function fecharHistoricoNotificacoes() {
+    document.getElementById('historicoNotifModalBg').classList.remove('show');
+  }
+
+  async function abrirDetalheNotificacao(id) {
+    const modal = document.getElementById('detalheNotifModalBg');
+    const lista = document.getElementById('detalheNotifLista');
+    const notificacao = notificacoesHistoricoPorId.get(String(id));
+    if (!notificacao) {
+      showToast('Notificação indisponível', 'Atualize o histórico e tente novamente.');
+      return;
+    }
+    document.getElementById('detalheNotifTitulo').textContent = notificacao.titulo;
+    document.getElementById('detalheNotifResumo').innerHTML = `
+      <strong>Tipo:</strong> ${escapeHtml(notificacao.tipo)}
+      · <strong>Enviada em:</strong> ${escapeHtml(new Date(notificacao.publicada_em).toLocaleString('pt-BR'))}
+      · <strong>Responsável:</strong> ${escapeHtml(notificacao.administrador_nome)}
+      <br><strong>Destinatários:</strong> ${escapeHtml(notificacao.total_destinatarios)}
+      · <strong>Leituras:</strong> ${escapeHtml(notificacao.total_leituras)}
+      <br><br>${escapeHtml(notificacao.mensagem)}
+    `;
+    modal.classList.add('show');
+    lista.innerHTML = '<div class="empty-state">Carregando...</div>';
+    const { data, error } = await sb.rpc('super_admin_detalhar_notificacao_enviada', { p_notificacao_id:id });
+    if (error) {
+      lista.innerHTML = '<div class="empty-state">Não foi possível carregar os detalhes.</div>';
+      return;
+    }
+    lista.innerHTML = (data || []).map(destino => {
+      const leituras = Array.isArray(destino.leituras) ? destino.leituras : [];
+      return `<section style="padding:10px 0;border-bottom:1px solid var(--line);">
+        <strong>${escapeHtml(destino.restaurante_nome)}</strong>
+        ${leituras.length
+          ? `<ul>${leituras.map(l => `<li>${escapeHtml(l.usuario_nome)} · ${escapeHtml(l.papel)} · ${new Date(l.lida_em).toLocaleString('pt-BR')}</li>`).join('')}</ul>`
+          : '<p class="sub">Nenhuma leitura registrada.</p>'}
+      </section>`;
+    }).join('') || '<div class="empty-state">Nenhum destinatário.</div>';
+  }
+
+  function fecharDetalheNotificacao() {
+    document.getElementById('detalheNotifModalBg').classList.remove('show');
+  }
 
   function abrirResetSenhaDono(donoId, donoNome) {
     resetSenhaDonoAlvoId = donoId;

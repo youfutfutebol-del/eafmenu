@@ -392,6 +392,19 @@
   .login-card .install-btn { width:100%; justify-content:center; margin-bottom:12px; }
   .sidebar .install-btn { width:100%; justify-content:center; background:transparent; color:#fff; border-color:#3a3a3a; margin-bottom:8px; }
   .mobile-topbar { display:none; }
+  .access-block-screen { display:flex; min-height:100vh; align-items:center; justify-content:center; background:var(--sidebar); padding:20px; }
+  .notification-bell { position:relative; border:0; background:transparent; font-size:20px; color:inherit; }
+  .notification-bell span, .notification-count { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; border-radius:99px; background:var(--red); color:#fff; font-size:10px; font-weight:800; }
+  .notification-bell span { position:absolute; top:-6px; right:-8px; }
+  .notifications-modal { width:min(620px, 94vw); }
+  #notificacoesLista { display:grid; gap:10px; max-height:58vh; overflow:auto; margin-top:16px; }
+  .notification-item { border:1px solid var(--line); border-radius:10px; padding:14px; background:var(--surface); }
+  .notification-item.unread { border-left:4px solid var(--red); }
+  .notification-item--atencao { border-left-color:#D97706; }
+  .notification-item--urgente { border-left-color:#B91C1C; }
+  .notification-item__header { display:flex; justify-content:space-between; gap:12px; }
+  .notification-item__header span, .notification-item small { color:var(--muted); font-size:11px; }
+  .notification-item p { white-space:pre-wrap; line-height:1.5; }
   .drawer-overlay { display:none; }
 
   @media (max-width: 480px) {

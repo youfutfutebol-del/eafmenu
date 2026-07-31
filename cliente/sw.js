@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'eaf-cliente-';
-const CACHE_NAME = 'eaf-cliente-v0.3.3';
+const CACHE_NAME = 'eaf-cliente-v0.3.4';
 const APP_SHELL = [
   '/cliente/',
   '/cliente/index.html',

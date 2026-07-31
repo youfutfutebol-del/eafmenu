@@ -255,6 +255,7 @@ async function salvarNovaSenhaRecuperacao() {
   }
 
   async function logout() {
+    if (typeof pararMonitorNotificacoes === 'function') pararMonitorNotificacoes();
     localStorage.removeItem(SESSION_GUARD_PANEL_KEY);
     await sb.auth.signOut();
     location.reload();

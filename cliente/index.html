@@ -515,6 +515,7 @@
   // =====================================================================
   let restauranteSlug = null;
   let restaurante = null;
+  let restauranteIndisponivelTemporariamente = false;
   let categorias = [];
   let produtos = [];
   let gruposTamanho = [];
@@ -865,13 +866,17 @@
     const bannerEl = document.getElementById('bannerFechado');
     const bannerTxtEl = document.getElementById('bannerFechadoTexto');
     const motivo = status?.motivo;
+    restauranteIndisponivelTemporariamente = motivo === 'temporariamente_indisponivel';
     restauranteAbertoAgora = status?.aberto === true;
     statusEl.classList.toggle('closed', !restauranteAbertoAgora);
     if (restauranteAbertoAgora) {
       txtEl.textContent = motivo === 'aberto_24h' ? 'Aberto 24 horas' : 'Aberto agora';
       bannerEl.classList.remove('show');
     } else {
-      if (motivo === 'fechado') {
+      if (motivo === 'temporariamente_indisponivel') {
+        txtEl.textContent = 'Temporariamente indisponível';
+        bannerTxtEl.textContent = 'Este restaurante está temporariamente indisponível e não está recebendo novos pedidos.';
+      } else if (motivo === 'fechado') {
         txtEl.textContent = 'Fechado no momento';
         bannerTxtEl.textContent = status.mensagem || 'Estamos fechados no momento.';
       } else if (motivo === 'sem_configuracao') {
@@ -890,6 +895,10 @@
     if (btnFinalizar) btnFinalizar.disabled = !restauranteAbertoAgora;
     const btnConfirmar = document.getElementById('btnConfirmarPedido');
     if (btnConfirmar && !confirmarPedidoEmAndamento) btnConfirmar.disabled = !restauranteAbertoAgora;
+    const btnAdicionar = document.getElementById('detAddBtn');
+    if (btnAdicionar) btnAdicionar.disabled = restauranteIndisponivelTemporariamente;
+    const cartFab = document.getElementById('cartFab');
+    if (cartFab) cartFab.disabled = restauranteIndisponivelTemporariamente;
     return restauranteAbertoAgora;
   }
 
@@ -1304,6 +1313,10 @@
   }
 
   function confirmarAddCarrinho() {
+    if (restauranteIndisponivelTemporariamente) {
+      showToast('Restaurante indisponível', 'Este restaurante não está recebendo novos pedidos no momento.');
+      return;
+    }
     const p = detalheProdutoAtual;
     const unit = calcularPrecoUnitDetalhe();
     const tamanhoNome = detalheTamanhoSelecionadoId
@@ -1346,7 +1359,18 @@
     document.getElementById('cartFabTotal').textContent = formatMoeda(total);
   }
 
-  function openCarrinho() {
+  async function openCarrinho() {
+    if (restauranteIndisponivelTemporariamente) {
+      showToast('Restaurante indisponível', 'Este restaurante não está recebendo novos pedidos no momento.');
+      return;
+    }
+
+    const status = await consultarStatusLojaServidor();
+    if (status?.motivo === 'temporariamente_indisponivel') {
+      showToast('Restaurante indisponível', 'Este restaurante não está recebendo novos pedidos no momento.');
+      return;
+    }
+
     renderCarrinhoLista();
     openSheet('sheetCarrinho');
   }
@@ -1393,6 +1417,10 @@
   // CHECKOUT — passo 1: identificação (Supabase Auth Anonymous Sign-in por trás)
   // =====================================================================
   async function abrirCheckout() {
+    if (restauranteIndisponivelTemporariamente) {
+      showToast('Restaurante indisponível', 'Este restaurante não está recebendo novos pedidos no momento.');
+      return;
+    }
     if (cart.length === 0) { showToast('Carrinho vazio', 'Adicione itens antes de finalizar.'); return; }
 
     const status = await consultarStatusLojaServidor();
