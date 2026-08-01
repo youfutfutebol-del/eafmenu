@@ -215,9 +215,11 @@
     <span class="tag">Plataforma EAF Menu</span>
     <h2>Acesso restrito</h2>
     <p>Login de administrador da plataforma</p>
-    <input type="email" id="emailInput" placeholder="seu@email.com" autocomplete="username">
-    <input type="password" id="senhaInput" placeholder="Senha" autocomplete="current-password">
-    <button class="primary" id="loginBtn" onclick="fazerLogin()">Entrar</button>
+    <form id="loginForm" onsubmit="event.preventDefault(); fazerLogin();">
+      <input type="email" id="emailInput" placeholder="seu@email.com" autocomplete="username">
+      <input type="password" id="senhaInput" placeholder="Senha" autocomplete="current-password">
+      <button type="submit" class="primary" id="loginBtn">Entrar</button>
+    </form>
     <div class="login-msg" id="loginMsg"></div>
   </div>
 </div>

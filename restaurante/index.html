@@ -42,14 +42,14 @@
     <p id="loginSubtitle">Entre com o telefone ou e-mail cadastrado como equipe do restaurante</p>
     <button class="install-btn" id="installBtnLogin" onclick="installApp()">⬇ Instalar aplicativo</button>
 
-    <div id="stepLogin">
+    <form id="stepLogin" onsubmit="event.preventDefault(); fazerLogin();">
       <input type="text" id="identInput" placeholder="Telefone ou e-mail" autocomplete="username">
       <input type="password" id="senhaInput" placeholder="Sua senha" autocomplete="current-password">
-      <button class="primary" id="loginBtn" onclick="fazerLogin()">Entrar</button>
+      <button type="submit" class="primary" id="loginBtn">Entrar</button>
       <button type="button" class="forgot-password-link" onclick="abrirModalSuporteSenha()">
         Esqueci minha senha
       </button>
-    </div>
+    </form>
 
     <div id="stepNovaSenha" style="display:none;">
       <p style="margin:0 0 14px; font-size:12.5px; color:var(--muted);">Crie sua nova senha de acesso.</p>
