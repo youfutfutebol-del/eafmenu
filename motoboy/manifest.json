@@ -2,6 +2,7 @@
   "name": "EAF Menu - Motoboy",
   "short_name": "EAF Motoboy",
   "description": "App de entregas para motoboys do EAF Menu",
+  "id": "/motoboy/",
   "start_url": "/motoboy/",
   "scope": "/motoboy/",
   "display": "standalone",

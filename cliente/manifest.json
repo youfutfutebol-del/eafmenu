@@ -1,6 +1,7 @@
 {
   "name": "EAF Menu",
   "short_name": "EAF Menu",
+  "id": "/cliente/",
   "start_url": "/cliente/",
   "scope": "/cliente/",
   "display": "standalone",
