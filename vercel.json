@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "routes": [
+    {
+      "src": "^/$",
+      "has": [
+        {
+          "type": "host",
+          "value": "^(?!(?:www|admin|restaurante|motoboy|cliente|api|suporte)\\.)(?<slug>[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)\\.eafmenu\\.com\\.br$"
+        }
+      ],
+      "dest": "/cliente/index.html"
+    },
+    {
+      "handle": "filesystem"
+    }
+  ]
+}
