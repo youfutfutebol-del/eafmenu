@@ -6,6 +6,7 @@
   let promoProdutos = [];
   let promoCategorias = [];
   let promoForm = novoEstadoForm();
+  const acoesEmAndamento = new Set();
 
   function novoEstadoForm() {
     return {
@@ -199,7 +200,7 @@
     const id = botao.dataset.promoId;
     if (botao.dataset.promoAcao === 'detalhes') openPromocao(id, true);
     else if (botao.dataset.promoAcao === 'editar') openPromocao(id);
-    else acaoPromocao(botao.dataset.promoAcao, id);
+    else acaoPromocao(botao.dataset.promoAcao, id, botao);
   });
 
   function opcoesProduto(selecionado) {
@@ -404,14 +405,70 @@
     } finally { btn.disabled = false; btn.textContent = 'Salvar rascunho'; }
   }
 
-  async function acaoPromocao(acao, id) {
-    if (!podeAdministrar()) return;
+  function estadoDaAcaoFoiConfirmado(acao, promocao) {
+    if (acao === 'ativar') return promocao.ativo === true && !promocao.arquivado_em;
+    if (acao === 'desativar') return promocao.ativo === false && !promocao.arquivado_em;
+    if (acao === 'arquivar') return promocao.ativo === false && Boolean(promocao.arquivado_em);
+    return false;
+  }
+
+  async function acaoPromocao(acao, id, botao = null) {
+    if (!podeAdministrar() || acoesEmAndamento.has(String(id))) return;
     if (acao === 'arquivar' && !confirm('Arquivar esta promoção? Ela não poderá ser reativada ou editada.')) return;
     const rpc = { ativar: 'ativar_promocao', desativar: 'desativar_promocao', arquivar: 'arquivar_promocao' }[acao];
-    const { error } = await sb.rpc(rpc, { p_promocao_id: id });
-    if (error) showToast('Ação não concluída', erroAmigavel(error));
-    else showToast('Promoção atualizada', acao === 'ativar' ? 'A campanha está ativa.' : acao === 'desativar' ? 'A campanha foi desativada.' : 'A campanha foi arquivada.');
-    await loadPromocoes();
+    if (!rpc) return;
+
+    const chave = String(id);
+    const textoOriginal = botao?.textContent || '';
+    const textoProcessando = {
+      ativar: 'Ativando...',
+      desativar: 'Desativando...',
+      arquivar: 'Arquivando...'
+    }[acao];
+
+    acoesEmAndamento.add(chave);
+    if (botao) {
+      botao.disabled = true;
+      botao.setAttribute('aria-busy', 'true');
+      botao.textContent = textoProcessando;
+    }
+
+    try {
+      const { error } = await sb.rpc(rpc, { p_promocao_id: id });
+      if (error) throw error;
+
+      const { data: confirmacao, error: erroConfirmacao } = await sb.from('promocoes')
+        .select('id, ativo, arquivado_em')
+        .eq('id', id)
+        .eq('restaurante_id', restauranteId)
+        .maybeSingle();
+
+      if (erroConfirmacao) throw erroConfirmacao;
+      if (!confirmacao) throw new Error('A promoção não foi encontrada após a atualização.');
+      if (!estadoDaAcaoFoiConfirmado(acao, confirmacao)) {
+        throw new Error('O banco não confirmou a alteração da promoção. Recarregue a tela e tente novamente.');
+      }
+
+      await loadPromocoes();
+      showToast(
+        'Promoção atualizada',
+        acao === 'ativar'
+          ? 'A campanha está ativa.'
+          : acao === 'desativar'
+            ? 'A campanha foi desativada.'
+            : 'A campanha foi arquivada.'
+      );
+    } catch (erro) {
+      await loadPromocoes();
+      showToast('Ação não concluída', erroAmigavel(erro));
+    } finally {
+      acoesEmAndamento.delete(chave);
+      if (botao?.isConnected) {
+        botao.disabled = false;
+        botao.removeAttribute('aria-busy');
+        botao.textContent = textoOriginal;
+      }
+    }
   }
 
   Object.assign(window, { loadPromocoes, openPromocao, closePromocao, renderPromocaoEscopos, onPromocaoModoChange, setPromoCategoria, setPromoItem, adicionarPromoItem, removerPromoItem, aplicarAtalhoLevePague, atualizarAtalhoLevePague, submitPromocao, acaoPromocao });
