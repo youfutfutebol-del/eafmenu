@@ -21,13 +21,13 @@
   }
 
   function abrirPwaCliente() {
-    if (!restauranteSlugAtual) {
+    const destino = urlCardapioPorSlug(restauranteSlugAtual);
+    if (!destino) {
       showToast('Configure o link primeiro', 'Vá em Personalizar Marca e defina o link (slug) do seu cardápio antes de abrir o app do cliente.');
       switchView('marca');
       return;
     }
-    const destino = validarUrlSegura('/cliente/?r=' + encodeURIComponent(restauranteSlugAtual));
-    if (destino) window.open(destino, '_blank', 'noopener,noreferrer');
+    window.open(destino, '_blank', 'noopener,noreferrer');
   }
 
   function toggleSound() {

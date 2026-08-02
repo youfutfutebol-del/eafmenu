@@ -740,11 +740,18 @@
   async function submitEditarRestaurante() {
     const id = document.getElementById('erId').value;
     const nome = document.getElementById('erNome').value.trim();
-    const slug = document.getElementById('erSlug').value.trim();
+    const slug = normalizarSlugSubdominio(document.getElementById('erSlug').value);
     if (!nome) { showToast('Faltou o nome', 'Informe o nome do restaurante.'); return; }
+    if (!slugSubdominioValido(slug)) {
+      showToast(
+        'Link do cardápio inválido',
+        'Use até 63 caracteres, somente letras, números e hífens. Escolha um nome diferente dos endereços reservados do sistema.'
+      );
+      return;
+    }
 
     const { error } = await sb.rpc('super_admin_editar_restaurante', {
-      p_restaurante_id: id, p_novo_nome: nome, p_novo_slug: slug || null
+      p_restaurante_id: id, p_novo_nome: nome, p_novo_slug: slug
     });
     if (error) { showToast('Erro ao salvar', error.message); return; }
     fecharEditarRestaurante();

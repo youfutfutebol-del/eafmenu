@@ -78,6 +78,58 @@
       .replace(/(^-|-$)/g, '');
   }
 
+  const EAF_MENU_DOMINIO = 'eafmenu.com.br';
+
+  const EAF_MENU_SUBDOMINIOS_RESERVADOS = Object.freeze([
+    'www',
+    'admin',
+    'restaurante',
+    'motoboy',
+    'cliente',
+    'api',
+    'suporte'
+  ]);
+
+  function normalizarSlugSubdominio(valor) {
+    return slugify(valor);
+  }
+
+  function slugSubdominioValido(valor) {
+    const slug = String(valor || '');
+    return slug.length >= 1 &&
+      slug.length <= 63 &&
+      /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(slug) &&
+      !EAF_MENU_SUBDOMINIOS_RESERVADOS.includes(slug);
+  }
+
+  function obterSlugRestauranteDoHostname(hostname = location.hostname) {
+    const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
+    const sufixo = `.${EAF_MENU_DOMINIO}`;
+    if (!host.endsWith(sufixo)) return null;
+
+    const slug = host.slice(0, -sufixo.length);
+    if (!slug || slug.includes('.') || !slugSubdominioValido(slug)) return null;
+    return slug;
+  }
+
+  function estaNoDominioEafMenu(hostname = location.hostname) {
+    const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
+    if (host === EAF_MENU_DOMINIO || host === `www.${EAF_MENU_DOMINIO}`) return true;
+    const sufixo = `.${EAF_MENU_DOMINIO}`;
+    if (!host.endsWith(sufixo)) return false;
+    const subdominio = host.slice(0, -sufixo.length);
+    return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(subdominio);
+  }
+
+  function urlCardapioPorSlug(slug, origin = location.origin, hostname = location.hostname) {
+    const slugNormalizado = normalizarSlugSubdominio(slug);
+    if (!slugSubdominioValido(slugNormalizado)) return null;
+    if (estaNoDominioEafMenu(hostname)) {
+      return `https://${slugNormalizado}.${EAF_MENU_DOMINIO}/`;
+    }
+    return `${String(origin).replace(/\/$/, '')}/cliente/?r=${encodeURIComponent(slugNormalizado)}`;
+  }
+
   function showToast(title, body) {
     const t = document.getElementById('toast');
     document.getElementById('toastTitle').textContent = title;

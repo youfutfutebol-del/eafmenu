@@ -6,8 +6,9 @@
 // So chamadas apos o script principal rodar. Continuam globais (sem type=module).
 
   function atualizarLinkCardapioPreview() {
-    const slug = document.getElementById('mkSlug').value.trim();
-    document.getElementById('mkLinkPreview').textContent = slug ? (location.origin + '/cliente/?r=' + slugify(slug)) : '—';
+    const slug = normalizarSlugSubdominio(document.getElementById('mkSlug').value);
+    const url = urlCardapioPorSlug(slug);
+    document.getElementById('mkLinkPreview').textContent = url || '—';
   }
 
   function copiarLinkCardapio() {
@@ -248,8 +249,14 @@
   async function submitMarca() {
     const nome = document.getElementById('mkNome').value.trim();
     if (!nome) { showToast('Faltou o nome', 'Informe o nome do restaurante.'); return; }
-    const slugDigitado = document.getElementById('mkSlug').value.trim();
-    const slugFinal = slugDigitado ? slugify(slugDigitado) : null;
+    const slugFinal = normalizarSlugSubdominio(document.getElementById('mkSlug').value);
+    if (!slugSubdominioValido(slugFinal)) {
+      showToast(
+        'Link do cardápio inválido',
+        'Use até 63 caracteres, somente letras, números e hífens. Escolha um nome diferente dos endereços reservados do sistema.'
+      );
+      return;
+    }
     const logoUrlDigitada = document.getElementById('mkLogoUrl').value.trim();
     const logoUrlSegura = logoUrlDigitada ? validarUrlSegura(logoUrlDigitada) : null;
     if (logoUrlDigitada && !logoUrlSegura) {
