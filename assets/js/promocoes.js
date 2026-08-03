@@ -6,6 +6,8 @@
   let promoProdutos = [];
   let promoCategorias = [];
   let promoForm = novoEstadoForm();
+  let promocaoSubmetendo = false;
+  let promocaoAcaoEmAndamento = false;
 
   function novoEstadoForm() {
     return {
@@ -28,6 +30,26 @@
     if (/foreign key/i.test(msg)) return 'Um produto, tamanho ou categoria selecionado não está mais disponível.';
     return msg;
   };
+
+  async function autorizarAcaoPromocoes(botao, contexto = {}) {
+    const resultado = await RecursosPlanos.autorizar('promocoes', botao, {
+      restauranteNome: restauranteInfo?.nome || '',
+      nomeFallback: 'Promoções',
+      tituloIndisponivel: 'Promoções não disponíveis',
+      focoRetorno: botao,
+      ...contexto
+    });
+    if (resultado.motivo === 'erro') showToast('Não foi possível verificar o recurso', 'Tente novamente antes de continuar.');
+    return resultado.permitido;
+  }
+
+  function tratarNegativaPromocoes(error) {
+    if (!RecursosPlanos.registrarNegativa(error, 'promocoes')) return false;
+    const mensagem = 'A gestão de Promoções não está disponível para este restaurante.';
+    mostrarErroForm(mensagem);
+    showToast('Promoções indisponíveis', mensagem);
+    return true;
+  }
 
   async function carregarReferenciasPromocao() {
     const [produtosRes, gruposRes, categoriasRes] = await Promise.all([
@@ -182,12 +204,12 @@
     tbody.innerHTML = promocoesCache.map(p => {
       const status = statusPromo(p);
       const id = h(p.id);
-      const leitura = `<button data-promo-acao="detalhes" data-promo-id="${id}">Ver detalhes</button>`;
+      const leitura = `<button type="button" data-promo-acao="detalhes" data-promo-id="${id}">Ver detalhes</button>`;
       let acoes = leitura;
       if (podeAdministrar() && !p.arquivado_em) {
-        if (!p.ativo) acoes += `<button data-promo-acao="editar" data-promo-id="${id}">Editar</button><button data-promo-acao="ativar" data-promo-id="${id}">Ativar</button>`;
-        else acoes += `<button data-promo-acao="desativar" data-promo-id="${id}">Desativar</button>`;
-        acoes += `<button class="danger" data-promo-acao="arquivar" data-promo-id="${id}">Arquivar</button>`;
+        if (!p.ativo) acoes += `<button type="button" data-promo-acao="editar" data-promo-id="${id}">Editar</button><button type="button" data-promo-acao="ativar" data-promo-id="${id}">Ativar</button>`;
+        else acoes += `<button type="button" data-promo-acao="desativar" data-promo-id="${id}">Desativar</button>`;
+        acoes += `<button type="button" class="danger" data-promo-acao="arquivar" data-promo-id="${id}">Arquivar</button>`;
       }
       return `<tr><td data-label="Nome"><b>${h(p.nome)}</b></td><td data-label="Condição">${h(resumoEscopo(encontrarEscopo(p, 'condicao'), p.condicao_quantidade, 'Compre'))}</td><td data-label="Benefício">${h(resumoBeneficio(p))}</td><td data-label="Status"><span class="promo-status promo-status--${status.chave}">${status.nome}</span></td><td data-label="Limite/pedido">${p.max_aplicacoes_por_pedido || 'Sem limite'}</td><td data-label="Ações"><div class="row-actions">${acoes}</div></td></tr>`;
     }).join('');
@@ -197,9 +219,9 @@
     const botao = evento.target.closest('[data-promo-acao][data-promo-id]');
     if (!botao) return;
     const id = botao.dataset.promoId;
-    if (botao.dataset.promoAcao === 'detalhes') openPromocao(id, true);
-    else if (botao.dataset.promoAcao === 'editar') openPromocao(id);
-    else acaoPromocao(botao.dataset.promoAcao, id);
+    if (botao.dataset.promoAcao === 'detalhes') openPromocao(id, true, botao);
+    else if (botao.dataset.promoAcao === 'editar') openPromocao(id, false, botao);
+    else acaoPromocao(botao.dataset.promoAcao, id, botao);
   });
 
   function opcoesProduto(selecionado) {
@@ -279,7 +301,8 @@
     return { tipo: tipoEscopo(e), categoriaId: itensEscopo(e)[0]?.categoria_id || '', itens: (itensEscopo(e).length ? itensEscopo(e) : [{}]).map(i => ({ produtoId: i.produto_id || '', tamanhoId: i.opcao_tamanho_id || '' })) };
   }
 
-  async function openPromocao(id, somenteLeitura = false) {
+  async function openPromocao(id, somenteLeitura = false, botaoOrigem) {
+    if (!await autorizarAcaoPromocoes(botaoOrigem)) return;
     const existente = id ? promocoesCache.find(p => String(p.id) === String(id)) : null;
     if (existente?.ativo && !somenteLeitura) { showToast('Desative primeiro', 'Uma promoção ativa não pode ser editada.'); return; }
     if (existente?.arquivado_em && !somenteLeitura) { showToast('Somente visualização', 'Uma promoção arquivada não pode ser editada ou reativada.'); return; }
@@ -376,12 +399,20 @@
     if (itensRes.error) throw itensRes.error;
   }
 
-  async function submitPromocao() {
+  async function submitPromocao(botaoOrigem) {
+    if (promocaoSubmetendo) return;
     if (!podeAdministrar() || promoForm.somenteLeitura) return;
-    const validacao = validarPromocao(); if (validacao) { mostrarErroForm(validacao); return; }
-    mostrarErroForm(''); const btn = el('salvarPromocaoBtn'); btn.disabled = true; btn.textContent = 'Salvando...';
+    const btn = botaoOrigem || el('salvarPromocaoBtn');
+    promocaoSubmetendo = true;
+    const textoOriginalBotao = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
     let promocaoId = el('promoId').value;
     try {
+      if (!await autorizarAcaoPromocoes(btn)) return;
+      const validacao = validarPromocao();
+      if (validacao) { mostrarErroForm(validacao); return; }
+      mostrarErroForm('');
       if (promocaoId) {
         const atual = promocoesCache.find(p => String(p.id) === String(promocaoId));
         if (atual?.ativo || atual?.arquivado_em) throw new Error('Esta promoção não pode mais ser editada. Recarregue a lista.');
@@ -399,19 +430,31 @@
       await criarEscopo(promocaoId, 'beneficio', promoForm.beneficio);
       closePromocao(); showToast('Promoção salva', 'A campanha foi salva como rascunho e já pode ser ativada.'); await loadPromocoes();
     } catch (erro) {
+      if (tratarNegativaPromocoes(erro)) return;
       const parcial = promocaoId ? 'A promoção foi salva como rascunho, mas ainda está incompleta. ' : '';
       mostrarErroForm(parcial + erroAmigavel(erro)); showToast('Não foi possível concluir', parcial + erroAmigavel(erro)); await loadPromocoes();
-    } finally { btn.disabled = false; btn.textContent = 'Salvar rascunho'; }
+    } finally {
+      promocaoSubmetendo = false;
+      btn.disabled = false;
+      btn.textContent = textoOriginalBotao;
+    }
   }
 
-  async function acaoPromocao(acao, id) {
+  async function acaoPromocao(acao, id, botaoOrigem) {
+    if (promocaoAcaoEmAndamento) return;
     if (!podeAdministrar()) return;
-    if (acao === 'arquivar' && !confirm('Arquivar esta promoção? Ela não poderá ser reativada ou editada.')) return;
-    const rpc = { ativar: 'ativar_promocao', desativar: 'desativar_promocao', arquivar: 'arquivar_promocao' }[acao];
-    const { error } = await sb.rpc(rpc, { p_promocao_id: id });
-    if (error) showToast('Ação não concluída', erroAmigavel(error));
-    else showToast('Promoção atualizada', acao === 'ativar' ? 'A campanha está ativa.' : acao === 'desativar' ? 'A campanha foi desativada.' : 'A campanha foi arquivada.');
-    await loadPromocoes();
+    promocaoAcaoEmAndamento = true;
+    try {
+      if (!await autorizarAcaoPromocoes(botaoOrigem)) return;
+      if (acao === 'arquivar' && !confirm('Arquivar esta promoção? Ela não poderá ser reativada ou editada.')) return;
+      const rpc = { ativar: 'ativar_promocao', desativar: 'desativar_promocao', arquivar: 'arquivar_promocao' }[acao];
+      const { error } = await sb.rpc(rpc, { p_promocao_id: id });
+      if (error) { if (!tratarNegativaPromocoes(error)) showToast('Ação não concluída', erroAmigavel(error)); }
+      else showToast('Promoção atualizada', acao === 'ativar' ? 'A campanha está ativa.' : acao === 'desativar' ? 'A campanha foi desativada.' : 'A campanha foi arquivada.');
+      if (!error) await loadPromocoes();
+    } finally {
+      promocaoAcaoEmAndamento = false;
+    }
   }
 
   Object.assign(window, { loadPromocoes, openPromocao, closePromocao, renderPromocaoEscopos, onPromocaoModoChange, setPromoCategoria, setPromoItem, adicionarPromoItem, removerPromoItem, aplicarAtalhoLevePague, atualizarAtalhoLevePague, submitPromocao, acaoPromocao });

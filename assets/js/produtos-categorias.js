@@ -7,6 +7,30 @@
 
   const categoriasProdutosAbertas = new Set();
   const CATEGORIA_SEM_CATEGORIA = '__sem_categoria__';
+  const NEGATIVA_RECURSO = Object.freeze({
+    produtos: { titulo: 'Gestão de Produtos indisponível', mensagem: 'A Gestão de Produtos não está disponível para este restaurante.' },
+    categorias: { titulo: 'Gestão de Categorias indisponível', mensagem: 'A Gestão de Categorias não está disponível para este restaurante.' }
+  });
+  let categoriaSubmetendo = false;
+  let produtoSubmetendo = false;
+
+  async function autorizarAcaoGestao(recursoCodigo, botao, contexto = {}) {
+    const resultado = await RecursosPlanos.autorizar(recursoCodigo, botao, {
+      restauranteNome: restauranteInfo?.nome || '',
+      ...contexto
+    });
+    if (resultado.motivo === 'erro') {
+      showToast('Não foi possível verificar o recurso', 'Tente novamente antes de continuar.');
+    }
+    return resultado.permitido;
+  }
+
+  function tratarNegativaGestao(error, recursoCodigo) {
+    if (!RecursosPlanos.registrarNegativa(error, recursoCodigo)) return false;
+    const texto = NEGATIVA_RECURSO[recursoCodigo];
+    showToast(texto.titulo, texto.mensagem);
+    return true;
+  }
 
   function precoPromocionalValido(pp) {
     const normal = Number(pp?.preco);
@@ -54,8 +78,8 @@
         <td data-label="Produtos">${contagem[c.id] || 0} produto(s)</td>
         <td data-label="Ações">
           <div class="row-actions">
-            <button data-categoria-acao="editar" data-categoria-id="${escapeHtml(c.id)}">Editar</button>
-            <button class="danger" data-categoria-acao="excluir" data-categoria-id="${escapeHtml(c.id)}" data-quantidade="${contagem[c.id] || 0}">Excluir</button>
+            <button type="button" data-categoria-acao="editar" data-categoria-id="${escapeHtml(c.id)}">Editar</button>
+            <button type="button" class="danger" data-categoria-acao="excluir" data-categoria-id="${escapeHtml(c.id)}" data-quantidade="${contagem[c.id] || 0}">Excluir</button>
           </div>
         </td>
       </tr>`).join('');
@@ -69,7 +93,8 @@
     sel.value = atual;
   }
 
-  function openCategoria(cat) {
+  async function openCategoria(cat, botaoOrigem) {
+    if (!await autorizarAcaoGestao('categorias', botaoOrigem, { nomeFallback: 'Gestão de Categorias', focoRetorno: botaoOrigem })) return;
     document.getElementById('categoriaModalTitle').textContent = cat ? 'Editar categoria' : 'Nova categoria';
     document.getElementById('catId').value = cat ? cat.id : '';
     document.getElementById('catNome').value = cat ? cat.nome : '';
@@ -79,7 +104,14 @@
 
   function closeCategoria() { document.getElementById('categoriaModalBg').classList.remove('show'); }
 
-  async function submitCategoria() {
+  async function submitCategoria(botaoOrigem) {
+    if (categoriaSubmetendo) return;
+    categoriaSubmetendo = true;
+    const btn = botaoOrigem || document.getElementById('salvarCategoriaBtn');
+    const textoOriginal = btn?.textContent || 'Salvar categoria';
+    if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+    try {
+      if (!await autorizarAcaoGestao('categorias', btn, { nomeFallback: 'Gestão de Categorias', focoRetorno: btn })) return;
     const id = document.getElementById('catId').value;
     const nome = document.getElementById('catNome').value.trim();
     const ordem = parseInt(document.getElementById('catOrdem').value || '0', 10);
@@ -90,20 +122,25 @@
       ? await sb.from('categorias').update(payload).eq('id', id)
       : await sb.from('categorias').insert(payload);
 
-    if (error) { showToast('Erro ao salvar', error.message); return; }
+    if (error) { if (!tratarNegativaGestao(error, 'categorias')) showToast('Erro ao salvar', error.message); return; }
     closeCategoria();
     showToast('Categoria salva', nome);
     await loadCategoriasAdmin();
+    } finally {
+      categoriaSubmetendo = false;
+      if (btn?.isConnected) { btn.disabled = false; btn.textContent = textoOriginal; }
+    }
   }
 
-  async function deleteCategoria(id, qtdProdutos) {
+  async function deleteCategoria(id, qtdProdutos, botaoOrigem) {
+    if (!await autorizarAcaoGestao('categorias', botaoOrigem, { nomeFallback: 'Gestão de Categorias', focoRetorno: botaoOrigem })) return;
     if (qtdProdutos > 0) {
       showToast('Não é possível excluir', `Essa categoria tem ${qtdProdutos} produto(s) vinculado(s). Mude a categoria deles primeiro.`);
       return;
     }
     if (!confirm('Excluir esta categoria?')) return;
     const { error } = await sb.from('categorias').delete().eq('id', id);
-    if (error) { showToast('Erro ao excluir', error.message); return; }
+    if (error) { if (!tratarNegativaGestao(error, 'categorias')) showToast('Erro ao excluir', error.message); return; }
     showToast('Categoria excluída', '');
     await loadCategoriasAdmin();
   }
@@ -238,8 +275,8 @@
       const acao = evento.target.closest('[data-produto-acao]');
       if (acao) {
         const id = acao.dataset.produtoId;
-        if (acao.dataset.produtoAcao === 'editar') editProduto(id);
-        else toggleProdutoAtivo(id, acao.dataset.produtoAtivo === 'true');
+        if (acao.dataset.produtoAcao === 'editar') editProduto(id, acao);
+        else toggleProdutoAtivo(id, acao.dataset.produtoAtivo === 'true', acao);
         return;
       }
       const cabecalho = evento.target.closest('.produtos-categoria__cabecalho');
@@ -256,16 +293,17 @@
     if (!botao) return;
     const categoria = categoriasCache.find(item => String(item.id) === String(botao.dataset.categoriaId));
     if (!categoria) return;
-    if (botao.dataset.categoriaAcao === 'editar') openCategoria(categoria);
-    if (botao.dataset.categoriaAcao === 'excluir') deleteCategoria(categoria.id, Number(botao.dataset.quantidade));
+    if (botao.dataset.categoriaAcao === 'editar') openCategoria(categoria, botao);
+    if (botao.dataset.categoriaAcao === 'excluir') deleteCategoria(categoria.id, Number(botao.dataset.quantidade), botao);
   });
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inicializarProdutosCategorias);
   else inicializarProdutosCategorias();
 
-  async function toggleProdutoAtivo(id, ativoAtual) {
+  async function toggleProdutoAtivo(id, ativoAtual, botaoOrigem) {
+    if (!await autorizarAcaoGestao('produtos', botaoOrigem, { nomeFallback: 'Gestão de Produtos', focoRetorno: botaoOrigem })) return;
     const { error } = await sb.from('produtos').update({ ativo: !ativoAtual }).eq('id', id);
-    if (error) { showToast('Erro', error.message); return; }
+    if (error) { if (!tratarNegativaGestao(error, 'produtos')) showToast('Erro', error.message); return; }
     await loadProdutosAdmin();
     await loadProdutos();
   }
@@ -421,19 +459,20 @@
         restaurante_id: restauranteId,
         max_sabores: maxSabores
       }).select().single();
-    if (grupoErr) throw new Error(grupoErr.message);
+    if (grupoErr) throw grupoErr;
 
     const { data: opcoes, error: opcoesErr } = await sb.from('opcoes_tamanho')
       .insert(tamanhos.map((t, ordem) => ({ grupo_id: grupo.id, nome: t.nome, ordem })))
       .select();
-    if (opcoesErr) throw new Error(opcoesErr.message);
+    if (opcoesErr) throw opcoesErr;
     const opcoesOrdenadas = (opcoes || []).slice().sort((a, b) => a.ordem - b.ordem);
     const grupoCompleto = { ...grupo, opcoes_tamanho: opcoesOrdenadas };
     gruposTamanhoCache.push(grupoCompleto);
     return grupoCompleto;
   }
 
-  function openProduto() {
+  async function openProduto(botaoOrigem) {
+    if (!await autorizarAcaoGestao('produtos', botaoOrigem, { nomeFallback: 'Gestão de Produtos', focoRetorno: botaoOrigem })) return;
     document.getElementById('produtoModalTitle').textContent = 'Novo produto';
     document.getElementById('pId').value = '';
     document.getElementById('pNome').value = '';
@@ -454,7 +493,8 @@
     document.getElementById('produtoModalBg').classList.add('show');
   }
 
-  function editProduto(id) {
+  async function editProduto(id, botaoOrigem) {
+    if (!await autorizarAcaoGestao('produtos', botaoOrigem, { nomeFallback: 'Gestão de Produtos', focoRetorno: botaoOrigem })) return;
     const p = produtosAdminCache.find(x => x.id === id);
     if (!p) return;
     document.getElementById('produtoModalTitle').textContent = 'Editar produto';
@@ -507,7 +547,14 @@
 
   function closeProduto() { document.getElementById('produtoModalBg').classList.remove('show'); }
 
-  async function submitProduto() {
+  async function submitProduto(botaoOrigem) {
+    if (produtoSubmetendo) return;
+    produtoSubmetendo = true;
+    const btn = botaoOrigem || document.getElementById('salvarProdutoBtn');
+    const textoOriginal = btn?.textContent || 'Salvar produto';
+    if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+    try {
+    if (!await autorizarAcaoGestao('produtos', btn, { nomeFallback: 'Gestão de Produtos', focoRetorno: btn })) return;
     const id = document.getElementById('pId').value || null;
     const nome = document.getElementById('pNome').value.trim();
     if (!nome) { showToast('Faltou o nome', 'Informe o nome do produto.'); return; }
@@ -540,7 +587,7 @@
         try {
           grupo = await criarGrupoInterno(categoria_id, tamanhos, maxSabores);
         } catch (error) {
-          showToast('Erro ao preparar tamanhos', error.message);
+          if (!tratarNegativaGestao(error, 'produtos')) showToast('Erro ao preparar tamanhos', error.message);
           return;
         }
       }
@@ -558,23 +605,27 @@
     let produtoId = id;
     if (id) {
       const { error } = await sb.from('produtos').update(payload).eq('id', id);
-      if (error) { showToast('Erro ao salvar produto', error.message); return; }
+      if (error) { if (!tratarNegativaGestao(error, 'produtos')) showToast('Erro ao salvar produto', error.message); return; }
       const { error: deleteErr } = await sb.from('produto_precos').delete().eq('produto_id', id);
-      if (deleteErr) { showToast('Erro ao atualizar preços', deleteErr.message); return; }
+      if (deleteErr) { if (!tratarNegativaGestao(deleteErr, 'produtos')) showToast('Erro ao atualizar preços', deleteErr.message); return; }
     } else {
       const { data: novoProduto, error } = await sb.from('produtos').insert(payload).select().single();
-      if (error) { showToast('Erro ao criar produto', error.message); return; }
+      if (error) { if (!tratarNegativaGestao(error, 'produtos')) showToast('Erro ao criar produto', error.message); return; }
       produtoId = novoProduto.id;
     }
 
     const { error: precoErr } = await sb.from('produto_precos')
       .insert(precosParaSalvar.map(p => ({ ...p, produto_id: produtoId })));
-    if (precoErr) { showToast('Erro ao salvar preços', precoErr.message); return; }
+    if (precoErr) { if (!tratarNegativaGestao(precoErr, 'produtos')) showToast('Erro ao salvar preços', precoErr.message); return; }
 
     closeProduto();
     showToast('Produto salvo', nome);
     await loadProdutosAdmin();
     await loadProdutos();
+    } finally {
+      produtoSubmetendo = false;
+      if (btn?.isConnected) { btn.disabled = false; btn.textContent = textoOriginal; }
+    }
   }
 
   async function uploadImagem(file, pasta) {
@@ -592,6 +643,11 @@
   async function onImagemProdutoSelecionada(input) {
     const file = input.files[0];
     if (!file) return;
+    if (!await autorizarAcaoGestao('produtos', input, { nomeFallback: 'Gestão de Produtos', focoRetorno: input })) {
+      input.value = '';
+      document.getElementById('pImagemStatus').textContent = '';
+      return;
+    }
     if (!file.type.startsWith('image/')) { showToast('Arquivo inválido', 'Selecione um arquivo de imagem.'); return; }
     if (file.size > 5 * 1024 * 1024) { showToast('Imagem muito grande', 'Escolha uma imagem de até 5MB.'); return; }
 
