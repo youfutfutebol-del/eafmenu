@@ -118,6 +118,9 @@
   .plan-card__name { font-size:14px; font-weight:850; overflow-wrap:anywhere; }
   .plan-card__price { font-size:16px; font-weight:850; }
   .plan-card__meta { font-size:11.5px; color:var(--muted); }
+  .plan-card__description { margin:0; color:#52525B; font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+  .plan-card__resources { margin:0; padding-left:18px; display:grid; gap:4px; color:#3F3F46; font-size:11.5px; }
+  .plan-card__resources--empty { margin:0; color:var(--muted); font-size:11.5px; font-style:italic; }
   .plan-card .btn { width:100%; min-height:36px; padding:8px 10px; }
   .plan-choices { display:grid; gap:8px; }
   .plan-choice { display:grid; grid-template-columns:auto minmax(0, 1fr); gap:10px; align-items:start; padding:11px 12px; border:1px solid #D4D4D8; border-radius:9px; cursor:pointer; }
@@ -138,6 +141,31 @@
   .modal-actions { display:flex; gap:8px; margin-top:18px; }
   .modal-actions .btn { flex:1; text-align:center; }
   .divider-label { font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin: 18px 0 10px; }
+  .modal--wide { width:680px; }
+  .field__counter { display:block; margin-top:4px; color:var(--muted); font-size:10.5px; text-align:right; }
+  .package-impact { margin:12px 0; padding:10px 12px; border:1px solid #E4E4E7; border-radius:9px; background:#FAFAFA; color:#52525B; font-size:11.5px; line-height:1.45; }
+  .package-resource-list { display:grid; gap:8px; }
+  .package-resource-option { display:grid; grid-template-columns:auto minmax(0, 1fr); gap:9px; align-items:start; padding:10px 11px; border:1px solid #E4E4E7; border-radius:9px; }
+  .package-resource-option input { margin-top:3px; }
+  .package-resource-option__name { display:block; font-size:12.5px; font-weight:800; color:var(--ink); }
+  .package-resource-option__description { display:block; margin-top:2px; color:var(--muted); font-size:11.5px; line-height:1.4; overflow-wrap:anywhere; }
+  .package-resource-option--inactive { background:#F8F8F8; opacity:.72; }
+  .resource-modal-state { padding:28px 14px; text-align:center; color:var(--muted); font-size:12.5px; }
+  .resource-modal-state.error { color:#991B1B; }
+  .individual-resource-list { display:grid; gap:12px; }
+  .individual-resource-row { min-width:0; padding:13px; border:1px solid #E4E4E7; border-radius:10px; }
+  .individual-resource-row__header { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .individual-resource-row__name { font-size:13px; font-weight:850; overflow-wrap:anywhere; }
+  .individual-resource-row__description { margin:3px 0 8px; color:var(--muted); font-size:11.5px; line-height:1.4; overflow-wrap:anywhere; }
+  .individual-resource-row__meta { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; color:#52525B; font-size:10.5px; }
+  .availability-badge { flex:0 0 auto; display:inline-flex; border-radius:999px; padding:4px 8px; font-size:10px; font-weight:800; }
+  .availability-badge.available { background:#DCFCE7; color:#166534; }
+  .availability-badge.blocked { background:#FEE2E2; color:#991B1B; }
+  .resource-decision { min-width:0; margin:0; padding:9px 10px; border:1px solid #E4E4E7; border-radius:8px; }
+  .resource-decision legend { padding:0 5px; color:var(--muted); font-size:10.5px; font-weight:800; }
+  .resource-decision__options { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; }
+  .resource-decision label { display:flex; gap:6px; align-items:flex-start; min-width:0; font-size:11px; line-height:1.35; }
+  .resource-decision input { flex:0 0 auto; margin-top:2px; }
 
   .toast {
     position:fixed; top:16px; right:16px; z-index:100; background:#fff; border-left:3px solid var(--accent);
@@ -176,7 +204,9 @@
     .plans-list { grid-template-columns:1fr; }
 
     .modal-bg { padding:16px; align-items:flex-start; overflow:auto; }
-    .modal { width:100%; max-width:420px; max-height:none; padding:22px 20px; margin:auto 0; }
+    .modal { width:100%; max-width:420px; max-height:calc(100dvh - 32px); padding:22px 20px; margin:auto 0; overflow:auto; }
+    .modal--wide { max-width:680px; }
+    .resource-decision__options { grid-template-columns:1fr; }
   }
 
   @media (max-width: 430px) {
@@ -313,18 +343,35 @@
 </div>
 
 <div class="modal-bg" id="editarPlanoModalBg">
-  <div class="modal">
-    <h3>Editar plano</h3>
-    <p class="sub">O preço atualizado será usado imediatamente nas interfaces administrativas.</p>
+  <div class="modal modal--wide" role="dialog" aria-modal="true" aria-labelledby="editarPlanoTitulo">
+    <h3 id="editarPlanoTitulo">Editar pacote</h3>
+    <p class="sub">Atualize a apresentação comercial e os recursos incluídos neste pacote.</p>
     <input type="hidden" id="epCodigo">
     <div class="field"><label for="epNome">Nome comercial</label><input id="epNome" maxlength="80"></div>
+    <div class="field"><label for="epDescricao">Descrição curta</label><textarea id="epDescricao" rows="3" maxlength="180"></textarea><span class="field__counter" id="epDescricaoContador">0/180</span></div>
     <div class="field"><label for="epPreco">Preço mensal</label><input id="epPreco" inputmode="decimal" placeholder="99,90"></div>
     <div class="field"><label for="epMedalha">Medalha</label><input id="epMedalha" maxlength="16"></div>
     <div class="field"><label for="epOrdem">Ordem</label><input id="epOrdem" type="number" min="1" max="32767" step="1"></div>
-    <label style="display:flex;gap:8px;align-items:center;margin:8px 0;"><input id="epAtivo" type="checkbox"> Plano ativo</label>
+    <label style="display:flex;gap:8px;align-items:center;margin:8px 0;"><input id="epAtivo" type="checkbox"> Pacote ativo</label>
+    <div class="divider-label">Recursos incluídos</div>
+    <div class="package-resource-list" id="epRecursos"></div>
+    <p class="package-impact" id="epImpacto"></p>
     <div class="modal-actions">
-      <button class="btn" type="button" onclick="fecharEditarPlano()">Cancelar</button>
+      <button class="btn" id="epCancelarBtn" type="button" onclick="fecharEditarPlano()">Cancelar</button>
       <button class="btn primary" id="epSalvarBtn" type="button" onclick="salvarPlano()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="recursosRestauranteModalBg">
+  <div class="modal modal--wide" role="dialog" aria-modal="true" aria-labelledby="recursosRestauranteTitulo">
+    <h3 id="recursosRestauranteTitulo">Personalizar recursos</h3>
+    <p class="sub" id="rrContexto">Carregando dados do restaurante...</p>
+    <input type="hidden" id="rrRestauranteId">
+    <div id="rrConteudo" class="resource-modal-state">Carregando recursos...</div>
+    <div class="modal-actions">
+      <button class="btn" id="rrCancelarBtn" type="button" onclick="fecharRecursosRestaurante()">Cancelar</button>
+      <button class="btn primary" id="rrSalvarBtn" type="button" onclick="salvarRecursosRestaurante()" disabled>Salvar</button>
     </div>
   </div>
 </div>
@@ -397,6 +444,12 @@
   let sb = null;
   const restaurantesPorId = new Map();
   const planosPorCodigo = new Map();
+  let planoEditorOriginal = null;
+  let planoEditorSalvando = false;
+  let planoEditorSequencia = 0;
+  let recursosRestauranteOriginal = new Map();
+  let recursosRestauranteCargaSequencia = 0;
+  let recursosRestauranteSalvando = false;
   const notificacoesHistoricoPorId = new Map();
   let resetSenhaDonoAlvoId = null;
   async function initSupabase() {
@@ -542,13 +595,18 @@
 
   function erroPlanoAmigavel(error, fallback) {
     const mensagem = String(error?.message || '');
-    if (mensagem.includes('Apenas administradores')) return 'Sua sessão não tem permissão para esta ação.';
-    if (mensagem.includes('Preço mensal inválido')) return 'Informe um preço mensal válido e não negativo.';
-    if (mensagem.includes('Nome de plano inválido')) return 'Informe o nome comercial do plano.';
-    if (mensagem.includes('Medalha inválida')) return 'Informe a medalha do plano.';
-    if (mensagem.includes('Ordem inválida')) return 'Informe uma ordem positiva.';
-    if (mensagem.includes('vinculado a restaurantes')) return mensagem;
-    if (mensagem.includes('inativo') || mensagem.includes('não encontrado') || mensagem.includes('inexistente')) return mensagem;
+    const normalizada = mensagem.toLocaleLowerCase('pt-BR');
+    if (normalizada.includes('apenas administradores') || normalizada.includes('permiss')) return 'Sua sessão não tem permissão para esta ação.';
+    if (normalizada.includes('preço mensal inválido')) return 'Informe um preço mensal válido e não negativo.';
+    if (normalizada.includes('nome de plano inválido')) return 'Informe o nome comercial do pacote.';
+    if (normalizada.includes('descrição') && normalizada.includes('inválid')) return 'A descrição curta deve ter no máximo 180 caracteres.';
+    if (normalizada.includes('medalha inválida')) return 'Informe a medalha do pacote.';
+    if (normalizada.includes('ordem inválida')) return 'Informe uma ordem positiva.';
+    if (normalizada.includes('lista') && normalizada.includes('obrigat')) return 'A lista de recursos incluídos é obrigatória.';
+    if (normalizada.includes('repetid') || normalizada.includes('duplic')) return 'A lista contém um código de recurso repetido.';
+    if (normalizada.includes('recurso') && (normalizada.includes('inativo') || normalizada.includes('não encontrado') || normalizada.includes('inexistente'))) return mensagem;
+    if (normalizada.includes('vinculado a restaurantes')) return mensagem;
+    if (normalizada.includes('inativo') || normalizada.includes('não encontrado') || normalizada.includes('inexistente')) return mensagem;
     return fallback;
   }
 
@@ -559,24 +617,67 @@
 
   async function carregarPlanos() {
     const wrap = document.getElementById('plansList');
-    const { data, error } = await sb.rpc('super_admin_listar_planos');
-    if (error) {
-      wrap.innerHTML = '<div class="empty-state">Não foi possível carregar os planos.</div>';
+    const [planosResposta, recursosResposta] = await Promise.all([
+      sb.rpc('super_admin_listar_planos'),
+      sb.rpc('super_admin_listar_planos_recursos')
+    ]);
+    if (planosResposta.error || recursosResposta.error) {
+      planosPorCodigo.clear();
+      if (document.getElementById('editarPlanoModalBg').classList.contains('show')) fecharEditarPlano();
+      wrap.innerHTML = '<div class="empty-state">Não foi possível carregar os pacotes e seus recursos. Tente novamente.</div>';
+      atualizarSelectNovoRestaurante();
       return false;
     }
+    const data = planosResposta.data || [];
+    const matriz = recursosResposta.data || [];
+    const recursosPorPlano = new Map();
+    const metadadosPorPlano = new Map();
+    matriz.forEach(recurso => {
+      const codigoPlano = String(recurso.plano_codigo);
+      if (!recursosPorPlano.has(codigoPlano)) recursosPorPlano.set(codigoPlano, []);
+      if (!metadadosPorPlano.has(codigoPlano)) metadadosPorPlano.set(codigoPlano, {
+        descricao_curta:recurso.plano_descricao_curta,
+        nome:recurso.plano_nome,
+        preco_mensal:recurso.plano_preco_mensal,
+        medalha:recurso.plano_medalha,
+        ordem:recurso.plano_ordem,
+        ativo:Boolean(recurso.plano_ativo)
+      });
+      recursosPorPlano.get(codigoPlano).push({
+        codigo:String(recurso.recurso_codigo),
+        nome:recurso.recurso_nome,
+        descricao:recurso.recurso_descricao,
+        ordem:Number(recurso.recurso_ordem),
+        ativo:Boolean(recurso.recurso_ativo),
+        incluido:Boolean(recurso.incluido)
+      });
+    });
     planosPorCodigo.clear();
-    (data || []).forEach(plano => planosPorCodigo.set(String(plano.codigo), plano));
-    wrap.innerHTML = data?.length ? data.map(plano => `
+    const planosCompletos = data.map(plano => {
+      const codigo = String(plano.codigo);
+      const metadados = metadadosPorPlano.get(codigo) || {};
+      return { ...plano, ...metadados, codigo, recursos:(recursosPorPlano.get(codigo) || []).sort((a,b) => a.ordem - b.ordem) };
+    });
+    planosCompletos.forEach(plano => planosPorCodigo.set(plano.codigo, plano));
+    wrap.innerHTML = planosCompletos.length ? planosCompletos.map(plano => `
       <article class="plan-card" data-plano-codigo="${escapeHtml(plano.codigo)}">
         <div class="plan-card__name">${escapeHtml(plano.medalha)} ${escapeHtml(plano.nome)}</div>
         <div class="plan-card__price">${escapeHtml(formatarPrecoMensal(plano.preco_mensal))}</div>
+        <p class="plan-card__description">${escapeHtml(plano.descricao_curta || 'Sem descrição cadastrada.')}</p>
         <div class="plan-card__meta">${escapeHtml(plano.quantidade_restaurantes)} restaurante(s)</div>
         <span class="badge ${plano.ativo ? 'ok' : 'off'}">${plano.ativo ? 'Ativo' : 'Inativo'}</span>
-        <button class="btn" type="button" data-action="editar-plano">Editar</button>
+        ${renderizarBeneficiosPlano(plano.recursos)}
+        <button class="btn" type="button" data-action="editar-plano">Editar pacote</button>
       </article>
     `).join('') : '<div class="empty-state">Nenhum plano cadastrado.</div>';
     atualizarSelectNovoRestaurante();
     return true;
+  }
+
+  function renderizarBeneficiosPlano(recursos) {
+    const incluidos = recursos.filter(recurso => recurso.incluido && recurso.ativo);
+    if (!incluidos.length) return '<p class="plan-card__resources--empty">Nenhum recurso adicional incluído.</p>';
+    return `<ul class="plan-card__resources">${incluidos.map(recurso => `<li>${escapeHtml(recurso.nome)}</li>`).join('')}</ul>`;
   }
 
   function atualizarSelectNovoRestaurante() {
@@ -625,6 +726,7 @@
             <button class="btn" data-action="modulo-motoboy">${r.modulo_motoboy_ativo ? 'Desativar motoboy' : 'Ativar motoboy'}</button>
             <button class="btn" data-action="notificar-restaurante">Notificar</button>
             <button class="btn" data-action="alterar-plano">Alterar plano</button>
+            <button class="btn" type="button" data-action="personalizar-recursos">Personalizar recursos</button>
           </div>
           <div class="rest-card__actions-secondary">
             ${r.dono_id ? `<button class="btn reset-password-btn" data-action="reset-senha-dono">Redefinir senha do dono</button>` : ''}
@@ -644,45 +746,117 @@
   });
 
   function abrirEditarPlano(plano) {
+    planoEditorSequencia++;
+    planoEditorSalvando = false;
+    document.getElementById('epCancelarBtn').disabled = false;
+    document.getElementById('epSalvarBtn').disabled = false;
+    document.getElementById('epSalvarBtn').textContent = 'Salvar';
     document.getElementById('epCodigo').value = plano.codigo;
     document.getElementById('epNome').value = plano.nome;
+    document.getElementById('epDescricao').value = plano.descricao_curta || '';
     document.getElementById('epPreco').value = Number(plano.preco_mensal).toFixed(2).replace('.', ',');
     document.getElementById('epMedalha').value = plano.medalha;
     document.getElementById('epOrdem').value = plano.ordem;
     document.getElementById('epAtivo').checked = Boolean(plano.ativo);
+    document.getElementById('epRecursos').innerHTML = plano.recursos.map(recurso => {
+      const inputId = `epRecurso-${recurso.codigo.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+      return `<label class="package-resource-option ${recurso.ativo ? '' : 'package-resource-option--inactive'}" for="${escapeHtml(inputId)}">
+        <input id="${escapeHtml(inputId)}" type="checkbox" data-recurso-codigo="${escapeHtml(recurso.codigo)}" ${recurso.incluido && recurso.ativo ? 'checked' : ''} ${recurso.ativo ? '' : 'disabled'}>
+        <span><span class="package-resource-option__name">${escapeHtml(recurso.nome)}${recurso.ativo ? '' : ' · Inativo'}</span><span class="package-resource-option__description">${escapeHtml(recurso.descricao || 'Sem descrição cadastrada.')}</span></span>
+      </label>`;
+    }).join('') || '<div class="resource-modal-state">Nenhum recurso cadastrado.</div>';
+    const quantidade = Number(plano.quantidade_restaurantes) || 0;
+    document.getElementById('epImpacto').textContent = quantidade
+      ? `Este pacote está vinculado a ${quantidade} restaurante${quantidade === 1 ? '' : 's'}. Alterações nos recursos podem mudar os acessos desses restaurantes. Exceções individuais continuam prevalecendo.`
+      : 'Nenhum restaurante está vinculado a este pacote.';
+    planoEditorOriginal = {
+      comercial:{ nome:String(plano.nome || ''), descricao:String(plano.descricao_curta || ''), preco:Number(plano.preco_mensal), medalha:String(plano.medalha || ''), ordem:Number(plano.ordem), ativo:Boolean(plano.ativo) },
+      recursos:plano.recursos.filter(recurso => recurso.ativo && recurso.incluido).map(recurso => recurso.codigo).sort(),
+      quantidadeRestaurantes:quantidade
+    };
+    atualizarContadorDescricaoPlano();
     document.getElementById('editarPlanoModalBg').classList.add('show');
+    requestAnimationFrame(() => document.getElementById('epNome').focus());
   }
 
-  function fecharEditarPlano() {
+  function fecharEditarPlano(forcar = false) {
+    if (planoEditorSalvando && !forcar) return false;
+    planoEditorSequencia++;
     document.getElementById('editarPlanoModalBg').classList.remove('show');
+    planoEditorOriginal = null;
+    return true;
   }
+
+  function atualizarContadorDescricaoPlano() {
+    const descricao = document.getElementById('epDescricao').value;
+    document.getElementById('epDescricaoContador').textContent = `${descricao.length}/180`;
+  }
+  document.getElementById('epDescricao').addEventListener('input', atualizarContadorDescricaoPlano);
 
   async function salvarPlano() {
     const codigo = document.getElementById('epCodigo').value;
     const nome = document.getElementById('epNome').value.trim();
+    const descricao = document.getElementById('epDescricao').value.trim();
     const preco = converterPrecoDecimal(document.getElementById('epPreco').value);
     const medalha = document.getElementById('epMedalha').value.trim();
     const ordemTexto = document.getElementById('epOrdem').value;
     const ordem = Number(ordemTexto);
     const ativo = document.getElementById('epAtivo').checked;
+    const recursos = [...document.querySelectorAll('#epRecursos input[data-recurso-codigo]:checked:not(:disabled)')].map(input => input.dataset.recursoCodigo).sort();
     const btn = document.getElementById('epSalvarBtn');
-    if (!nome) { showToast('Nome obrigatório', 'Informe o nome comercial do plano.'); return; }
+    const cancelarBtn = document.getElementById('epCancelarBtn');
+    if (!planoEditorOriginal) { showToast('Pacote indisponível', 'Recarregue os pacotes antes de editar.'); return; }
+    if (!nome) { showToast('Nome obrigatório', 'Informe o nome comercial do pacote.'); return; }
+    if (descricao.length > 180) { showToast('Descrição inválida', 'A descrição curta deve ter no máximo 180 caracteres.'); return; }
     if (preco === null) { showToast('Preço inválido', 'Use um valor não negativo, com vírgula ou ponto e até duas casas decimais.'); return; }
-    if (!medalha) { showToast('Medalha obrigatória', 'Informe a medalha do plano.'); return; }
+    if (!medalha) { showToast('Medalha obrigatória', 'Informe a medalha do pacote.'); return; }
     if (!ordemTexto || !Number.isInteger(ordem) || ordem <= 0) { showToast('Ordem inválida', 'Informe uma ordem positiva e inteira.'); return; }
+    const comercial = { nome, descricao, preco, medalha, ordem, ativo };
+    const original = planoEditorOriginal;
+    const comercialMudou = Object.keys(comercial).some(chave => comercial[chave] !== original.comercial[chave]);
+    const recursosMudaram = recursos.length !== original.recursos.length || recursos.some((codigoRecurso, indice) => codigoRecurso !== original.recursos[indice]);
+    if (!comercialMudou && !recursosMudaram) { fecharEditarPlano(); return; }
+    if (recursosMudaram && original.quantidadeRestaurantes > 0 && !confirm(`Este pacote está vinculado a ${original.quantidadeRestaurantes} restaurante${original.quantidadeRestaurantes === 1 ? '' : 's'}. Salvar as alterações de recursos?`)) return;
     if (btn.disabled) return;
+    const salvamentoSequencia = planoEditorSequencia;
+    planoEditorSalvando = true;
     btn.disabled = true; btn.textContent = 'Salvando...';
+    cancelarBtn.disabled = true;
     try {
-      const { error } = await sb.rpc('super_admin_atualizar_plano', {
-        p_codigo:codigo, p_nome:nome, p_preco_mensal:preco,
-        p_medalha:medalha, p_ordem:ordem, p_ativo:ativo
-      });
-      if (error) { showToast('Plano não atualizado', erroPlanoAmigavel(error, 'Não foi possível atualizar o plano.')); return; }
-      fecharEditarPlano();
+      if (comercialMudou) {
+        const { error } = await sb.rpc('super_admin_atualizar_plano_v2', {
+          p_codigo:codigo, p_nome:nome, p_descricao_curta:descricao || null, p_preco_mensal:preco,
+          p_medalha:medalha, p_ordem:ordem, p_ativo:ativo
+        });
+        if (error) { showToast('Pacote não atualizado', erroPlanoAmigavel(error, 'Não foi possível atualizar os dados comerciais do pacote.')); return; }
+      }
+      if (recursosMudaram) {
+        const { error } = await sb.rpc('super_admin_definir_recursos_plano', { p_plano_codigo:codigo, p_recursos_incluidos:recursos });
+        if (error) {
+          if (comercialMudou) {
+            showToast('Atualização parcial', 'Os dados comerciais foram salvos, mas os recursos não foram atualizados.');
+            await carregarPlanos();
+            await carregarRestaurantes();
+            const atualizado = planosPorCodigo.get(codigo);
+            if (atualizado) abrirEditarPlano(atualizado);
+          } else showToast('Recursos não atualizados', erroPlanoAmigavel(error, 'Não foi possível atualizar os recursos do pacote.'));
+          return;
+        }
+      }
+      if (salvamentoSequencia !== planoEditorSequencia || document.getElementById('epCodigo').value !== codigo) return;
+      planoEditorSalvando = false;
+      fecharEditarPlano(true);
       await carregarPlanos();
       await carregarRestaurantes();
-      showToast('Plano atualizado', 'Plano atualizado com sucesso.');
-    } finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+      showToast('Pacote atualizado', 'Pacote atualizado com sucesso.');
+    } finally {
+      if (salvamentoSequencia === planoEditorSequencia || !document.getElementById('editarPlanoModalBg').classList.contains('show')) {
+        planoEditorSalvando = false;
+        cancelarBtn.disabled = false;
+        btn.disabled = false;
+        btn.textContent = 'Salvar';
+      }
+    }
   }
 
   function abrirAlterarPlanoRestaurante(restaurante) {
@@ -729,6 +903,124 @@
     } finally { btn.disabled = false; btn.textContent = 'Alterar plano'; }
   }
 
+  const origemRecursoTexto = Object.freeze({
+    plano:'Herdado do pacote', nao_incluido:'Não incluído no pacote', excecao_liberada:'Liberado por exceção',
+    excecao_bloqueada:'Bloqueado por exceção', restaurante_pausado:'Restaurante pausado', plano_inativo:'Pacote inativo', recurso_inativo:'Recurso inativo'
+  });
+
+  async function abrirRecursosRestaurante(restaurante) {
+    const cargaSequencia = ++recursosRestauranteCargaSequencia;
+    const restauranteIdEsperado = String(restaurante.id);
+    recursosRestauranteSalvando = false;
+    document.getElementById('rrCancelarBtn').disabled = false;
+    document.getElementById('rrRestauranteId').value = restaurante.id;
+    document.getElementById('rrContexto').textContent = `Restaurante: ${restaurante.nome} · Pacote: ${restaurante.plano_nome || restaurante.plano_codigo || 'não informado'}${restaurante.pausado ? ' · Restaurante pausado' : ''}`;
+    document.getElementById('recursosRestauranteModalBg').classList.add('show');
+    await carregarRecursosRestaurante(restaurante, cargaSequencia, restauranteIdEsperado);
+  }
+
+  function fecharRecursosRestaurante(forcar = false) {
+    if (recursosRestauranteSalvando && !forcar) return false;
+    recursosRestauranteCargaSequencia++;
+    document.getElementById('recursosRestauranteModalBg').classList.remove('show');
+    if (!recursosRestauranteSalvando) recursosRestauranteOriginal = new Map();
+    return true;
+  }
+
+  async function carregarRecursosRestaurante(restaurante, cargaSequencia = ++recursosRestauranteCargaSequencia, restauranteIdEsperado = String(restaurante.id)) {
+    const conteudo = document.getElementById('rrConteudo');
+    const btn = document.getElementById('rrSalvarBtn');
+    const cancelarBtn = document.getElementById('rrCancelarBtn');
+    conteudo.className = 'resource-modal-state';
+    conteudo.textContent = 'Carregando recursos...';
+    btn.disabled = true;
+    const { data, error } = await sb.rpc('super_admin_listar_recursos_restaurante', { p_restaurante_id:restaurante.id });
+    const modalAindaAtual = cargaSequencia === recursosRestauranteCargaSequencia
+      && document.getElementById('rrRestauranteId').value === restauranteIdEsperado
+      && document.getElementById('recursosRestauranteModalBg').classList.contains('show');
+    if (!modalAindaAtual) return false;
+    if (error) {
+      conteudo.className = 'resource-modal-state error';
+      conteudo.textContent = erroPlanoAmigavel(error, 'Não foi possível carregar os recursos deste restaurante.');
+      cancelarBtn.disabled = false;
+      return false;
+    }
+    const primeiraLinha = data?.[0];
+    document.getElementById('rrContexto').textContent = primeiraLinha
+      ? `Restaurante: ${restaurante.nome} · Pacote: ${primeiraLinha.plano_nome || primeiraLinha.plano_codigo || 'não informado'}${primeiraLinha.restaurante_pausado ? ' · Restaurante pausado' : ''}`
+      : `Restaurante: ${restaurante.nome} · Nenhum recurso disponível.`;
+    recursosRestauranteOriginal = new Map();
+    (data || []).forEach(recurso => recursosRestauranteOriginal.set(String(recurso.recurso_codigo), String(recurso.decisao_individual)));
+    conteudo.className = 'individual-resource-list';
+    conteudo.innerHTML = data?.length ? data.map(renderizarRecursoRestaurante).join('') : '<div class="resource-modal-state">Nenhum recurso disponível para personalização.</div>';
+    cancelarBtn.disabled = false;
+    btn.disabled = !data?.length;
+    return true;
+  }
+
+  function renderizarRecursoRestaurante(recurso) {
+    const codigo = String(recurso.recurso_codigo);
+    const nomeGrupo = `rr-decisao-${codigo.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+    const decisao = String(recurso.decisao_individual);
+    const elegiveis = Array.isArray(recurso.planos_elegiveis) && recurso.planos_elegiveis.length
+      ? `<span>Pacotes elegíveis: ${escapeHtml(recurso.planos_elegiveis.join(', '))}</span>` : '';
+    return `<section class="individual-resource-row" data-recurso-codigo="${escapeHtml(codigo)}">
+      <div class="individual-resource-row__header"><div class="individual-resource-row__name">${escapeHtml(recurso.recurso_nome)}</div><span class="availability-badge ${recurso.disponivel ? 'available' : 'blocked'}">${recurso.disponivel ? 'Disponível' : 'Bloqueado'}</span></div>
+      <p class="individual-resource-row__description">${escapeHtml(recurso.recurso_descricao || 'Sem descrição cadastrada.')}</p>
+      <div class="individual-resource-row__meta"><span>${recurso.incluido_plano ? 'Incluído no pacote' : 'Não incluído no pacote'}</span><span>· ${escapeHtml(origemRecursoTexto[recurso.origem] || recurso.origem)}</span>${elegiveis}</div>
+      <fieldset class="resource-decision"><legend>Decisão individual</legend><div class="resource-decision__options">
+        ${[['herdar','Herdar do pacote'],['liberar','Liberar como exceção'],['bloquear','Bloquear como exceção']].map(([valor,rotulo]) => `<label><input type="radio" name="${escapeHtml(nomeGrupo)}" value="${valor}" ${decisao === valor ? 'checked' : ''}> ${rotulo}</label>`).join('')}
+      </div></fieldset>
+    </section>`;
+  }
+
+  async function salvarRecursosRestaurante() {
+    const restaurante = restaurantesPorId.get(document.getElementById('rrRestauranteId').value);
+    const btn = document.getElementById('rrSalvarBtn');
+    const cancelarBtn = document.getElementById('rrCancelarBtn');
+    if (!restaurante || btn.disabled) return;
+    const alteracoes = [...document.querySelectorAll('#rrConteudo [data-recurso-codigo]')].map(linha => ({
+      codigo:linha.dataset.recursoCodigo,
+      decisao:linha.querySelector('input[type="radio"]:checked')?.value
+    })).filter(item => item.decisao && item.decisao !== recursosRestauranteOriginal.get(item.codigo));
+    if (!alteracoes.length) { fecharRecursosRestaurante(); return; }
+    const salvamentoSequencia = recursosRestauranteCargaSequencia;
+    const restauranteIdEsperado = String(restaurante.id);
+    recursosRestauranteSalvando = true;
+    btn.disabled = true;
+    cancelarBtn.disabled = true;
+    try {
+      for (let indice = 0; indice < alteracoes.length; indice++) {
+        btn.textContent = alteracoes.length > 1 ? `Salvando ${indice + 1}/${alteracoes.length}...` : 'Salvando...';
+        const alteracao = alteracoes[indice];
+        const { error } = await sb.rpc('super_admin_definir_recurso_restaurante', {
+          p_restaurante_id:restaurante.id, p_recurso_codigo:alteracao.codigo, p_decisao:alteracao.decisao, p_motivo:null
+        });
+        if (error) {
+          showToast('Personalização incompleta', 'Algumas decisões podem ter sido salvas. O estado real foi recarregado.');
+          if (salvamentoSequencia === recursosRestauranteCargaSequencia && document.getElementById('rrRestauranteId').value === restauranteIdEsperado) {
+            recursosRestauranteSalvando = false;
+            const cargaRecuperacao = ++recursosRestauranteCargaSequencia;
+            await carregarRecursosRestaurante(restaurante, cargaRecuperacao, restauranteIdEsperado);
+          }
+          return;
+        }
+      }
+      if (salvamentoSequencia === recursosRestauranteCargaSequencia && document.getElementById('rrRestauranteId').value === restauranteIdEsperado) {
+        recursosRestauranteSalvando = false;
+        fecharRecursosRestaurante(true);
+        showToast('Recursos atualizados', 'As decisões individuais foram salvas.');
+      }
+    } finally {
+      if (salvamentoSequencia === recursosRestauranteCargaSequencia || !document.getElementById('recursosRestauranteModalBg').classList.contains('show')) {
+        recursosRestauranteSalvando = false;
+        cancelarBtn.disabled = false;
+        btn.disabled = recursosRestauranteOriginal.size === 0;
+        btn.textContent = 'Salvar';
+      }
+    }
+  }
+
   function abrirEditarRestaurante(r) {
     document.getElementById('erId').value = r.id;
     document.getElementById('erNome').value = r.nome;
@@ -769,6 +1061,7 @@
     if (botao.dataset.action === 'modulo-motoboy') alternarModuloMotoboy(restaurante, botao);
     if (botao.dataset.action === 'notificar-restaurante') abrirNotificacao(restaurante.id);
     if (botao.dataset.action === 'alterar-plano') abrirAlterarPlanoRestaurante(restaurante);
+    if (botao.dataset.action === 'personalizar-recursos') void abrirRecursosRestaurante(restaurante);
     if (botao.dataset.action === 'reset-senha-dono' && restaurante.dono_id) abrirResetSenhaDono(restaurante.dono_id, restaurante.dono_nome);
     if (botao.dataset.action === 'remover-restaurante') removerRestaurante(restaurante.id, restaurante.nome);
   });
