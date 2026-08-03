@@ -549,6 +549,10 @@
 .pm-item-remover { background:none; border:none; color: var(--red); font-size:14px; padding:4px; flex-shrink:0; }
 .pm-total-row { display:flex; justify-content:space-between; align-items:center; font-size:15px; font-weight:800; border-top:1px solid var(--border); padding-top:12px; margin-top:4px; }
 .pm-checkout-modal { width:620px; max-width:calc(100vw - 28px); }
+.recurso-indisponivel-modal { width:460px; max-width:calc(100vw - 28px); }
+.recurso-indisponivel-mensagem { margin:0 0 10px; color:var(--ink); font-size:14px; line-height:1.55; }
+.recurso-indisponivel-elegiveis { margin:0 0 10px; padding:10px 12px; border:1px solid var(--border); border-radius:9px; background:#FAFAFA; color:var(--ink); font-size:12.5px; font-weight:800; line-height:1.45; }
+.recurso-indisponivel-complemento { margin:0; color:var(--muted); font-size:12.5px; line-height:1.5; }
 .pm-etapas { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px; }
 .pm-etapa { display:flex; align-items:center; justify-content:center; gap:7px; padding:9px 10px; border:1px solid var(--border); border-radius:9px; color:var(--muted); font-size:12.5px; font-weight:800; }
 .pm-etapa span { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:#F4F4F5; font-size:11px; }

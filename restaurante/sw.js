@@ -2,7 +2,7 @@
 // Escopo restrito a /restaurante/ pelo local deste arquivo e pelo manifest.
 
 const CACHE_PREFIX = 'eaf-restaurante-cache-';
-const CACHE_NAME = 'eaf-restaurante-cache-v0.6.18';
+const CACHE_NAME = 'eaf-restaurante-cache-v0.6.19';
 const APP_SHELL = [
   '/restaurante/',
   '/manifest.json',
@@ -20,6 +20,7 @@ const APP_SHELL = [
   '/assets/js/relatorio-financeiro.js',
   '/assets/js/equipe.js',
   '/assets/js/marca.js',
+  '/assets/js/recursos-planos.js',
   '/assets/js/pedido-manual.js',
   '/assets/js/status-loja.js',
   '/assets/js/notificacoes.js',

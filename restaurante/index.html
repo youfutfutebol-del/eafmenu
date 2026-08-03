@@ -168,7 +168,7 @@
             <p class="main__subtitle hidden" id="pedidosSubtitle"></p>
           </div>
           <div class="actions">
-            <button class="btn primary" onclick="openManualOrder()">+ Lançar Pedido (Manual)</button>
+            <button class="btn primary" id="pedidoManualAbrirBtn" type="button" onclick="openManualOrder(this)">+ Lançar Pedido (Manual)</button>
             <button class="btn" onclick="testarAlertaSom()">🔊 Testar Alerta</button>
             <button class="btn" id="btnTestarSomDev" style="display:none;" onclick="testarAlertaSom()">🔔 Testar Som (dev)</button>
             <div class="pill-status on" id="lojaStatusPill"><span class="dot"></span> <span id="lojaStatusTxt">Carregando horário...</span></div>
@@ -801,6 +801,19 @@
   </div>
 </div>
 
+<div class="modal-bg" id="recursoIndisponivelModalBg">
+  <div class="modal recurso-indisponivel-modal" role="dialog" aria-modal="true" aria-labelledby="recursoIndisponivelTitulo">
+    <h3 id="recursoIndisponivelTitulo">Recurso não disponível</h3>
+    <p class="recurso-indisponivel-mensagem" id="recursoIndisponivelMensagem"></p>
+    <p class="recurso-indisponivel-elegiveis" id="recursoIndisponivelElegiveis" hidden></p>
+    <p class="recurso-indisponivel-complemento">Fale com a EAF Flow para ativar este recurso.</p>
+    <div class="modal-actions">
+      <button class="btn" type="button" onclick="fecharModalRecursoIndisponivel()">Agora não</button>
+      <button class="btn primary" id="recursoIndisponivelContatoBtn" type="button" onclick="contatarRecursoIndisponivel()">Falar com a EAF Flow</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="despesaModalBg">
   <div class="modal">
     <h3>Lançar despesa</h3>
@@ -1110,6 +1123,7 @@
 <script src="/assets/js/relatorio-financeiro.js"></script>
 <script src="/assets/js/equipe.js"></script>
 <script src="/assets/js/marca.js"></script>
+<script src="/assets/js/recursos-planos.js"></script>
 <script src="/assets/js/pedido-manual.js"></script>
 <script src="/assets/js/status-loja.js"></script>
 <script src="/assets/js/notificacoes.js"></script>
