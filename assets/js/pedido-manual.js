@@ -10,6 +10,7 @@
   let pedidoManualDescontoTipo = 'valor';
   let pedidoManualPrecisaTroco = false;
   let pedidoManualSubmetendo = false;
+  let pedidoManualAbrindo = false;
   let pedidoManualEquipe = [];
   let pedidoManualEquipeErro = null;
   let pedidoManualCombinacao = null;
@@ -108,7 +109,32 @@
     return erro;
   }
 
-  async function openManualOrder() {
+  async function openManualOrder(botaoOrigem) {
+    if (pedidoManualAbrindo) return;
+    const botao = botaoOrigem || document.getElementById('pedidoManualAbrirBtn');
+    pedidoManualAbrindo = true;
+    try {
+      const acesso = await RecursosPlanos.verificar('pedido_manual', botao);
+      if (acesso.status === 'erro') {
+        showToast('Não foi possível verificar o recurso', 'Tente novamente antes de abrir o Pedido Manual.');
+        return;
+      }
+      if (acesso.status !== 'disponivel') {
+        const recurso = acesso.recurso || {
+          recursoNome: 'Pedido Manual',
+          planoCodigo: '',
+          planoNome: '',
+          planosElegiveis: []
+        };
+        RecursosPlanos.abrirModalIndisponivel(recurso, botao, {
+          restauranteNome: restauranteInfo?.nome || ''
+        });
+        return;
+      }
+    } finally {
+      pedidoManualAbrindo = false;
+    }
+
     pedidoManualItens = [];
     pedidoManualEtapa = 1;
     pedidoManualDescontoAtivo = false;
@@ -800,6 +826,7 @@
     limparErroPedidoManual();
 
     let rpcIniciada = false;
+    let respostaRecebida = false;
     try {
       const nome = document.getElementById('mCliNome').value.trim();
       const telefone = document.getElementById('mCliTel').value.trim();
@@ -849,7 +876,20 @@
         p_senha_autorizador: desconto.ativo ? desconto.senhaAutorizador : null,
         p_chave_idempotencia: chaveIdempotencia
       });
-      if (error) throw erroFluxoPedidoManual('Pedido não lançado', error.message);
+      respostaRecebida = true;
+      if (error && RecursosPlanos.erroIndisponibilidade(error, 'pedido_manual')) {
+        RecursosPlanos.marcarIndisponivel('pedido_manual');
+        mostrarErroPedidoManual(
+          'Recurso indisponível',
+          'O Pedido Manual não está mais disponível para este restaurante. Fale com a EAF Flow para consultar seu pacote.'
+        );
+        return;
+      }
+      if (error) {
+        const erroRespondido = erroFluxoPedidoManual('Pedido não lançado', error.message);
+        erroRespondido.respostaServidor = true;
+        throw erroRespondido;
+      }
       const resultado = Array.isArray(data) ? data[0] : data;
       if (!resultado?.pedido_id || !Number.isFinite(Number(resultado.total))) {
         throw erroFluxoPedidoManual('Pedido não lançado', 'O banco não confirmou o pedido e o total final.');
@@ -868,7 +908,9 @@
         : `${nome} · ${formatMoeda(Number(resultado.total))}`);
       await loadPedidos();
     } catch (error) {
-      if (rpcIniciada) {
+      if (respostaRecebida || error.respostaServidor) {
+        mostrarErroPedidoManual(error.titulo || 'Pedido não lançado', error.message || 'O servidor recusou o pedido. Revise os dados e tente novamente.');
+      } else if (rpcIniciada) {
         mostrarErroPedidoManual(
           'Pedido não confirmado',
           'Não foi possível confirmar a resposta do servidor. Revise os dados e tente novamente; a chave de segurança impedirá a duplicação.'
