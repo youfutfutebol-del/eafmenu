@@ -152,6 +152,19 @@
   .package-resource-option--inactive { background:#F8F8F8; opacity:.72; }
   .resource-modal-state { padding:28px 14px; text-align:center; color:var(--muted); font-size:12.5px; }
   .resource-modal-state.error { color:#991B1B; }
+  .catalog-resources-toolbar { display:flex; justify-content:flex-end; margin-bottom:14px; }
+  .catalog-resources-list { display:grid; gap:10px; }
+  .catalog-resource-card { min-width:0; padding:13px 14px; border:1px solid #E4E4E7; border-radius:10px; background:#fff; display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:12px; align-items:center; }
+  .catalog-resource-card--inactive { background:#F8F8F8; opacity:.76; }
+  .catalog-resource-card__header { display:flex; align-items:center; flex-wrap:wrap; gap:7px; }
+  .catalog-resource-card__name { font-size:13.5px; font-weight:850; overflow-wrap:anywhere; }
+  .catalog-resource-card__code { margin-top:2px; color:#71717A; font:11px ui-monospace, monospace; overflow-wrap:anywhere; }
+  .catalog-resource-card__description { margin:7px 0; color:#52525B; font-size:11.5px; line-height:1.45; overflow-wrap:anywhere; }
+  .catalog-resource-card__meta { display:flex; flex-wrap:wrap; gap:5px 10px; color:var(--muted); font-size:10.5px; }
+  .catalog-resource-card__actions .btn { min-width:80px; padding:8px 12px; min-height:36px; }
+  .resource-code-help { display:block; margin-top:4px; color:var(--muted); font-size:10.5px; }
+  .resource-active-field { display:flex; align-items:center; gap:8px; margin:8px 0; font-size:12.5px; font-weight:700; }
+  .resource-active-field input { width:auto; }
   .individual-resource-list { display:grid; gap:12px; }
   .individual-resource-row { min-width:0; padding:13px; border:1px solid #E4E4E7; border-radius:10px; }
   .individual-resource-row__header { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
@@ -207,6 +220,8 @@
     .modal { width:100%; max-width:420px; max-height:calc(100dvh - 32px); padding:22px 20px; margin:auto 0; overflow:auto; }
     .modal--wide { max-width:680px; }
     .resource-decision__options { grid-template-columns:1fr; }
+    .catalog-resource-card { grid-template-columns:1fr; }
+    .catalog-resource-card__actions .btn { width:100%; }
   }
 
   @media (max-width: 430px) {
@@ -222,6 +237,7 @@
     .rest-card__actions-primary { gap:7px; }
     .rest-card__actions .btn { font-size:12.5px; padding:10px 9px; }
     .modal-actions { flex-direction:column; }
+    .catalog-resources-toolbar .btn { width:100%; }
     .toast { left:12px; right:12px; max-width:none; }
   }
 </style>
@@ -270,9 +286,10 @@
         <p>Cada restaurante roda de forma isolada, com seu próprio dono e equipe.</p>
       </div>
       <div class="admin-header-actions">
-        <button class="btn" onclick="abrirNotificacao(null)">🔔 Nova notificação</button>
-        <button class="btn" onclick="abrirHistoricoNotificacoes()">Histórico de notificações</button>
-        <button class="btn primary btn-new-restaurant" onclick="abrirNovoRestaurante()">+ Novo restaurante</button>
+        <button class="btn" type="button" onclick="abrirNotificacao(null)">🔔 Nova notificação</button>
+        <button class="btn" type="button" onclick="abrirHistoricoNotificacoes()">Histórico de notificações</button>
+        <button class="btn" id="gerenciarRecursosBtn" type="button" onclick="abrirGerenciarRecursos(this)">Gerenciar recursos</button>
+        <button class="btn primary btn-new-restaurant" type="button" onclick="abrirNovoRestaurante()">+ Novo restaurante</button>
       </div>
     </div>
 
@@ -376,6 +393,43 @@
   </div>
 </div>
 
+<div class="modal-bg" id="catalogoRecursosModalBg">
+  <div class="modal modal--wide" role="dialog" aria-modal="true" aria-labelledby="catalogoRecursosTitulo">
+    <h3 id="catalogoRecursosTitulo">Gerenciar recursos</h3>
+    <p class="sub">Crie e mantenha os recursos disponíveis para configuração dos pacotes.</p>
+    <div class="catalog-resources-toolbar">
+      <button class="btn primary" id="crNovoBtn" type="button" onclick="abrirNovoRecurso(this)">Novo recurso</button>
+    </div>
+    <div id="crConteudo" class="resource-modal-state">Carregando recursos...</div>
+    <div class="modal-actions">
+      <button class="btn" id="crFecharBtn" type="button" onclick="fecharGerenciarRecursos()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="editarRecursoModalBg">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editarRecursoTitulo">
+    <h3 id="editarRecursoTitulo">Novo recurso</h3>
+    <p class="sub" id="erSubtitulo">Cadastre um recurso técnico para configurar nos pacotes.</p>
+    <div class="field">
+      <label for="erCodigo">Código técnico</label>
+      <input id="erCodigo" maxlength="80" autocomplete="off" aria-describedby="erCodigoAjuda">
+      <span class="resource-code-help" id="erCodigoAjuda">Use letras minúsculas, números e sublinhado. Exemplo: pedido_manual.</span>
+    </div>
+    <div class="field"><label for="erNome">Nome</label><input id="erNome" maxlength="80" autocomplete="off"></div>
+    <div class="field">
+      <label for="erDescricao">Descrição</label>
+      <textarea id="erDescricao" rows="4" maxlength="240"></textarea>
+      <span class="field__counter" id="erDescricaoContador">0/240</span>
+    </div>
+    <label class="resource-active-field" for="erAtivo"><input id="erAtivo" type="checkbox"> Recurso ativo</label>
+    <div class="modal-actions">
+      <button class="btn" id="erCancelarBtn" type="button" onclick="fecharEditorRecurso()">Cancelar</button>
+      <button class="btn primary" id="erSalvarBtn" type="button" onclick="salvarRecurso()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="alterarPlanoRestModalBg">
   <div class="modal">
     <h3>Alterar plano</h3>
@@ -450,6 +504,13 @@
   let recursosRestauranteOriginal = new Map();
   let recursosRestauranteCargaSequencia = 0;
   let recursosRestauranteSalvando = false;
+  let catalogoRecursos = [];
+  let catalogoRecursosCargaSequencia = 0;
+  let recursoEditorSequencia = 0;
+  let recursoEditorOriginal = null;
+  let recursoEditorSalvando = false;
+  let catalogoRecursosFocoOrigem = null;
+  let recursoEditorFocoOrigem = null;
   const notificacoesHistoricoPorId = new Map();
   let resetSenhaDonoAlvoId = null;
   async function initSupabase() {
@@ -608,6 +669,216 @@
     if (normalizada.includes('vinculado a restaurantes')) return mensagem;
     if (normalizada.includes('inativo') || normalizada.includes('não encontrado') || normalizada.includes('inexistente')) return mensagem;
     return fallback;
+  }
+
+  function erroRecursoAmigavel(error, fallback) {
+    const mensagem = String(error?.message || '');
+    const normalizada = mensagem.toLocaleLowerCase('pt-BR');
+    if (normalizada.includes('apenas administradores') || normalizada.includes('permiss')) return 'Sua sessão não tem permissão para esta ação.';
+    if (normalizada.includes('código de recurso já cadastrado') || normalizada.includes('ordem informada já está sendo utilizada')) return mensagem;
+    if (normalizada.includes('código') || normalizada.includes('nome') || normalizada.includes('descrição') || normalizada.includes('ordem') || normalizada.includes('situação')) return mensagem;
+    return fallback;
+  }
+
+  function elementoPodeReceberFoco(elemento) {
+    return Boolean(elemento?.isConnected && !elemento.disabled && elemento.getClientRects().length);
+  }
+
+  function abrirGerenciarRecursos(origem) {
+    catalogoRecursosFocoOrigem = origem || document.activeElement;
+    const modal = document.getElementById('catalogoRecursosModalBg');
+    modal.classList.add('show');
+    document.getElementById('crNovoBtn').disabled = true;
+    void carregarCatalogoRecursos();
+  }
+
+  function fecharGerenciarRecursos() {
+    catalogoRecursosCargaSequencia++;
+    document.getElementById('catalogoRecursosModalBg').classList.remove('show');
+    if (document.getElementById('editarRecursoModalBg').classList.contains('show')) fecharEditorRecurso(true, false);
+    const destino = elementoPodeReceberFoco(catalogoRecursosFocoOrigem)
+      ? catalogoRecursosFocoOrigem
+      : document.getElementById('gerenciarRecursosBtn');
+    catalogoRecursosFocoOrigem = null;
+    if (elementoPodeReceberFoco(destino)) destino.focus();
+  }
+
+  async function carregarCatalogoRecursos() {
+    const modal = document.getElementById('catalogoRecursosModalBg');
+    const conteudo = document.getElementById('crConteudo');
+    const novoBtn = document.getElementById('crNovoBtn');
+    const sequencia = ++catalogoRecursosCargaSequencia;
+    conteudo.className = 'resource-modal-state';
+    conteudo.textContent = 'Carregando recursos...';
+    novoBtn.disabled = true;
+    const { data, error } = await sb.rpc('super_admin_listar_catalogo_recursos');
+    if (sequencia !== catalogoRecursosCargaSequencia || !modal.classList.contains('show')) return false;
+    if (error) {
+      conteudo.className = 'resource-modal-state error';
+      conteudo.innerHTML = `Não foi possível carregar os recursos.<br><button class="btn" type="button" onclick="carregarCatalogoRecursos()" style="margin-top:12px;">Tentar novamente</button>`;
+      return false;
+    }
+    catalogoRecursos = (data || []).map(recurso => ({
+      ...recurso,
+      codigo:String(recurso.codigo),
+      ordem:Number(recurso.ordem),
+      ativo:Boolean(recurso.ativo),
+      planos_incluidos:Array.isArray(recurso.planos_incluidos) ? recurso.planos_incluidos : [],
+      quantidade_planos_incluidos:Number(recurso.quantidade_planos_incluidos) || 0,
+      quantidade_liberacoes:Number(recurso.quantidade_liberacoes) || 0,
+      quantidade_bloqueios:Number(recurso.quantidade_bloqueios) || 0
+    }));
+    conteudo.className = catalogoRecursos.length ? 'catalog-resources-list' : 'resource-modal-state';
+    conteudo.innerHTML = catalogoRecursos.length
+      ? catalogoRecursos.map(renderizarRecursoCatalogo).join('')
+      : 'Nenhum recurso cadastrado.';
+    novoBtn.disabled = false;
+    return true;
+  }
+
+  function renderizarRecursoCatalogo(recurso) {
+    const pacotes = recurso.planos_incluidos.length ? recurso.planos_incluidos.join(', ') : 'Nenhum pacote';
+    return `<article class="catalog-resource-card ${recurso.ativo ? '' : 'catalog-resource-card--inactive'}" data-recurso-codigo="${escapeHtml(recurso.codigo)}">
+      <div>
+        <div class="catalog-resource-card__header"><span class="catalog-resource-card__name">${escapeHtml(recurso.nome)}</span><span class="badge ${recurso.ativo ? 'ok' : 'off'}">${recurso.ativo ? 'Ativo' : 'Inativo'}</span></div>
+        <div class="catalog-resource-card__code">${escapeHtml(recurso.codigo)}</div>
+        <p class="catalog-resource-card__description">${escapeHtml(recurso.descricao || 'Sem descrição cadastrada.')}</p>
+        <div class="catalog-resource-card__meta"><span>Pacotes: ${escapeHtml(pacotes)}</span><span>${escapeHtml(recurso.quantidade_liberacoes)} liberações individuais</span><span>${escapeHtml(recurso.quantidade_bloqueios)} bloqueios individuais</span></div>
+      </div>
+      <div class="catalog-resource-card__actions"><button class="btn" type="button" data-action="editar-recurso">Editar</button></div>
+    </article>`;
+  }
+
+  document.getElementById('crConteudo').addEventListener('click', event => {
+    const botao = event.target.closest('[data-action="editar-recurso"]');
+    const card = botao?.closest('[data-recurso-codigo]');
+    const recurso = card ? catalogoRecursos.find(item => item.codigo === card.dataset.recursoCodigo) : null;
+    if (recurso) abrirEditarRecurso(recurso, botao);
+  });
+
+  function abrirNovoRecurso(origem) {
+    if (document.getElementById('crNovoBtn').disabled) return;
+    abrirEditorRecurso(null, origem);
+  }
+
+  function abrirEditarRecurso(recurso, origem) {
+    abrirEditorRecurso(recurso, origem);
+  }
+
+  function abrirEditorRecurso(recurso, origem) {
+    recursoEditorSequencia++;
+    recursoEditorSalvando = false;
+    recursoEditorFocoOrigem = origem || document.activeElement;
+    recursoEditorOriginal = recurso ? { ...recurso, planos_incluidos:[...recurso.planos_incluidos] } : null;
+    const editando = Boolean(recurso);
+    document.getElementById('editarRecursoTitulo').textContent = editando ? 'Editar recurso' : 'Novo recurso';
+    document.getElementById('erSubtitulo').textContent = editando ? 'Atualize os dados do recurso sem alterar seu código técnico.' : 'Cadastre um recurso técnico para configurar nos pacotes.';
+    document.getElementById('erCodigo').value = recurso?.codigo || '';
+    document.getElementById('erCodigo').readOnly = editando;
+    document.getElementById('erNome').value = recurso?.nome || '';
+    document.getElementById('erDescricao').value = recurso?.descricao || '';
+    document.getElementById('erAtivo').checked = editando ? Boolean(recurso.ativo) : true;
+    definirCamposEditorRecursoDesabilitados(false);
+    atualizarContadorDescricaoRecurso();
+    document.getElementById('editarRecursoModalBg').classList.add('show');
+    requestAnimationFrame(() => document.getElementById(editando ? 'erNome' : 'erCodigo').focus());
+  }
+
+  function fecharEditorRecurso(forcar = false, restaurarFoco = true) {
+    if (recursoEditorSalvando && !forcar) return false;
+    recursoEditorSequencia++;
+    recursoEditorSalvando = false;
+    recursoEditorOriginal = null;
+    document.getElementById('editarRecursoModalBg').classList.remove('show');
+    const destino = elementoPodeReceberFoco(recursoEditorFocoOrigem)
+      ? recursoEditorFocoOrigem
+      : document.getElementById('crNovoBtn');
+    recursoEditorFocoOrigem = null;
+    if (restaurarFoco && elementoPodeReceberFoco(destino)) destino.focus();
+    return true;
+  }
+
+  function definirCamposEditorRecursoDesabilitados(desabilitados) {
+    ['erCodigo','erNome','erDescricao','erAtivo'].forEach(id => { document.getElementById(id).disabled = desabilitados; });
+    document.getElementById('erCancelarBtn').disabled = desabilitados;
+    const salvar = document.getElementById('erSalvarBtn');
+    salvar.disabled = desabilitados;
+    salvar.textContent = desabilitados ? 'Salvando...' : 'Salvar';
+  }
+
+  function atualizarContadorDescricaoRecurso() {
+    const descricao = document.getElementById('erDescricao').value;
+    document.getElementById('erDescricaoContador').textContent = `${descricao.length}/240`;
+  }
+  document.getElementById('erDescricao').addEventListener('input', atualizarContadorDescricaoRecurso);
+
+  function mensagemConfirmacaoDesativacao(recurso) {
+    return `Desativar “${recurso.nome}”?\n\nPacotes que incluem o recurso: ${recurso.quantidade_planos_incluidos}.\nLiberações individuais: ${recurso.quantidade_liberacoes}.\nBloqueios individuais: ${recurso.quantidade_bloqueios}.\n\nAs configurações existentes serão preservadas e o recurso ficará inativo no catálogo.`;
+  }
+
+  function mensagemConfirmacaoDesativacaoGenerica(recurso) {
+    return `Desativar “${recurso.nome}”?\n\nO recurso está em uso. As configurações existentes serão preservadas e o recurso ficará inativo no catálogo.`;
+  }
+
+  async function salvarRecurso() {
+    if (recursoEditorSalvando) return;
+    const original = recursoEditorOriginal;
+    const codigo = document.getElementById('erCodigo').value.trim();
+    const nome = document.getElementById('erNome').value.trim();
+    const descricao = document.getElementById('erDescricao').value.trim();
+    const ativo = document.getElementById('erAtivo').checked;
+    if (!codigo || codigo.length > 80 || !/^[a-z][a-z0-9_]*$/.test(codigo)) { showToast('Código inválido', 'Use até 80 caracteres, começando com letra minúscula e contendo apenas letras minúsculas, números ou sublinhado.'); return; }
+    if (!nome || nome.length > 80) { showToast('Nome inválido', 'Informe um nome com até 80 caracteres.'); return; }
+    if (descricao.length > 240) { showToast('Descrição inválida', 'A descrição deve ter no máximo 240 caracteres.'); return; }
+    const maiorOrdem = catalogoRecursos.reduce((maior, recurso) => Math.max(maior, Number(recurso.ordem) || 0), 0);
+    const ordem = original ? Number(original.ordem) : maiorOrdem + 1;
+    if (!Number.isInteger(ordem) || ordem < 1 || ordem > 32767) { showToast('Ordem indisponível', 'Não foi possível calcular uma ordem válida para o novo recurso.'); return; }
+    let confirmarDesativacao = false;
+    const desativando = Boolean(original?.ativo) && !ativo;
+    const possuiImpacto = desativando && (original.quantidade_planos_incluidos > 0 || original.quantidade_liberacoes > 0 || original.quantidade_bloqueios > 0);
+    if (possuiImpacto) {
+      if (!confirm(mensagemConfirmacaoDesativacao(original))) return;
+      confirmarDesativacao = true;
+    }
+    const sequencia = recursoEditorSequencia;
+    recursoEditorSalvando = true;
+    definirCamposEditorRecursoDesabilitados(true);
+    try {
+      const executar = () => original
+        ? sb.rpc('super_admin_atualizar_recurso', { p_codigo:original.codigo, p_nome:nome, p_descricao:descricao, p_ordem:ordem, p_ativo:ativo, p_confirmar_desativacao:confirmarDesativacao })
+        : sb.rpc('super_admin_criar_recurso', { p_codigo:codigo, p_nome:nome, p_descricao:descricao, p_ordem:ordem, p_ativo:ativo });
+      let resposta = await executar();
+      if (sequencia !== recursoEditorSequencia || !document.getElementById('editarRecursoModalBg').classList.contains('show')) return;
+      const confirmacaoNecessaria = /confirmação necessária para desativar recurso em uso/i.test(String(resposta.error?.message || ''));
+      if (confirmacaoNecessaria && desativando && !confirmarDesativacao) {
+        const recarregado = await carregarCatalogoRecursos();
+        if (sequencia !== recursoEditorSequencia || !document.getElementById('editarRecursoModalBg').classList.contains('show')) return;
+        const atualizado = recarregado ? catalogoRecursos.find(recurso => recurso.codigo === original.codigo) : null;
+        const mensagem = atualizado
+          ? mensagemConfirmacaoDesativacao(atualizado)
+          : mensagemConfirmacaoDesativacaoGenerica(original);
+        if (!confirm(mensagem)) return;
+        confirmarDesativacao = true;
+        resposta = await executar();
+        if (sequencia !== recursoEditorSequencia || !document.getElementById('editarRecursoModalBg').classList.contains('show')) return;
+      }
+      if (resposta.error) {
+        const conflito = /código de recurso já cadastrado|ordem informada já está sendo utilizada/i.test(String(resposta.error.message || ''));
+        if (conflito) await carregarCatalogoRecursos();
+        showToast('Recurso não salvo', erroRecursoAmigavel(resposta.error, 'Não foi possível salvar o recurso. Tente novamente.'));
+        return;
+      }
+      recursoEditorSalvando = false;
+      fecharEditorRecurso(true);
+      await carregarCatalogoRecursos();
+      await carregarPlanos();
+      showToast(original ? 'Recurso atualizado' : 'Recurso criado', original ? 'O recurso foi atualizado com sucesso.' : 'O novo recurso foi criado com sucesso.');
+    } finally {
+      if (sequencia === recursoEditorSequencia && document.getElementById('editarRecursoModalBg').classList.contains('show')) {
+        recursoEditorSalvando = false;
+        definirCamposEditorRecursoDesabilitados(false);
+      }
+    }
   }
 
   async function carregarDadosAdministrativos() {
