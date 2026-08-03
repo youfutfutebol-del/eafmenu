@@ -107,7 +107,7 @@
 
 <div id="app" hidden>
   <div class="mobile-topbar">
-    <button class="hamburger-btn" onclick="openDrawer()" aria-label="Abrir menu">☰</button>
+    <button class="hamburger-btn" id="mobileMenuBtn" type="button" onclick="openDrawer()" aria-label="Abrir menu">☰</button>
     <div class="mobile-topbar__brand">
       <div class="mobile-topbar__logo"><img src="/icons/icon512.png" alt="EAF Menu"></div>
       <div class="mobile-topbar__title" id="mobileRestauranteNome">EAF Menu</div>
@@ -127,9 +127,9 @@
       <button class="navitem active" id="navPedidos" onclick="switchView('pedidos')"><span class="ic">📋</span> Painel de Pedidos</button>
       <button class="navitem" id="navFinanceiro" onclick="switchView('financeiro')" style="display:none"><span class="ic">💰</span> Caixa</button>
       <button class="navitem" id="navRelatorio" onclick="switchView('relatorio')" style="display:none"><span class="ic">📊</span> Relatório Financeiro</button>
-      <button class="navitem" id="navProdutos" onclick="switchView('produtos')"><span class="ic">🛍️</span> Produtos</button>
-      <button class="navitem" id="navPromocoes" onclick="switchView('promocoes')"><span class="ic">🎁</span> Promoções</button>
-      <button class="navitem" id="navCategorias" onclick="switchView('categorias')"><span class="ic">🗂️</span> Categorias</button>
+      <button class="navitem" id="navProdutos" onclick="switchView('produtos', this)"><span class="ic">🛍️</span> Produtos</button>
+      <button class="navitem" id="navPromocoes" onclick="switchView('promocoes', this)"><span class="ic">🎁</span> Promoções</button>
+      <button class="navitem" id="navCategorias" onclick="switchView('categorias', this)"><span class="ic">🗂️</span> Categorias</button>
       <button class="navitem" id="navClientes" onclick="switchView('clientes')"><span class="ic">👥</span> Clientes</button>
       <button class="navitem" id="navEntregadores" onclick="switchView('entregadores')"><span class="ic">🚚</span> Entregadores (Motoboys)</button>
       <button class="navitem" id="navEquipe" onclick="switchView('equipe')" style="display:none"><span class="ic">🛡️</span> Gestão de Equipe</button>
@@ -399,7 +399,7 @@
             <p class="main__subtitle">Cadastre novos pratos, gerencie preços e oculte itens esgotados</p>
           </div>
           <div class="actions">
-            <button class="btn primary" onclick="openProduto()">+ Novo Produto</button>
+            <button class="btn primary" id="novoProdutoBtn" type="button" onclick="openProduto(this)">+ Novo Produto</button>
           </div>
         </div>
         <div class="produtos-busca-wrap">
@@ -417,7 +417,7 @@
             <h1 class="main__title">Promoções</h1>
             <p class="main__subtitle">Crie campanhas como “compre 2 e ganhe 1” ou “leve 3 e pague 2”.</p>
           </div>
-          <div class="actions"><button class="btn primary" id="novaPromocaoBtn" onclick="openPromocao()">+ Nova promoção</button></div>
+          <div class="actions"><button class="btn primary" id="novaPromocaoBtn" type="button" onclick="openPromocao(null, false, this)">+ Nova promoção</button></div>
         </div>
         <div id="promocoesFeedback" class="promocoes-feedback" role="status" aria-live="polite"></div>
         <table class="data-table promocoes-table">
@@ -435,7 +435,7 @@
             <p class="main__subtitle">Ordene as abas do cardápio e agrupe seus produtos</p>
           </div>
           <div class="actions">
-            <button class="btn primary" onclick="openCategoria()">+ Nova Categoria</button>
+            <button class="btn primary" id="novaCategoriaBtn" type="button" onclick="openCategoria(null, this)">+ Nova Categoria</button>
           </div>
         </div>
         <table class="data-table">
@@ -624,7 +624,7 @@
     </div>
     <div class="promo-preview"><b>Resultado:</b> <span id="promoResumoPreview">Preencha os dados da campanha.</span></div>
     <div id="promoFormError" class="promo-form-error" role="alert"></div>
-    <div class="modal-actions"><button class="btn" type="button" onclick="closePromocao()">Cancelar</button><button class="btn primary" id="salvarPromocaoBtn" type="button" onclick="submitPromocao()">Salvar rascunho</button></div>
+    <div class="modal-actions"><button class="btn" type="button" onclick="closePromocao()">Cancelar</button><button class="btn primary" id="salvarPromocaoBtn" type="button" onclick="submitPromocao(this)">Salvar rascunho</button></div>
   </div>
 </div>
 
@@ -913,7 +913,7 @@
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeProduto()">Cancelar</button>
-      <button class="btn primary" onclick="submitProduto()">Salvar produto</button>
+      <button class="btn primary" id="salvarProdutoBtn" type="button" onclick="submitProduto(this)">Salvar produto</button>
     </div>
   </div>
 </div>
@@ -926,7 +926,7 @@
     <div class="field"><label>Ordem de exibição</label><input id="catOrdem" type="number" min="0" value="0"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeCategoria()">Cancelar</button>
-      <button class="btn primary" onclick="submitCategoria()">Salvar categoria</button>
+      <button class="btn primary" id="salvarCategoriaBtn" type="button" onclick="submitCategoria(this)">Salvar categoria</button>
     </div>
   </div>
 </div>
@@ -1350,7 +1350,10 @@
     iniciarStatusLoja();
   }
 
-  function switchView(view) {
+  const RECURSOS_POR_VIEW = Object.freeze({ produtos: 'produtos', categorias: 'categorias', promocoes: 'promocoes' });
+  let switchViewSequence = 0;
+
+  async function switchView(view, origem) {
     if (view === 'entregadores' && !restauranteInfo?.modulo_motoboy_ativo) {
       abrirPaywallMotoboy();
       return;
@@ -1359,6 +1362,28 @@
     if (view === 'equipe' && !(currentUser?.role === 'dono' || currentUser?.role === 'gerente')) return;
     if (view === 'marca' && currentUser?.role !== 'dono') return;
     if (view === 'relatorio' && currentUser?.role !== 'dono') return;
+
+    const sequencia = ++switchViewSequence;
+    const recursoCodigo = RECURSOS_POR_VIEW[view];
+    if (recursoCodigo) {
+      const mobile = window.matchMedia('(max-width: 760px)').matches;
+      const focoRetorno = mobile ? document.getElementById('mobileMenuBtn') : origem;
+      const resultado = await RecursosPlanos.autorizar(recursoCodigo, origem, {
+        restauranteNome: restauranteInfo?.nome || '',
+        focoRetorno,
+        nomeFallback: view === 'produtos' ? 'Gestão de Produtos' : view === 'categorias' ? 'Gestão de Categorias' : 'Promoções',
+        tituloIndisponivel: view === 'promocoes' ? 'Promoções não disponíveis' : undefined,
+        respostaAindaAtual: () => sequencia === switchViewSequence
+      });
+      if (sequencia !== switchViewSequence) return;
+      if (!resultado.permitido) {
+        closeDrawer();
+        if (resultado.motivo === 'erro') {
+          showToast('Não foi possível verificar o recurso', 'Tente novamente antes de abrir esta área.');
+        }
+        return;
+      }
+    }
 
     currentView = view;
     const views = ['pedidos', 'financeiro', 'relatorio', 'produtos', 'promocoes', 'categorias', 'clientes', 'entregadores', 'equipe', 'marca'];

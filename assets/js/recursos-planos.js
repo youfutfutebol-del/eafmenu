@@ -72,6 +72,29 @@
     return { status: recurso.disponivel ? 'disponivel' : 'indisponivel', recurso };
   }
 
+  async function autorizar(recursoCodigo, origem, contexto = {}) {
+    const resultado = await verificar(recursoCodigo, origem);
+    if (typeof contexto.respostaAindaAtual === 'function' && !contexto.respostaAindaAtual()) {
+      return { permitido: false, motivo: 'obsoleta', recurso: resultado.recurso || null, error: null };
+    }
+    if (resultado.status === 'erro') {
+      return { permitido: false, motivo: 'erro', recurso: null, error: resultado.error || null };
+    }
+    if (resultado.status !== 'disponivel') {
+      abrirModalIndisponivel(resultado.recurso || {
+        recursoCodigo,
+        recursoNome: contexto.nomeFallback || 'Recurso',
+        planoCodigo: '',
+        planoNome: '',
+        origem: 'desconhecida',
+        decisaoIndividual: null,
+        planosElegiveis: []
+      }, contexto.focoRetorno || origem, contexto);
+      return { permitido: false, motivo: 'indisponivel', recurso: resultado.recurso || null, error: null };
+    }
+    return { permitido: true, motivo: 'disponivel', recurso: resultado.recurso, error: null };
+  }
+
   function invalidarConsultas() {
     consultaSequencia++;
     consultaEmAndamento = null;
@@ -81,6 +104,13 @@
     recursosAtuais = recursosAtuais.map(recurso => recurso.recursoCodigo === recursoCodigo
       ? { ...recurso, disponivel: false }
       : recurso);
+  }
+
+  function registrarNegativa(error, recursoCodigo) {
+    if (!erroIndisponibilidade(error, recursoCodigo)) return false;
+    marcarIndisponivel(recursoCodigo);
+    invalidarConsultas();
+    return true;
   }
 
   function listaPlanosTexto(planos) {
@@ -96,15 +126,26 @@
     modalFocoOrigem = origem || document.activeElement;
     modalContexto = { recurso, contexto: contexto || {} };
 
-    document.getElementById('recursoIndisponivelTitulo').textContent = `${nome} não disponível`;
-    document.getElementById('recursoIndisponivelMensagem').textContent = planos.length
-      ? (planoAtual
-        ? `O ${nome} não está incluído no seu pacote ${planoAtual}.`
-        : `O ${nome} não está disponível no seu pacote atual.`)
-      : `O ${nome} não está disponível no momento.`;
+    document.getElementById('recursoIndisponivelTitulo').textContent = contexto?.tituloIndisponivel || `${nome} não disponível`;
+    const origemNegativa = recurso?.origem || '';
+    let mensagem = `${nome} não está disponível no momento.`;
+    let mostrarElegiveis = false;
+    if (origemNegativa === 'nao_incluido') {
+      mensagem = planoAtual
+        ? `O recurso ${nome} não está incluído no seu pacote ${planoAtual}.`
+        : `O recurso ${nome} não está disponível no seu pacote atual.`;
+      mostrarElegiveis = planos.length > 0;
+    } else if (origemNegativa === 'excecao_bloqueada') {
+      mensagem = `O acesso ao recurso ${nome} está desativado para este restaurante.`;
+    } else if (origemNegativa === 'plano_inativo') {
+      mensagem = 'O pacote atual do restaurante está temporariamente indisponível.';
+    } else if (origemNegativa === 'recurso_inativo') {
+      mensagem = `${nome} está temporariamente indisponível.`;
+    }
+    document.getElementById('recursoIndisponivelMensagem').textContent = mensagem;
     const elegiveis = document.getElementById('recursoIndisponivelElegiveis');
-    elegiveis.textContent = planos.length ? listaPlanosTexto(planos) : '';
-    elegiveis.hidden = planos.length === 0;
+    elegiveis.textContent = mostrarElegiveis ? listaPlanosTexto(planos) : '';
+    elegiveis.hidden = !mostrarElegiveis;
     document.getElementById('recursoIndisponivelModalBg').classList.add('show');
     requestAnimationFrame(() => document.getElementById('recursoIndisponivelContatoBtn')?.focus());
   }
@@ -131,9 +172,11 @@
   window.RecursosPlanos = Object.freeze({
     consultarAtualizado,
     verificar,
+    autorizar,
     erroIndisponibilidade,
     invalidarConsultas,
     marcarIndisponivel,
+    registrarNegativa,
     abrirModalIndisponivel,
     fecharModalIndisponivel,
     contatarSobreRecurso
