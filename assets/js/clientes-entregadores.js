@@ -4,6 +4,26 @@
 // VEICULO_LABEL, e das funcoes showToast/formatMoeda/formatData/diaComercialData.
 // So chamadas apos o script principal rodar. Continuam globais (sem type=module).
 
+  let clienteSubmetendo = false;
+
+  async function autorizarAcaoClientes(botao, contexto = {}) {
+    const resultado = await RecursosPlanos.autorizar('clientes', botao, {
+      restauranteNome: restauranteInfo?.nome || '',
+      nomeFallback: 'Gestão de Clientes',
+      ...contexto
+    });
+    if (!resultado.permitido && resultado.motivo === 'erro') {
+      showToast('Não foi possível verificar o recurso', 'Tente novamente antes de continuar.');
+    }
+    return resultado;
+  }
+
+  function tratarNegativaClientes(error) {
+    if (!RecursosPlanos.registrarNegativa(error, 'clientes')) return false;
+    showToast('Gestão de Clientes indisponível', 'Esta ação não está disponível no pacote atual.');
+    return true;
+  }
+
   async function loadClientes() {
     const { data: clientes, error } = await sb.from('clientes')
       .select('id, nome, telefone')
@@ -52,7 +72,9 @@
       </tr>`).join('');
   }
 
-  function openClienteEdit(c) {
+  async function openClienteEdit(c, botaoOrigem) {
+    const autorizacao = await autorizarAcaoClientes(botaoOrigem);
+    if (!autorizacao.permitido) return;
     document.getElementById('cliId').value = c.id;
     document.getElementById('cliNome').value = c.nome || '';
     document.getElementById('cliTelefone').value = c.telefone || '';
@@ -61,17 +83,32 @@
 
   function closeClienteEdit() { document.getElementById('clienteModalBg').classList.remove('show'); }
 
-  async function submitClienteEdit() {
+  async function submitClienteEdit(botaoOrigem) {
+    if (clienteSubmetendo) return;
     const id = document.getElementById('cliId').value;
     const nome = document.getElementById('cliNome').value.trim();
     const telefone = document.getElementById('cliTelefone').value.trim();
-    if (!nome) { showToast('Faltou o nome', 'Informe o nome do cliente.'); return; }
-
-    const { error } = await sb.from('clientes').update({ nome, telefone }).eq('id', id);
-    if (error) { showToast('Erro ao salvar', error.message); return; }
-    closeClienteEdit();
-    showToast('Cliente atualizado', nome);
-    await loadClientes();
+    const botao = botaoOrigem;
+    const textoOriginal = botao?.textContent || '';
+    clienteSubmetendo = true;
+    if (botao) { botao.disabled = true; botao.textContent = 'Salvando...'; }
+    try {
+      const autorizacao = await autorizarAcaoClientes(botaoOrigem);
+      if (!autorizacao.permitido) return;
+      if (!nome) { showToast('Faltou o nome', 'Informe o nome do cliente.'); return; }
+      const { error } = await sb.from('clientes').update({ nome, telefone }).eq('id', id);
+      if (error) {
+        if (tratarNegativaClientes(error)) return;
+        showToast('Erro ao salvar', error.message);
+        return;
+      }
+      closeClienteEdit();
+      showToast('Cliente atualizado', nome);
+      await loadClientes();
+    } finally {
+      clienteSubmetendo = false;
+      if (botao) { botao.disabled = false; botao.textContent = textoOriginal; }
+    }
   }
 
   // Colspan dos estados da tabela: 8 colunas para dono/gerente (coluna "Liberação de hoje"
@@ -318,7 +355,7 @@
   document.getElementById('clientesTableBody')?.addEventListener('click', event => {
     const alvo = event.target.closest('[data-action="editar-cliente"][data-id]');
     const cliente = clientesCache.find(item => String(item.id) === String(alvo?.dataset.id));
-    if (cliente) openClienteEdit(cliente);
+    if (cliente) openClienteEdit(cliente, alvo);
   });
 
   document.getElementById('entregadoresTableBody')?.addEventListener('click', event => {

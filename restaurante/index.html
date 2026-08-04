@@ -125,15 +125,15 @@
         </div>
       </div>
       <button class="navitem active" id="navPedidos" onclick="switchView('pedidos')"><span class="ic">📋</span> Painel de Pedidos</button>
-      <button class="navitem" id="navFinanceiro" onclick="switchView('financeiro')" style="display:none"><span class="ic">💰</span> Caixa</button>
-      <button class="navitem" id="navRelatorio" onclick="switchView('relatorio')" style="display:none"><span class="ic">📊</span> Relatório Financeiro</button>
+      <button class="navitem" id="navFinanceiro" onclick="switchView('financeiro', this)" style="display:none"><span class="ic">💰</span> Caixa</button>
+      <button class="navitem" id="navRelatorio" onclick="switchView('relatorio', this)" style="display:none"><span class="ic">📊</span> Relatório Financeiro</button>
       <button class="navitem" id="navProdutos" onclick="switchView('produtos', this)"><span class="ic">🛍️</span> Produtos</button>
       <button class="navitem" id="navPromocoes" onclick="switchView('promocoes', this)"><span class="ic">🎁</span> Promoções</button>
       <button class="navitem" id="navCategorias" onclick="switchView('categorias', this)"><span class="ic">🗂️</span> Categorias</button>
-      <button class="navitem" id="navClientes" onclick="switchView('clientes')"><span class="ic">👥</span> Clientes</button>
+      <button class="navitem" id="navClientes" onclick="switchView('clientes', this)"><span class="ic">👥</span> Clientes</button>
       <button class="navitem" id="navEntregadores" onclick="switchView('entregadores')"><span class="ic">🚚</span> Entregadores (Motoboys)</button>
-      <button class="navitem" id="navEquipe" onclick="switchView('equipe')" style="display:none"><span class="ic">🛡️</span> Gestão de Equipe</button>
-      <button class="navitem" id="navMarca" onclick="switchView('marca')" style="display:none"><span class="ic">⚙️</span> Personalizar Marca</button>
+      <button class="navitem" id="navEquipe" onclick="switchView('equipe', this)" style="display:none"><span class="ic">🛡️</span> Gestão de Equipe</button>
+      <button class="navitem" id="navMarca" onclick="switchView('marca', this)" style="display:none"><span class="ic">⚙️</span> Personalizar Marca</button>
       <div class="sidebar__divider"></div>
       <div class="sidebar__section-label">Acessar Apps</div>
       <button class="navitem" onclick="abrirPwaCliente()"><span class="ic">📱</span> App do Cliente</button>
@@ -201,7 +201,7 @@
             <p class="main__subtitle">Controle o dinheiro que entra e sai da gaveta</p>
           </div>
           <div class="actions">
-            <button class="btn primary" onclick="openDespesa()">+ Lançar Despesa</button>
+            <button class="btn primary" type="button" onclick="openDespesa(this)">+ Lançar Despesa</button>
           </div>
         </div>
 
@@ -214,8 +214,8 @@
             <p id="caixaStatusSub" style="margin:0; font-size:12.5px; color:var(--muted);"></p>
           </div>
           <div class="actions">
-            <button class="btn primary" id="btnAbrirCaixa" onclick="openAbrirCaixa()" style="display:none;">Abrir caixa</button>
-            <button class="btn" id="btnFecharCaixa" onclick="openFecharCaixa()" style="display:none;">Fechar caixa</button>
+            <button class="btn primary" id="btnAbrirCaixa" type="button" onclick="openAbrirCaixa(this)" style="display:none;">Abrir caixa</button>
+            <button class="btn" id="btnFecharCaixa" type="button" onclick="openFecharCaixa(this)" style="display:none;">Fechar caixa</button>
           </div>
         </div>
 
@@ -499,7 +499,7 @@
             <p class="main__subtitle">Convide colaboradores e gerencie os cargos de acesso ao painel</p>
           </div>
           <div class="actions">
-            <button class="btn primary" onclick="openMembro()">+ Criar novo usuário</button>
+            <button class="btn primary" type="button" onclick="openMembro(this)">+ Criar novo usuário</button>
           </div>
         </div>
         <table class="data-table">
@@ -571,7 +571,7 @@
             <p style="font-size:11px; color:var(--muted); margin:8px 0 0;">O horário é usado pelo servidor para liberar ou bloquear pedidos públicos. Pedidos manuais da equipe continuam disponíveis fora do horário.</p>
           </div>
           <div class="modal-actions" style="margin-top:6px;">
-            <button class="btn primary" onclick="submitMarca()" style="flex:none; padding:10px 20px;">Salvar alterações</button>
+            <button class="btn primary" type="button" onclick="submitMarca(this)" style="flex:none; padding:10px 20px;">Salvar alterações</button>
           </div>
           <p style="font-size:12px; color:var(--muted); margin-top:16px;">
             Link do cardápio do cliente:<br>
@@ -975,7 +975,7 @@
     <p style="font-size:11.5px; color:var(--muted); margin:-4px 0 12px;">Você define a senha agora e repassa pra pessoa (WhatsApp, verbalmente etc.) — o sistema não envia nada por conta própria.</p>
     <div class="modal-actions">
       <button class="btn" onclick="closeMembro()">Cancelar</button>
-      <button class="btn primary" id="mbSubmitBtn" onclick="submitMembro()">Criar usuário</button>
+      <button class="btn primary" id="mbSubmitBtn" type="button" onclick="submitMembro(this)">Criar usuário</button>
     </div>
   </div>
 </div>
@@ -988,7 +988,7 @@
     <div class="field"><label>Telefone</label><input id="cliTelefone"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeClienteEdit()">Cancelar</button>
-      <button class="btn primary" onclick="submitClienteEdit()">Salvar</button>
+      <button class="btn primary" type="button" onclick="submitClienteEdit(this)">Salvar</button>
     </div>
   </div>
 </div>
@@ -1350,7 +1350,21 @@
     iniciarStatusLoja();
   }
 
-  const RECURSOS_POR_VIEW = Object.freeze({ produtos: 'produtos', categorias: 'categorias', promocoes: 'promocoes' });
+  const RECURSOS_POR_VIEW = Object.freeze({
+    produtos: 'produtos', categorias: 'categorias', promocoes: 'promocoes',
+    clientes: 'clientes', financeiro: 'caixa', relatorio: 'relatorio_financeiro',
+    equipe: 'gestao_equipe', marca: 'personalizacao_marca'
+  });
+  const META_RECURSO_VIEW = Object.freeze({
+    produtos: { nome: 'Gestão de Produtos' },
+    categorias: { nome: 'Gestão de Categorias' },
+    promocoes: { nome: 'Promoções', titulo: 'Promoções não disponíveis' },
+    clientes: { nome: 'Gestão de Clientes' },
+    financeiro: { nome: 'Caixa' },
+    relatorio: { nome: 'Relatório Financeiro' },
+    equipe: { nome: 'Gestão de Equipe' },
+    marca: { nome: 'Personalização da Marca' }
+  });
   let switchViewSequence = 0;
 
   async function switchView(view, origem) {
@@ -1368,11 +1382,12 @@
     if (recursoCodigo) {
       const mobile = window.matchMedia('(max-width: 760px)').matches;
       const focoRetorno = mobile ? document.getElementById('mobileMenuBtn') : origem;
+      const metaRecurso = META_RECURSO_VIEW[view] || {};
       const resultado = await RecursosPlanos.autorizar(recursoCodigo, origem, {
         restauranteNome: restauranteInfo?.nome || '',
         focoRetorno,
-        nomeFallback: view === 'produtos' ? 'Gestão de Produtos' : view === 'categorias' ? 'Gestão de Categorias' : 'Promoções',
-        tituloIndisponivel: view === 'promocoes' ? 'Promoções não disponíveis' : undefined,
+        nomeFallback: metaRecurso.nome,
+        tituloIndisponivel: metaRecurso.titulo,
         respostaAindaAtual: () => sequencia === switchViewSequence
       });
       if (sequencia !== switchViewSequence) return;

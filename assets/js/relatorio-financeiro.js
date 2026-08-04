@@ -124,8 +124,35 @@
       relDadosAtuais = data.periodo_personalizado;
       relRenderTudo(relDadosAtuais);
     } catch (e) {
+      relDadosAtuais = null;
+      if (RecursosPlanos.registrarNegativa(e, 'relatorio_financeiro')) {
+        relDiaComercialRef = null;
+        relLimparRenderizacaoFinanceira();
+        erroEl.textContent = 'O Relatório Financeiro não está disponível no pacote atual.';
+        erroEl.classList.remove('hidden');
+        showToast('Relatório Financeiro indisponível', 'Consulte os recursos do seu pacote.');
+        return;
+      }
       showToast('Erro ao carregar relatório', e.message);
     }
+  }
+
+  function relLimparRenderizacaoFinanceira() {
+    relRenderTudo({
+      data_inicio: null,
+      data_fim: null,
+      vendido: { pedidos: 0, valor: 0 },
+      recebido: { pedidos: 0, valor: 0 },
+      recebido_bruto: { pedidos: 0, valor: 0 },
+      estornado: { pedidos: 0, valor: 0 },
+      cancelamentos_pagos_pendentes: { pedidos: 0, valor: 0 },
+      pendente: { pedidos: 0, valor: 0 },
+      cancelados: { pedidos: 0, valor: 0, percentual: 0 },
+      ticket_medio: 0,
+      por_forma_pagamento: {},
+      por_tipo: {},
+      top_produtos: []
+    });
   }
 
   // =====================================================================

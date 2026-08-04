@@ -8,6 +8,23 @@
   let aberturaCaixaEmAndamento = false;
   let fechamentoCaixaEmAndamento = false;
 
+  async function autorizarAcaoCaixa(origem) {
+    const resultado = await RecursosPlanos.autorizar('caixa', origem, {
+      restauranteNome: restauranteInfo?.nome || '', nomeFallback: 'Caixa'
+    });
+    if (!resultado.permitido && resultado.motivo === 'erro') {
+      showToast('Não foi possível verificar o recurso', 'Tente novamente antes de continuar.');
+    }
+    return resultado;
+  }
+
+  function tratarNegativaCaixa(error) {
+    if (!RecursosPlanos.registrarNegativa(error, 'caixa')) return false;
+    movimentacoes = [];
+    showToast('Caixa indisponível', 'Esta ação não está disponível no pacote atual.');
+    return true;
+  }
+
   function normalizarRegistroRpc(data, nomeRpc) {
     if (Array.isArray(data)) {
       if (data.length !== 1 || !data[0] || typeof data[0] !== 'object') {
@@ -71,6 +88,7 @@
       movimentacoes = normalizarListaRpc(data, 'listar_movimentacoes_financeiras_v2');
       renderExtrato();
     } catch (erro) {
+      if (tratarNegativaCaixa(erro)) { renderExtrato(); return; }
       console.warn('Falha técnica ao carregar o extrato financeiro:', erro);
       movimentacoes = [];
       document.getElementById('totalEntradas').textContent = formatMoeda(0);
@@ -129,7 +147,9 @@
     }).join('');
   }
 
-  function openDespesa() {
+  async function openDespesa(origem) {
+    const autorizacao = await autorizarAcaoCaixa(origem);
+    if (!autorizacao.permitido) return;
     document.getElementById('dDescricao').value = '';
     document.getElementById('dValor').value = '';
     document.getElementById('dFormaPagamento').value = 'dinheiro';
@@ -153,6 +173,8 @@
     despesaEmAndamento = true;
     definirBotaoCarregando(botao, true, 'Lançando...');
     try {
+      const autorizacao = await autorizarAcaoCaixa(botao);
+      if (!autorizacao.permitido) return;
       const { data, error } = await sb.rpc('registrar_despesa_v2', {
         p_descricao: descricao,
         p_valor: valor,
@@ -165,6 +187,7 @@
       await loadMovimentacoes();
       await loadCaixaAtual();
     } catch (erro) {
+      if (tratarNegativaCaixa(erro)) return;
       showToast('Despesa não lançada', mensagemRpcConhecida(erro, 'lançar a despesa'));
     } finally {
       despesaEmAndamento = false;
@@ -225,7 +248,9 @@
     document.getElementById('caixaDinheiroEsperado').textContent = formatMoeda(esperado);
   }
 
-  function openAbrirCaixa() {
+  async function openAbrirCaixa(origem) {
+    const autorizacao = await autorizarAcaoCaixa(origem);
+    if (!autorizacao.permitido) return;
     document.getElementById('acValorAbertura').value = '';
     document.getElementById('abrirCaixaModalBg').classList.add('show');
   }
@@ -244,6 +269,8 @@
     aberturaCaixaEmAndamento = true;
     definirBotaoCarregando(botao, true, 'Abrindo...');
     try {
+      const autorizacao = await autorizarAcaoCaixa(botao);
+      if (!autorizacao.permitido) return;
       const { data, error } = await sb.rpc('abrir_caixa_v2', {
         p_valor_abertura: valorAbertura
       });
@@ -255,6 +282,7 @@
       await loadMovimentacoes();
       await loadCaixaAtual();
     } catch (erro) {
+      if (tratarNegativaCaixa(erro)) return;
       showToast('Caixa não aberto', mensagemRpcConhecida(erro, 'abrir o caixa'));
     } finally {
       aberturaCaixaEmAndamento = false;
@@ -262,7 +290,9 @@
     }
   }
 
-  async function openFecharCaixa() {
+  async function openFecharCaixa(origem) {
+    const autorizacao = await autorizarAcaoCaixa(origem);
+    if (!autorizacao.permitido) return;
     if (!caixaAtual) return;
     const { entradas, saidas } = await calcularMovimentoDinheiro(caixaAtual.aberto_em);
     const esperado = Number(caixaAtual.valor_abertura) + entradas - saidas;
@@ -311,6 +341,8 @@
     fechamentoCaixaEmAndamento = true;
     definirBotaoCarregando(botao, true, 'Fechando...');
     try {
+      const autorizacao = await autorizarAcaoCaixa(botao);
+      if (!autorizacao.permitido) return;
       const { data, error } = await sb.rpc('fechar_caixa_v2', {
         p_valor_contado: contado,
         p_observacoes: observacoes
@@ -335,6 +367,7 @@
       await loadMovimentacoes();
       await loadCaixaAtual();
     } catch (erro) {
+      if (tratarNegativaCaixa(erro)) return;
       showToast('Caixa não fechado', mensagemRpcConhecida(erro, 'fechar o caixa'));
     } finally {
       fechamentoCaixaEmAndamento = false;

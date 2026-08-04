@@ -4,6 +4,24 @@
 // convitesCache, ROLE_LABEL, e da funcao showToast (utils.js). So chamadas apos o script
 // principal rodar. Continuam globais (sem type=module).
 
+  let equipeAcaoEmAndamento = false;
+
+  async function autorizarAcaoEquipe(botao, contexto = {}) {
+    const resultado = await RecursosPlanos.autorizar('gestao_equipe', botao, {
+      restauranteNome: restauranteInfo?.nome || '', nomeFallback: 'Gestão de Equipe', ...contexto
+    });
+    if (!resultado.permitido && resultado.motivo === 'erro') {
+      showToast('Não foi possível verificar o recurso', 'Tente novamente antes de continuar.');
+    }
+    return resultado;
+  }
+
+  function tratarNegativaEquipe(error) {
+    if (!RecursosPlanos.registrarNegativa(error, 'gestao_equipe')) return false;
+    showToast('Gestão de Equipe indisponível', 'Esta ação não está disponível no pacote atual.');
+    return true;
+  }
+
   async function loadEquipe() {
     // Motoboy não aparece aqui — é criado e gerenciado em Entregadores (Motoboys).
     const { data: usuarios, error } = await sb.from('usuarios')
@@ -78,27 +96,31 @@
     if (!alvo) return;
     const usuario = registroEquipePorId(alvo.dataset.id);
     if (!usuario) return;
-    if (alvo.dataset.action === 'toggle-ativo') toggleAtivoUsuario(usuario.id, usuario.ativo);
-    if (alvo.dataset.action === 'reset-senha' && podeRedefinirSenhaEquipe(usuario)) abrirResetSenhaUsuario(usuario.id, usuario.nome);
-    if (alvo.dataset.action === 'remover') removerMembro(usuario.id, usuario.nome);
+    if (alvo.dataset.action === 'toggle-ativo') toggleAtivoUsuario(usuario.id, usuario.ativo, alvo);
+    if (alvo.dataset.action === 'reset-senha' && podeRedefinirSenhaEquipe(usuario)) abrirResetSenhaEquipe(usuario.id, usuario.nome, alvo);
+    if (alvo.dataset.action === 'remover') removerMembro(usuario.id, usuario.nome, alvo);
   });
   document.getElementById('equipeTableBody')?.addEventListener('change', event => {
     const alvo = event.target.closest('[data-action="mudar-role"][data-id]');
-    if (alvo) mudarRole(alvo.dataset.id, alvo.value);
+    if (alvo) mudarRole(alvo.dataset.id, alvo.value, alvo);
   });
   document.getElementById('convitesTableBody')?.addEventListener('click', event => {
     const alvo = event.target.closest('[data-action="cancelar-convite"][data-id]');
-    if (alvo) cancelarConvite(alvo.dataset.id);
+    if (alvo) cancelarConvite(alvo.dataset.id, alvo);
   });
 
-  async function toggleAtivoUsuario(id, ativoAtual) {
+  async function toggleAtivoUsuario(id, ativoAtual, origem) {
+    const autorizacao = await autorizarAcaoEquipe(origem);
+    if (!autorizacao.permitido) return;
     const { error } = await sb.from('usuarios').update({ ativo: !ativoAtual }).eq('id', id);
-    if (error) { showToast('Erro ao atualizar acesso', error.message); return; }
+    if (error) { if (!tratarNegativaEquipe(error)) showToast('Erro ao atualizar acesso', error.message); return; }
     showToast(ativoAtual ? 'Acesso desligado' : 'Acesso liberado', '');
     await loadEquipe();
   }
 
-  function openMembro() {
+  async function openMembro(origem) {
+    const autorizacao = await autorizarAcaoEquipe(origem);
+    if (!autorizacao.permitido) return;
     document.getElementById('mbNome').value = '';
     document.getElementById('mbTelefone').value = '';
     document.getElementById('mbEmail').value = '';
@@ -114,7 +136,8 @@
 
   function closeMembro() { document.getElementById('membroModalBg').classList.remove('show'); }
 
-  async function submitMembro() {
+  async function submitMembro(origem) {
+    if (equipeAcaoEmAndamento) return;
     const nome = document.getElementById('mbNome').value.trim();
     const telefone = document.getElementById('mbTelefone').value.trim();
     const telefoneNormalizado = normalizarTelefoneAcesso(telefone);
@@ -127,9 +150,11 @@
     if (telefoneNormalizado.length < 10) { showToast('Telefone inválido', 'Informe um telefone com DDD e pelo menos 10 dígitos.'); return; }
     if (!senha || senha.length < 8) { showToast('Senha muito curta', 'Defina uma senha com pelo menos 8 caracteres.'); return; }
     if (submitBtn?.disabled) return;
-
+    equipeAcaoEmAndamento = true;
     if (submitBtn) submitBtn.disabled = true;
     try {
+      const autorizacao = await autorizarAcaoEquipe(origem);
+      if (!autorizacao.permitido) return;
       const { error } = await sb.rpc('criar_usuario_equipe', {
         p_nome: nome,
         p_telefone: telefoneNormalizado,
@@ -143,6 +168,7 @@
           showToast('Telefone já utilizado', error.message);
           return;
         }
+        if (tratarNegativaEquipe(error)) return;
         console.error('Falha ao criar usuário da equipe:', error);
         showToast('Erro ao criar usuário', 'Não foi possível criar o usuário. Tente novamente.');
         return;
@@ -155,28 +181,40 @@
       console.error('Exceção ao criar usuário da equipe:', error);
       showToast('Erro ao criar usuário', 'Não foi possível criar o usuário. Tente novamente.');
     } finally {
+      equipeAcaoEmAndamento = false;
       if (submitBtn) submitBtn.disabled = false;
     }
   }
 
-  async function mudarRole(id, novoRole) {
+  async function mudarRole(id, novoRole, origem) {
+    const autorizacao = await autorizarAcaoEquipe(origem);
+    if (!autorizacao.permitido) { await loadEquipe(); return; }
     const { error } = await sb.from('usuarios').update({ role: novoRole }).eq('id', id);
-    if (error) { showToast('Erro ao mudar cargo', error.message); await loadEquipe(); return; }
+    if (error) { if (!tratarNegativaEquipe(error)) showToast('Erro ao mudar cargo', error.message); await loadEquipe(); return; }
     showToast('Cargo atualizado', '');
     await loadEquipe();
   }
 
-  async function removerMembro(id, nome) {
+  async function removerMembro(id, nome, origem) {
+    const autorizacao = await autorizarAcaoEquipe(origem);
+    if (!autorizacao.permitido) return;
     if (!confirm(`Remover ${nome} da equipe? Isso apaga o acesso e a conta por completo — não dá pra desfazer.`)) return;
     const { error } = await sb.rpc('remover_usuario_equipe', { p_usuario_id: id });
-    if (error) { showToast('Erro ao remover', error.message); return; }
+    if (error) { if (!tratarNegativaEquipe(error)) showToast('Erro ao remover', error.message); return; }
     showToast('Membro removido', nome);
     await loadEquipe();
   }
 
-  async function cancelarConvite(id) {
+  async function cancelarConvite(id, origem) {
+    const autorizacao = await autorizarAcaoEquipe(origem);
+    if (!autorizacao.permitido) return;
     const { error } = await sb.from('convites_equipe').delete().eq('id', id);
-    if (error) { showToast('Erro ao cancelar', error.message); return; }
+    if (error) { if (!tratarNegativaEquipe(error)) showToast('Erro ao cancelar', error.message); return; }
     showToast('Convite cancelado', '');
     await loadEquipe();
+  }
+
+  async function abrirResetSenhaEquipe(id, nome, origem) {
+    const autorizacao = await autorizarAcaoEquipe(origem);
+    if (autorizacao.permitido) abrirResetSenhaUsuario(id, nome, 'gestao_equipe', origem);
   }
