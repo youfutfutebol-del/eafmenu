@@ -38,6 +38,7 @@
     --shadow-md: 0 10px 28px rgba(36,28,24,.10);
     --shadow-lg: 0 20px 48px rgba(36,28,24,.16);
     --cliente-topbar-height: 0px;
+    --cliente-banner-height: 0px;
     --cliente-categorias-height: 0px;
 
     /* ---- tipografia ---- */
@@ -126,18 +127,22 @@
 
   /* ---------------- Banner de fechado ---------------- */
   .banner-fechado {
-    display:none; align-items:center; gap:8px; background: color-mix(in srgb, var(--amber) 12%, #fff); color:#7A4B03;
-    border-bottom:1px solid color-mix(in srgb, var(--amber) 30%, var(--border)); padding:10px 16px; font-size:12.5px; font-weight:600;
-  }
-  .banner-fechado.show { display:flex; }
+  display:none; align-items:center; gap:8px; background: color-mix(in srgb, var(--amber) 12%, #fff); color:#7A4B03;
+  border-bottom:1px solid color-mix(in srgb, var(--amber) 30%, var(--border)); padding:10px 16px; font-size:12.5px; font-weight:600;
+  position:sticky; top:var(--cliente-topbar-height); z-index:35;
+}
 
   /* ---------------- Categorias (tabs horizontais) ---------------- */
-  .cat-tabs {
-    position:sticky; top:var(--cliente-topbar-height); z-index:30;
+ .cat-tabs {
+    position:sticky; top:calc(var(--cliente-topbar-height) + var(--cliente-banner-height)); z-index:30;
     display:flex; gap:8px; overflow-x:auto; padding:14px 16px 6px; scrollbar-width:none;
+    border-bottom:1px solid var(--border); box-shadow:0 4px 12px rgba(36,28,24,.06);
+    transform:translateZ(0); -webkit-transform:translateZ(0); isolation:isolate;
+  }
+  .cat-tabs::before {
+    content:''; position:absolute; inset:0; z-index:-1;
     background:color-mix(in srgb, var(--surface) 94%, transparent);
     backdrop-filter:blur(12px) saturate(150%); -webkit-backdrop-filter:blur(12px) saturate(150%);
-    border-bottom:1px solid var(--border); box-shadow:0 4px 12px rgba(36,28,24,.06);
   }
   .cat-tabs::-webkit-scrollbar { display:none; }
   .cat-tab {
@@ -149,7 +154,7 @@
   /* ---------------- Lista de produtos ---------------- */
   .cat-section {
     padding:16px 16px 4px;
-    scroll-margin-top:calc(var(--cliente-topbar-height) + var(--cliente-categorias-height));
+    scroll-margin-top:calc(var(--cliente-topbar-height) + var(--cliente-banner-height) + var(--cliente-categorias-height));
   }
   .cat-section__title { font-family: var(--font-display); font-size:15.5px; font-weight:700; margin: 4px 0 12px; letter-spacing:-.2px; }
   .prod-card {
@@ -558,12 +563,15 @@
 
   const trackedChannels = [];
 
-  function atualizarDimensoesNavegacaoCardapio() {
+ function atualizarDimensoesNavegacaoCardapio() {
     const topbar = document.querySelector('.topbar');
+    const bannerEl = document.getElementById('bannerFechado');
     const categoriasEl = document.querySelector('.cat-tabs');
     const topbarHeight = topbar?.getBoundingClientRect().height || 0;
+    const bannerHeight = bannerEl?.getBoundingClientRect().height || 0;
     const categoriasHeight = categoriasEl?.getBoundingClientRect().height || 0;
     document.documentElement.style.setProperty('--cliente-topbar-height', `${topbarHeight}px`);
+    document.documentElement.style.setProperty('--cliente-banner-height', `${bannerHeight}px`);
     document.documentElement.style.setProperty('--cliente-categorias-height', `${categoriasHeight}px`);
   }
 
@@ -571,9 +579,11 @@
     ? new ResizeObserver(atualizarDimensoesNavegacaoCardapio)
     : null;
   const topbarNavegacaoCardapio = document.querySelector('.topbar');
+  const bannerNavegacaoCardapio = document.getElementById('bannerFechado');
   const categoriasNavegacaoCardapio = document.querySelector('.cat-tabs');
   if (observadorDimensoesNavegacaoCardapio) {
     if (topbarNavegacaoCardapio) observadorDimensoesNavegacaoCardapio.observe(topbarNavegacaoCardapio);
+    if (bannerNavegacaoCardapio) observadorDimensoesNavegacaoCardapio.observe(bannerNavegacaoCardapio);
     if (categoriasNavegacaoCardapio) observadorDimensoesNavegacaoCardapio.observe(categoriasNavegacaoCardapio);
   }
   document.addEventListener('DOMContentLoaded', atualizarDimensoesNavegacaoCardapio);
@@ -641,6 +651,7 @@
 
     document.getElementById('screenLoading').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
+    requestAnimationFrame(atualizarDimensoesNavegacaoCardapio);
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/cliente/sw.js').catch(() => {});
