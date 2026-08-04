@@ -246,7 +246,32 @@
     showToast('Prazo de entrega atualizado.', 'O novo prazo já aparece no cardápio do cliente.');
   }
 
-  async function submitMarca() {
+  let marcaSubmetendo = false;
+
+  async function autorizarAcaoMarca(origem) {
+    const resultado = await RecursosPlanos.autorizar('personalizacao_marca', origem, {
+      restauranteNome: restauranteInfo?.nome || '', nomeFallback: 'Personalização da Marca'
+    });
+    if (!resultado.permitido && resultado.motivo === 'erro') {
+      showToast('Não foi possível verificar o recurso', 'Tente novamente antes de continuar.');
+    }
+    return resultado;
+  }
+
+  function tratarNegativaMarca(error) {
+    if (!RecursosPlanos.registrarNegativa(error, 'personalizacao_marca')) return false;
+    showToast('Personalização da Marca indisponível', 'Esta ação não está disponível no pacote atual.');
+    return true;
+  }
+
+  async function submitMarca(origem) {
+    if (marcaSubmetendo) return;
+    const textoOriginal = origem?.textContent || '';
+    marcaSubmetendo = true;
+    if (origem) { origem.disabled = true; origem.textContent = 'Salvando...'; }
+    try {
+    const autorizacao = await autorizarAcaoMarca(origem);
+    if (!autorizacao.permitido) return;
     const nome = document.getElementById('mkNome').value.trim();
     if (!nome) { showToast('Faltou o nome', 'Informe o nome do restaurante.'); return; }
     const slugFinal = normalizarSlugSubdominio(document.getElementById('mkSlug').value);
@@ -299,6 +324,7 @@
 
     const { error } = await sb.from('restaurantes').update(payload).eq('id', restauranteId);
     if (error) {
+      if (tratarNegativaMarca(error)) return;
       if (error.message && error.message.toLowerCase().includes('duplicate')) {
         showToast('Link já está em uso', 'Esse link (slug) já pertence a outro restaurante. Escolha outro.');
       } else {
@@ -324,11 +350,20 @@
     await atualizarStatusLoja();
     atualizarLinkCardapioPreview();
     showToast('Marca atualizada', 'As alterações já valem para o cardápio público.');
+    } finally {
+      marcaSubmetendo = false;
+      if (origem) { origem.disabled = false; origem.textContent = textoOriginal; }
+    }
   }
 
   async function onLogoMarcaSelecionado(input) {
     const file = input.files[0];
     if (!file) return;
+    const autorizacao = await autorizarAcaoMarca(input);
+    if (!autorizacao.permitido) {
+      if (autorizacao.motivo === 'indisponivel') input.value = '';
+      return;
+    }
     if (!file.type.startsWith('image/')) { showToast('Arquivo inválido', 'Selecione um arquivo de imagem.'); return; }
     if (file.size > 5 * 1024 * 1024) { showToast('Imagem muito grande', 'Escolha uma imagem de até 5MB.'); return; }
 

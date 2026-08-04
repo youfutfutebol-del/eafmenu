@@ -262,9 +262,13 @@ async function salvarNovaSenhaRecuperacao() {
   }
 
   let resetSenhaUsuarioAlvoId = null;
+  let resetSenhaUsuarioRecursoCodigo = null;
+  let resetSenhaUsuarioFocoOrigem = null;
 
-  function abrirResetSenhaUsuario(id, nome) {
+  function abrirResetSenhaUsuario(id, nome, recursoCodigo, focoOrigem) {
     resetSenhaUsuarioAlvoId = id;
+    resetSenhaUsuarioRecursoCodigo = recursoCodigo || null;
+    resetSenhaUsuarioFocoOrigem = focoOrigem || document.activeElement;
     document.getElementById('resetSenhaUsuarioNome').textContent = nome || 'Usuário';
     document.getElementById('resetSenhaUsuarioNova').value = '';
     document.getElementById('resetSenhaUsuarioConfirm').value = '';
@@ -274,11 +278,15 @@ async function salvarNovaSenhaRecuperacao() {
   }
 
   function fecharResetSenhaUsuario() {
+    const focoRetorno = resetSenhaUsuarioFocoOrigem;
     resetSenhaUsuarioAlvoId = null;
+    resetSenhaUsuarioRecursoCodigo = null;
+    resetSenhaUsuarioFocoOrigem = null;
     document.getElementById('resetSenhaUsuarioNome').textContent = '';
     document.getElementById('resetSenhaUsuarioNova').value = '';
     document.getElementById('resetSenhaUsuarioConfirm').value = '';
     document.getElementById('resetSenhaUsuarioModalBg').classList.remove('show');
+    if (focoRetorno?.isConnected && focoRetorno.getClientRects().length && !focoRetorno.disabled) focoRetorno.focus();
   }
 
   function alternarVisibilidadeResetSenhaUsuario(mostrar) {
@@ -298,8 +306,25 @@ async function salvarNovaSenhaRecuperacao() {
     if (botao.disabled) return;
     botao.disabled = true;
     try {
+      if (resetSenhaUsuarioRecursoCodigo) {
+        const autorizacao = await RecursosPlanos.autorizar(resetSenhaUsuarioRecursoCodigo, botao, {
+          restauranteNome: restauranteInfo?.nome || '',
+          nomeFallback: 'Gestão de Equipe',
+          focoRetorno: botao
+        });
+        if (!autorizacao.permitido) {
+          if (autorizacao.motivo === 'erro') {
+            showToast('Não foi possível verificar o recurso', 'Tente novamente antes de continuar.');
+          }
+          return;
+        }
+      }
       const { error } = await sb.rpc('redefinir_senha_usuario', { p_usuario_id: id, p_nova_senha: nova });
       if (error) {
+        if (resetSenhaUsuarioRecursoCodigo && RecursosPlanos.registrarNegativa(error, resetSenhaUsuarioRecursoCodigo)) {
+          showToast('Gestão de Equipe indisponível', 'A senha não foi alterada.');
+          return;
+        }
         console.warn('Falha técnica ao redefinir senha de usuário:', error);
         showToast('Senha não redefinida', 'Não foi possível redefinir a senha. Tente novamente.');
         return;
