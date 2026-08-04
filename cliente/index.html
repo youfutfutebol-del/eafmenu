@@ -534,6 +534,7 @@
   let restaurante = null;
   let restauranteIndisponivelTemporariamente = false;
   let categorias = [];
+  let produtosEmPromocaoIds = new Set();
   let produtos = [];
   let gruposTamanho = [];
   let cliente = null; // { id, nome, telefone }
@@ -631,7 +632,7 @@
     await carregarSessaoCliente();
     atualizarSaudacao();
 
-    await loadCardapio();
+    await Promise.all([loadCardapio(), carregarProdutosEmPromocao()]);
     renderCardapio();
     atualizarCartFab();
     await atualizarBadgePedidos();
@@ -1185,15 +1186,34 @@
   // =====================================================================
   // RENDER CARDÁPIO
   // =====================================================================
+  async function carregarProdutosEmPromocao() {
+    try {
+      const { data, error } = await sb.rpc('produtos_em_promocao_ativa', { p_restaurante_id: restaurante.id });
+      if (error) throw error;
+      produtosEmPromocaoIds = new Set((data || []).map(p => String(p.produto_id)));
+    } catch (erro) {
+      console.warn('Não foi possível carregar promoções ativas:', erro);
+      produtosEmPromocaoIds = new Set();
+    }
+  }
+
+  function nomeSecaoOfertas() {
+    return (restaurante?.nome_secao_ofertas || '').trim() || 'Ofertas';
+  }
+
   function renderCatTabs() {
     const wrap = document.getElementById('catTabs');
-    if (categorias.length === 0) {
+    if (categorias.length === 0 && produtosEmPromocaoIds.size === 0) {
       wrap.innerHTML = '';
       atualizarDimensoesNavegacaoCardapio();
       return;
     }
-    wrap.innerHTML = categorias.map((c, i) =>
-      `<button class="cat-tab ${i === 0 ? 'active' : ''}" data-action="categoria" data-cat="${escapeHtml(c.id)}">${escapeHtml(c.nome)}</button>`
+    const temOfertas = produtos.some(p => produtosEmPromocaoIds.has(String(p.id)));
+    const tabOfertas = temOfertas
+      ? `<button class="cat-tab ${'active'}" data-action="categoria" data-cat="ofertas">🔥 ${escapeHtml(nomeSecaoOfertas())}</button>`
+      : '';
+    wrap.innerHTML = tabOfertas + categorias.map((c, i) =>
+      `<button class="cat-tab ${!temOfertas && i === 0 ? 'active' : ''}" data-action="categoria" data-cat="${escapeHtml(c.id)}">${escapeHtml(c.nome)}</button>`
     ).join('');
     atualizarDimensoesNavegacaoCardapio();
   }
@@ -1219,7 +1239,11 @@
       .filter(g => g.itens.length > 0);
     if (semCategoria.length) grupos.push({ cat: { id: 'sem-categoria', nome: 'Outros' }, itens: semCategoria });
 
-    wrap.innerHTML = grupos.map(g => `
+    const itensOfertas = produtos.filter(p => produtosEmPromocaoIds.has(String(p.id)));
+    const grupoOfertas = itensOfertas.length ? [{ cat: { id: 'ofertas', nome: nomeSecaoOfertas() }, itens: itensOfertas }] : [];
+    const gruposFinais = [...grupoOfertas, ...grupos];
+
+    wrap.innerHTML = gruposFinais.map(g => `
       <div class="cat-section" id="sec-${escapeHtml(g.cat.id)}">
         <div class="cat-section__title">${escapeHtml(g.cat.nome)}</div>
         ${g.itens.map(p => `
