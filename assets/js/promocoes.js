@@ -317,13 +317,28 @@
     el('promoPercentual').value = existente?.beneficio_percentual || 100;
     el('promoLimite').value = existente?.max_aplicacoes_por_pedido || '';
     el('promoBeneficioModo').value = existente?.beneficio_modo || 'produto_fixo';
+    el('promoTituloVitrine').value = existente?.titulo_vitrine || '';
+el('promoDescricaoVitrine').value = existente?.descricao_vitrine || '';
+el('promoPrecoVitrineDe').value = existente?.preco_vitrine_de ?? '';
+el('promoPrecoVitrinePor').value = existente?.preco_vitrine_por ?? '';
+el('promoImagemUrl').value = existente?.imagem_vitrine_url || '';
+el('promoImagemArquivo').value = '';
+el('promoImagemStatus').textContent = '';
+if (existente?.imagem_vitrine_url) {
+  el('promoImagemPreview').src = existente.imagem_vitrine_url;
+  el('promoImagemPreview').style.display = 'block';
+  el('promoImagemPlaceholder').style.display = 'none';
+} else {
+  el('promoImagemPreview').style.display = 'none';
+  el('promoImagemPlaceholder').style.display = 'flex';
+}
     if (existente) { promoForm.condicao = estadoDoEscopo(encontrarEscopo(existente, 'condicao')); promoForm.beneficio = estadoDoEscopo(encontrarEscopo(existente, 'beneficio')); }
     el('promoCondicaoTipo').value = promoForm.condicao.tipo;
     el('promoBeneficioTipo').value = promoForm.beneficio.tipo;
     el('promocaoModalTitle').textContent = promoForm.somenteLeitura ? 'Detalhes da promoção' : existente ? 'Editar promoção' : 'Nova promoção';
     el('promocaoModalHint').textContent = promoForm.somenteLeitura ? 'Visualização somente leitura.' : 'A promoção será salva inicialmente como rascunho inativo.';
     el('salvarPromocaoBtn').style.display = promoForm.somenteLeitura ? 'none' : '';
-    ['promoNome','promoCondicaoQtd','promoBeneficioQtd','promoPercentual','promoLimite','promoCondicaoTipo','promoBeneficioModo','promoBeneficioTipo'].forEach(i => { el(i).disabled = promoForm.somenteLeitura; });
+    ['promoNome','promoCondicaoQtd','promoBeneficioQtd','promoPercentual','promoLimite','promoCondicaoTipo','promoBeneficioModo','promoBeneficioTipo','promoTituloVitrine','promoDescricaoVitrine','promoPrecoVitrineDe','promoPrecoVitrinePor','promoImagemArquivo'].forEach(i => { el(i).disabled = promoForm.somenteLeitura; });
     document.querySelector('.promo-shortcut').style.display = promoForm.somenteLeitura ? 'none' : '';
     el('promoAtalhoCampos').hidden = true; mostrarErroForm(''); onPromocaoModoChange();
     el('promocaoModalBg').classList.add('show');
@@ -348,6 +363,9 @@
     if (!el('promoNome').value.trim()) return 'Informe o nome da promoção.';
     if (numero('promoCondicaoQtd') < 1 || numero('promoBeneficioQtd') < 1) return 'As quantidades devem ser maiores que zero.';
     if (numero('promoPercentual') < 1 || numero('promoPercentual') > 100) return 'O desconto deve ficar entre 1% e 100%.';
+    const precoVitrineDe = el('promoPrecoVitrineDe').value !== '' ? numero('promoPrecoVitrineDe') : null;
+const precoVitrinePor = el('promoPrecoVitrinePor').value !== '' ? numero('promoPrecoVitrinePor') : null;
+if (precoVitrineDe !== null && precoVitrinePor !== null && precoVitrinePor > precoVitrineDe) return 'O preço "por" da vitrine não pode ser maior que o preço "de".';
     const modo = el('promoBeneficioModo').value;
     if (modo === 'produto_fixo' && promoForm.beneficio.tipo !== 'produto') return 'No produto definido pelo restaurante, o benefício deve ser um produto.';
     if (modo === 'escolha_cliente' && promoForm.beneficio.tipo === 'produto') return 'Na escolha do cliente, use uma lista ou categoria.';
@@ -385,10 +403,24 @@
   }
 
   function payloadGeral(incluirCriador = false) {
-    const payload = { restaurante_id: restauranteId, nome: el('promoNome').value.trim(), condicao_quantidade: numero('promoCondicaoQtd'), beneficio_quantidade: numero('promoBeneficioQtd'), beneficio_percentual: numero('promoPercentual'), beneficio_modo: el('promoBeneficioModo').value, max_aplicacoes_por_pedido: el('promoLimite').value ? numero('promoLimite') : null, ativo: false };
-    if (incluirCriador) payload.criado_por = currentUser.id;
-    return payload;
-  }
+  const payload = {
+    restaurante_id: restauranteId,
+    nome: el('promoNome').value.trim(),
+    condicao_quantidade: numero('promoCondicaoQtd'),
+    beneficio_quantidade: numero('promoBeneficioQtd'),
+    beneficio_percentual: numero('promoPercentual'),
+    beneficio_modo: el('promoBeneficioModo').value,
+    max_aplicacoes_por_pedido: el('promoLimite').value ? numero('promoLimite') : null,
+    titulo_vitrine: el('promoTituloVitrine').value.trim() || null,
+    descricao_vitrine: el('promoDescricaoVitrine').value.trim() || null,
+    imagem_vitrine_url: el('promoImagemUrl').value.trim() || null,
+    preco_vitrine_de: el('promoPrecoVitrineDe').value !== '' ? numero('promoPrecoVitrineDe') : null,
+    preco_vitrine_por: el('promoPrecoVitrinePor').value !== '' ? numero('promoPrecoVitrinePor') : null,
+    ativo: false
+  };
+  if (incluirCriador) payload.criado_por = currentUser.id;
+  return payload;
+}
   async function criarEscopo(promocaoId, papel, estado) {
     const { data, error } = await sb.from('promocao_escopos').insert({ promocao_id: promocaoId, restaurante_id: restauranteId, papel, tipo: tipoTelaParaBanco(estado.tipo) }).select('id').single();
     if (error) throw error;
@@ -440,6 +472,20 @@
     }
   }
 
+  async function onImagemPromocaoSelecionada(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (!await autorizarAcaoPromocoes(input)) { input.value = ''; el('promoImagemStatus').textContent = ''; return; }
+  if (!file.type.startsWith('image/')) { showToast('Arquivo inválido', 'Selecione um arquivo de imagem.'); return; }
+  if (file.size > 5 * 1024 * 1024) { showToast('Imagem muito grande', 'Escolha uma imagem de até 5MB.'); return; }
+  el('promoImagemPreview').src = URL.createObjectURL(file);
+  el('promoImagemPreview').style.display = 'block';
+  el('promoImagemPlaceholder').style.display = 'none';
+  el('promoImagemStatus').textContent = 'Enviando imagem...';
+  const url = await uploadImagem(file, 'promocoes');
+  if (url) { el('promoImagemUrl').value = url; el('promoImagemStatus').textContent = 'Imagem enviada ✓'; }
+  else { el('promoImagemStatus').textContent = 'Falha no envio, tente novamente.'; }
+}
   async function acaoPromocao(acao, id, botaoOrigem) {
     if (promocaoAcaoEmAndamento) return;
     if (!podeAdministrar()) return;
@@ -457,7 +503,7 @@
     }
   }
 
-  Object.assign(window, { loadPromocoes, openPromocao, closePromocao, renderPromocaoEscopos, onPromocaoModoChange, setPromoCategoria, setPromoItem, adicionarPromoItem, removerPromoItem, aplicarAtalhoLevePague, atualizarAtalhoLevePague, submitPromocao, acaoPromocao });
+  Object.assign(window, { loadPromocoes, openPromocao, closePromocao, renderPromocaoEscopos, onPromocaoModoChange, setPromoCategoria, setPromoItem, adicionarPromoItem, removerPromoItem, aplicarAtalhoLevePague, atualizarAtalhoLevePague, submitPromocao, acaoPromocao, onImagemPromocaoSelecionada });
   document.addEventListener('input', event => { if (event.target.closest?.('#promocaoModalBg')) atualizarPreviewPromocao(); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && el('promocaoModalBg')?.classList.contains('show')) closePromocao(); });
 })();
