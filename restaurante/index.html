@@ -596,16 +596,27 @@
       <h4>Dados gerais</h4>
       <div class="promo-grid">
         <div class="field promo-span-2"><label for="promoNome">Nome da promoção</label><input id="promoNome" maxlength="100" placeholder="Ex.: Leve 3 doces e pague 2"></div>
+        <div class="field promo-span-2"><label for="promoModelo">Modelo da promoção</label><select id="promoModelo" onchange="onPromocaoModeloChange()"><option value="quantidade">Quantidade (clássico: condição + benefício)</option><option value="etapas">Etapas (mini-cardápio guiado, passo a passo)</option></select></div>
+        <div id="promoSecaoModeloQuantidadeCampos" class="promo-span-2">
+        <div class="promo-grid">
         <div class="field"><label for="promoCondicaoQtd">Quantidade necessária</label><input id="promoCondicaoQtd" type="number" min="1" step="1" value="2"></div>
         <div class="field"><label for="promoBeneficioQtd">Quantidade do benefício</label><input id="promoBeneficioQtd" type="number" min="1" step="1" value="1"></div>
         <div class="field"><label for="promoPercentual">Percentual de desconto</label><input id="promoPercentual" type="number" min="1" max="100" step="1" value="100"><small>100% = grátis; 50% = metade do preço; 10% = 10% de desconto.</small></div>
         <div class="field"><label for="promoLimite">Máximo de aplicações por pedido (opcional)</label><input id="promoLimite" type="number" min="1" step="1" placeholder="Sem limite"></div>
-      </div>
+        </div>
       <button class="promo-shortcut" type="button" onclick="aplicarAtalhoLevePague()">Atalho: Leve X, pague Y</button>
       <div id="promoAtalhoCampos" class="promo-atalho-campos" hidden>
         <div class="field"><label for="promoLeveX">Leve</label><input id="promoLeveX" type="number" min="2" step="1" value="3" oninput="atualizarAtalhoLevePague()"></div>
         <div class="field"><label for="promoPagueY">Pague</label><input id="promoPagueY" type="number" min="1" step="1" value="2" oninput="atualizarAtalhoLevePague()"></div>
       </div>
+        </div>
+      </div>
+    </div>
+    <div class="promo-section" id="promoSecaoEtapas" style="display:none">
+      <h4>Etapas do mini-cardápio</h4>
+      <p style="font-size:12px;color:var(--muted);margin:-6px 0 10px;">Monte o passo a passo que o cliente vai seguir. A ordem aqui é a ordem que ele vê no pop-up. Marque qual etapa é o benefício (desconto/grátis).</p>
+      <div id="promoEtapasLista"></div>
+      <button class="promo-shortcut" type="button" onclick="adicionarEtapa()">+ Adicionar etapa</button>
     </div>
     <div class="promo-section">
   <h4>Vitrine (opcional)</h4>
@@ -631,14 +642,14 @@
     </div>
   </div>
 </div>
-    <div class="promo-section">
+    <div class="promo-section" id="promoSecaoCondicao">
       <h4>O cliente precisa comprar</h4>
       <div class="promo-grid">
         <div class="field"><label for="promoCondicaoTipo">Tipo de condição</label><select id="promoCondicaoTipo" onchange="renderPromocaoEscopos()"><option value="produto">Um produto</option><option value="lista">Uma lista de produtos</option><option value="categoria">Uma categoria</option></select></div>
         <div id="promoCondicaoCampos" class="promo-span-2"></div>
       </div>
     </div>
-    <div class="promo-section">
+    <div class="promo-section" id="promoSecaoBeneficio">
       <h4>Benefício</h4>
       <div class="field promo-modo"><label for="promoBeneficioModo">Como aplicar o benefício</label><select id="promoBeneficioModo" onchange="onPromocaoModoChange()"><option value="produto_fixo">Produto definido pelo restaurante</option><option value="escolha_cliente">Cliente escolhe entre as opções</option><option value="menor_preco_elegivel">Aplicar no item elegível de menor preço</option></select></div>
       <div class="promo-grid">

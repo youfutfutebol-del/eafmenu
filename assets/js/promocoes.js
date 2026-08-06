@@ -11,10 +11,15 @@
 
   function novoEstadoForm() {
     return {
+      modelo: 'quantidade',
       condicao: { tipo: 'produto', categoriaId: '', itens: [{ produtoId: '', tamanhoId: '' }] },
       beneficio: { tipo: 'produto', categoriaId: '', itens: [{ produtoId: '', tamanhoId: '' }] },
+      etapas: [novaEtapaVazia()],
       somenteLeitura: false
     };
+  }
+  function novaEtapaVazia() {
+    return { titulo: '', ehBeneficio: false, percentual: 100, tipo: 'produto', categoriaId: '', itens: [{ produtoId: '', tamanhoId: '' }] };
   }
 
   const el = id => document.getElementById(id);
@@ -102,7 +107,7 @@
       return;
     }
     const { data, error } = await sb.from('promocoes')
-      .select('id, restaurante_id, nome, ativo, arquivado_em, condicao_quantidade, beneficio_quantidade, beneficio_percentual, beneficio_modo, max_aplicacoes_por_pedido, criado_por, criado_em')
+      .select('id, restaurante_id, nome, ativo, arquivado_em, modelo, condicao_quantidade, beneficio_quantidade, beneficio_percentual, beneficio_modo, max_aplicacoes_por_pedido, titulo_vitrine, descricao_vitrine, imagem_vitrine_url, preco_vitrine_de, preco_vitrine_por, criado_por, criado_em')
       .eq('restaurante_id', restauranteId);
     if (error) {
       tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><h4>Não foi possível carregar as promoções</h4><p>${h(erroAmigavel(error))}</p></div></td></tr>`;
@@ -133,6 +138,21 @@
       }
       escoposCarregados.forEach(escopo => { escopo.promocao_escopo_itens = itensCarregados.filter(i => String(i.promocao_escopo_id) === String(escopo.id)); });
       promocoesCache.forEach(promo => { promo.promocao_escopos = escoposCarregados.filter(e => String(e.promocao_id) === String(promo.id)); });
+
+      const etapasRes = await sb.from('promocao_etapas')
+        .select('id, promocao_id, restaurante_id, ordem, titulo, eh_beneficio, percentual_desconto')
+        .eq('restaurante_id', restauranteId).in('promocao_id', promocaoIds).order('ordem');
+      const etapasCarregadas = etapasRes.data || [];
+      const etapaIds = etapasCarregadas.map(e => e.id);
+      let itensEtapaCarregados = [];
+      if (etapaIds.length) {
+        const itensEtapaRes = await sb.from('promocao_etapa_itens')
+          .select('id, etapa_id, restaurante_id, produto_id, categoria_id, opcao_tamanho_id')
+          .eq('restaurante_id', restauranteId).in('etapa_id', etapaIds);
+        itensEtapaCarregados = itensEtapaRes.data || [];
+      }
+      etapasCarregadas.forEach(etapa => { etapa.promocao_etapa_itens = itensEtapaCarregados.filter(i => String(i.etapa_id) === String(etapa.id)); });
+      promocoesCache.forEach(promo => { promo.promocao_etapas = etapasCarregadas.filter(e => String(e.promocao_id) === String(promo.id)); });
     }
     renderPromocoes();
   }
@@ -259,6 +279,108 @@
   function adicionarPromoItem(papel) { promoForm[papel].itens.push({ produtoId: '', tamanhoId: '' }); renderEscopo(papel); }
   function removerPromoItem(papel, indice) { promoForm[papel].itens.splice(indice, 1); if (!promoForm[papel].itens.length) adicionarPromoItem(papel); else renderEscopo(papel); atualizarPreviewPromocao(); }
 
+  function onPromocaoModeloChange() {
+    promoForm.modelo = el('promoModelo').value;
+    const ehEtapas = promoForm.modelo === 'etapas';
+    el('promoSecaoModeloQuantidadeCampos').style.display = ehEtapas ? 'none' : '';
+    el('promoSecaoCondicao').style.display = ehEtapas ? 'none' : '';
+    el('promoSecaoBeneficio').style.display = ehEtapas ? 'none' : '';
+    el('promoSecaoEtapas').style.display = ehEtapas ? '' : 'none';
+    if (ehEtapas) { if (!promoForm.etapas.length) promoForm.etapas = [novaEtapaVazia()]; renderPromoEtapas(); }
+  }
+  function adicionarEtapa() { promoForm.etapas.push(novaEtapaVazia()); renderPromoEtapas(); }
+  function removerEtapa(indice) {
+    promoForm.etapas.splice(indice, 1);
+    if (!promoForm.etapas.length) promoForm.etapas.push(novaEtapaVazia());
+    renderPromoEtapas();
+  }
+  function moverEtapa(indice, direcao) {
+    const alvo = indice + direcao;
+    if (alvo < 0 || alvo >= promoForm.etapas.length) return;
+    const [item] = promoForm.etapas.splice(indice, 1);
+    promoForm.etapas.splice(alvo, 0, item);
+    renderPromoEtapas();
+  }
+  function setEtapaCampo(indice, campo, valor) { promoForm.etapas[indice][campo] = valor; }
+  function setEtapaTipo(indice, valor) {
+    promoForm.etapas[indice].tipo = valor;
+    promoForm.etapas[indice].categoriaId = '';
+    promoForm.etapas[indice].itens = [{ produtoId: '', tamanhoId: '' }];
+    renderPromoEtapas();
+  }
+  function setEtapaCategoria(indice, valor) { promoForm.etapas[indice].categoriaId = valor; }
+  function setEtapaItem(indice, itemIndice, campo, valor) {
+    promoForm.etapas[indice].itens[itemIndice][campo] = valor;
+    if (campo === 'produtoId') { promoForm.etapas[indice].itens[itemIndice].tamanhoId = ''; renderPromoEtapas(); }
+  }
+  function adicionarEtapaItem(indice) { promoForm.etapas[indice].itens.push({ produtoId: '', tamanhoId: '' }); renderPromoEtapas(); }
+  function removerEtapaItem(indice, itemIndice) {
+    promoForm.etapas[indice].itens.splice(itemIndice, 1);
+    if (!promoForm.etapas[indice].itens.length) promoForm.etapas[indice].itens.push({ produtoId: '', tamanhoId: '' });
+    renderPromoEtapas();
+  }
+  function renderPromoEtapas() {
+    const wrap = el('promoEtapasLista');
+    if (!wrap) return;
+    const leitura = promoForm.somenteLeitura;
+    wrap.innerHTML = promoForm.etapas.map((etapa, indice) => `
+      <div class="promo-etapa-card">
+        <div class="promo-etapa-cabecalho">
+          <b>Etapa ${indice + 1}</b>
+          <div class="promo-etapa-acoes">
+            ${!leitura && indice > 0 ? `<button type="button" onclick="moverEtapa(${indice}, -1)">↑</button>` : ''}
+            ${!leitura && indice < promoForm.etapas.length - 1 ? `<button type="button" onclick="moverEtapa(${indice}, 1)">↓</button>` : ''}
+            ${!leitura && promoForm.etapas.length > 1 ? `<button type="button" class="danger" onclick="removerEtapa(${indice})">Remover</button>` : ''}
+          </div>
+        </div>
+        <div class="field"><label>Título da etapa (o que o cliente vê)</label><input ${leitura ? 'disabled' : ''} value="${h(etapa.titulo)}" placeholder="Ex.: Escolha a primeira pizza (40cm)" oninput="setEtapaCampo(${indice}, 'titulo', this.value)"></div>
+        <div class="promo-etapa-beneficio">
+          <label><input type="checkbox" ${leitura ? 'disabled' : ''} ${etapa.ehBeneficio ? 'checked' : ''} onchange="setEtapaCampo(${indice}, 'ehBeneficio', this.checked)"> Essa etapa é o benefício/desconto</label>
+          ${etapa.ehBeneficio ? `<div class="field"><label>Desconto (%)</label><input type="number" min="1" max="100" ${leitura ? 'disabled' : ''} value="${h(etapa.percentual)}" oninput="setEtapaCampo(${indice}, 'percentual', this.value)"></div>` : ''}
+        </div>
+        <div class="field"><label>Produtos elegíveis nesta etapa</label>
+          <select ${leitura ? 'disabled' : ''} onchange="setEtapaTipo(${indice}, this.value)">
+            <option value="produto" ${etapa.tipo === 'produto' ? 'selected' : ''}>Um produto específico</option>
+            <option value="lista" ${etapa.tipo === 'lista' ? 'selected' : ''}>Lista de produtos (cliente escolhe 1)</option>
+            <option value="categoria" ${etapa.tipo === 'categoria' ? 'selected' : ''}>Qualquer produto de uma categoria</option>
+          </select>
+        </div>
+        ${etapa.tipo === 'categoria'
+          ? `<div class="field"><label>Categoria</label><select ${leitura ? 'disabled' : ''} onchange="setEtapaCategoria(${indice}, this.value)"><option value="">Selecione uma categoria</option>${promoCategorias.map(c => `<option value="${h(c.id)}" ${String(c.id) === String(etapa.categoriaId) ? 'selected' : ''}>${h(c.nome)}</option>`).join('')}</select></div>`
+          : etapa.itens.map((item, itemIndice) => `
+            <div class="promo-item-row">
+              <div class="field"><label>${etapa.tipo === 'lista' ? `Produto ${itemIndice + 1}` : 'Produto'}</label><select ${leitura ? 'disabled' : ''} onchange="setEtapaItem(${indice}, ${itemIndice}, 'produtoId', this.value)">${opcoesProduto(item.produtoId)}</select></div>
+              <div class="field"><label>Tamanho</label><select ${leitura ? 'disabled' : ''} onchange="setEtapaItem(${indice}, ${itemIndice}, 'tamanhoId', this.value)">${opcoesTamanho(item.produtoId, item.tamanhoId)}</select></div>
+              ${etapa.tipo === 'lista' && !leitura ? `<button class="promo-remove-item" type="button" onclick="removerEtapaItem(${indice}, ${itemIndice})">Remover</button>` : '<span></span>'}
+            </div>
+          `).join('') + (etapa.tipo === 'lista' && !leitura ? `<button class="promo-add-item" type="button" onclick="adicionarEtapaItem(${indice})">+ Adicionar produto</button>` : '')
+        }
+      </div>
+    `).join('');
+  }
+  async function salvarEtapas(promocaoId) {
+    if (promoForm.modelo !== 'etapas') return;
+    const del = await sb.from('promocao_etapas').delete().eq('promocao_id', promocaoId).eq('restaurante_id', restauranteId);
+    if (del.error) throw del.error;
+    for (let i = 0; i < promoForm.etapas.length; i++) {
+      const etapa = promoForm.etapas[i];
+      const insEtapa = await sb.from('promocao_etapas').insert({
+        promocao_id: promocaoId, restaurante_id: restauranteId, ordem: i + 1,
+        titulo: etapa.titulo.trim(), eh_beneficio: etapa.ehBeneficio,
+        percentual_desconto: etapa.ehBeneficio ? Number(etapa.percentual) : 0
+      }).select('id').single();
+      if (insEtapa.error) throw insEtapa.error;
+      const etapaId = insEtapa.data.id;
+      const itens = etapa.tipo === 'categoria'
+        ? [{ etapa_id: etapaId, restaurante_id: restauranteId, produto_id: null, categoria_id: etapa.categoriaId, opcao_tamanho_id: null }]
+        : etapa.itens.filter(it => it.produtoId).map(it => ({ etapa_id: etapaId, restaurante_id: restauranteId, produto_id: it.produtoId, categoria_id: null, opcao_tamanho_id: it.tamanhoId || null }));
+      if (itens.length) {
+        const insItens = await sb.from('promocao_etapa_itens').insert(itens);
+        if (insItens.error) throw insItens.error;
+      }
+    }
+  }
+
   function onPromocaoModoChange() {
     const modo = el('promoBeneficioModo').value;
     const tipo = el('promoBeneficioTipo');
@@ -333,14 +455,32 @@ if (existente?.imagem_vitrine_url) {
   el('promoImagemPlaceholder').style.display = 'flex';
 }
     if (existente) { promoForm.condicao = estadoDoEscopo(encontrarEscopo(existente, 'condicao')); promoForm.beneficio = estadoDoEscopo(encontrarEscopo(existente, 'beneficio')); }
+    promoForm.modelo = existente?.modelo || 'quantidade';
+    if (existente?.modelo === 'etapas' && existente.promocao_etapas?.length) {
+      promoForm.etapas = existente.promocao_etapas.map(et => {
+        const itens = et.promocao_etapa_itens || [];
+        const categoriaItem = itens.find(i => i.categoria_id);
+        return {
+          titulo: et.titulo || '',
+          ehBeneficio: Boolean(et.eh_beneficio),
+          percentual: et.percentual_desconto || 100,
+          tipo: categoriaItem ? 'categoria' : (itens.length > 1 ? 'lista' : 'produto'),
+          categoriaId: categoriaItem?.categoria_id || '',
+          itens: categoriaItem ? [{ produtoId: '', tamanhoId: '' }] : (itens.length ? itens.map(i => ({ produtoId: i.produto_id, tamanhoId: i.opcao_tamanho_id || '' })) : [{ produtoId: '', tamanhoId: '' }])
+        };
+      });
+    } else {
+      promoForm.etapas = [novaEtapaVazia()];
+    }
+    el('promoModelo').value = promoForm.modelo;
     el('promoCondicaoTipo').value = promoForm.condicao.tipo;
     el('promoBeneficioTipo').value = promoForm.beneficio.tipo;
     el('promocaoModalTitle').textContent = promoForm.somenteLeitura ? 'Detalhes da promoção' : existente ? 'Editar promoção' : 'Nova promoção';
     el('promocaoModalHint').textContent = promoForm.somenteLeitura ? 'Visualização somente leitura.' : 'A promoção será salva inicialmente como rascunho inativo.';
     el('salvarPromocaoBtn').style.display = promoForm.somenteLeitura ? 'none' : '';
-    ['promoNome','promoCondicaoQtd','promoBeneficioQtd','promoPercentual','promoLimite','promoCondicaoTipo','promoBeneficioModo','promoBeneficioTipo','promoTituloVitrine','promoDescricaoVitrine','promoPrecoVitrineDe','promoPrecoVitrinePor','promoImagemArquivo'].forEach(i => { el(i).disabled = promoForm.somenteLeitura; });
+    ['promoNome','promoModelo','promoCondicaoQtd','promoBeneficioQtd','promoPercentual','promoLimite','promoCondicaoTipo','promoBeneficioModo','promoBeneficioTipo','promoTituloVitrine','promoDescricaoVitrine','promoPrecoVitrineDe','promoPrecoVitrinePor','promoImagemArquivo'].forEach(i => { el(i).disabled = promoForm.somenteLeitura; });
     document.querySelector('.promo-shortcut').style.display = promoForm.somenteLeitura ? 'none' : '';
-    el('promoAtalhoCampos').hidden = true; mostrarErroForm(''); onPromocaoModoChange();
+    el('promoAtalhoCampos').hidden = true; mostrarErroForm(''); onPromocaoModoChange(); onPromocaoModeloChange();
     el('promocaoModalBg').classList.add('show');
   }
   function closePromocao() { el('promocaoModalBg').classList.remove('show'); }
@@ -361,6 +501,18 @@ if (existente?.imagem_vitrine_url) {
 
   function validarPromocao() {
     if (!el('promoNome').value.trim()) return 'Informe o nome da promoção.';
+    if (promoForm.modelo === 'etapas') {
+      if (promoForm.etapas.length < 2) return 'Adicione pelo menos 2 etapas.';
+      if (!promoForm.etapas.some(e => e.ehBeneficio)) return 'Marque pelo menos uma etapa como benefício/desconto.';
+      for (let i = 0; i < promoForm.etapas.length; i++) {
+        const etapa = promoForm.etapas[i];
+        if (!etapa.titulo.trim()) return `Preencha o título da etapa ${i + 1}.`;
+        if (etapa.ehBeneficio && (!etapa.percentual || etapa.percentual < 1 || etapa.percentual > 100)) return `O desconto da etapa ${i + 1} deve ficar entre 1% e 100%.`;
+        if (etapa.tipo === 'categoria') { if (!etapa.categoriaId) return `Selecione a categoria da etapa ${i + 1}.`; }
+        else if (!etapa.itens.length || etapa.itens.some(it => !it.produtoId)) return `Selecione todos os produtos da etapa ${i + 1}.`;
+      }
+      return '';
+    }
     if (numero('promoCondicaoQtd') < 1 || numero('promoBeneficioQtd') < 1) return 'As quantidades devem ser maiores que zero.';
     if (numero('promoPercentual') < 1 || numero('promoPercentual') > 100) return 'O desconto deve ficar entre 1% e 100%.';
     const precoVitrineDe = el('promoPrecoVitrineDe').value !== '' ? numero('promoPrecoVitrineDe') : null;
@@ -403,13 +555,15 @@ if (precoVitrineDe !== null && precoVitrinePor !== null && precoVitrinePor > pre
   }
 
   function payloadGeral(incluirCriador = false) {
+  const ehEtapas = promoForm.modelo === 'etapas';
   const payload = {
     restaurante_id: restauranteId,
     nome: el('promoNome').value.trim(),
-    condicao_quantidade: numero('promoCondicaoQtd'),
-    beneficio_quantidade: numero('promoBeneficioQtd'),
-    beneficio_percentual: numero('promoPercentual'),
-    beneficio_modo: el('promoBeneficioModo').value,
+    modelo: promoForm.modelo,
+    condicao_quantidade: ehEtapas ? 1 : numero('promoCondicaoQtd'),
+    beneficio_quantidade: ehEtapas ? 1 : numero('promoBeneficioQtd'),
+    beneficio_percentual: ehEtapas ? 100 : numero('promoPercentual'),
+    beneficio_modo: ehEtapas ? 'produto_fixo' : el('promoBeneficioModo').value,
     max_aplicacoes_por_pedido: el('promoLimite').value ? numero('promoLimite') : null,
     titulo_vitrine: el('promoTituloVitrine').value.trim() || null,
     descricao_vitrine: el('promoDescricaoVitrine').value.trim() || null,
@@ -458,8 +612,12 @@ if (precoVitrineDe !== null && precoVitrinePor !== null && precoVitrinePor > pre
       } else {
         const ins = await sb.from('promocoes').insert(payloadGeral(true)).select('id').single(); if (ins.error) throw ins.error; promocaoId = ins.data.id; el('promoId').value = promocaoId;
       }
-      await criarEscopo(promocaoId, 'condicao', promoForm.condicao);
-      await criarEscopo(promocaoId, 'beneficio', promoForm.beneficio);
+      if (promoForm.modelo === 'etapas') {
+        await salvarEtapas(promocaoId);
+      } else {
+        await criarEscopo(promocaoId, 'condicao', promoForm.condicao);
+        await criarEscopo(promocaoId, 'beneficio', promoForm.beneficio);
+      }
       closePromocao(); showToast('Promoção salva', 'A campanha foi salva como rascunho e já pode ser ativada.'); await loadPromocoes();
     } catch (erro) {
       if (tratarNegativaPromocoes(erro)) return;
@@ -503,7 +661,7 @@ if (precoVitrineDe !== null && precoVitrinePor !== null && precoVitrinePor > pre
     }
   }
 
-  Object.assign(window, { loadPromocoes, openPromocao, closePromocao, renderPromocaoEscopos, onPromocaoModoChange, setPromoCategoria, setPromoItem, adicionarPromoItem, removerPromoItem, aplicarAtalhoLevePague, atualizarAtalhoLevePague, submitPromocao, acaoPromocao, onImagemPromocaoSelecionada });
+  Object.assign(window, { loadPromocoes, openPromocao, closePromocao, renderPromocaoEscopos, onPromocaoModoChange, setPromoCategoria, setPromoItem, adicionarPromoItem, removerPromoItem, aplicarAtalhoLevePague, atualizarAtalhoLevePague, submitPromocao, acaoPromocao, onImagemPromocaoSelecionada, onPromocaoModeloChange, adicionarEtapa, removerEtapa, moverEtapa, setEtapaCampo, setEtapaTipo, setEtapaCategoria, setEtapaItem, adicionarEtapaItem, removerEtapaItem });
   document.addEventListener('input', event => { if (event.target.closest?.('#promocaoModalBg')) atualizarPreviewPromocao(); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && el('promocaoModalBg')?.classList.contains('show')) closePromocao(); });
 })();
