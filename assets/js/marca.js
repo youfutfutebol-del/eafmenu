@@ -73,7 +73,7 @@
 
   async function loadMarca() {
     const { data, error } = await sb.from('restaurantes')
-      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horarios_semana, aceita_pedidos_24h, prazo_entrega_min_minutos, prazo_entrega_max_minutos')
+      .select('id, nome, slug, logo_url, cor_destaque, whatsapp, endereco, instagram, horarios_semana, aceita_pedidos_24h, prazo_entrega_min_minutos, prazo_entrega_max_minutos, nome_secao_ofertas')
       .eq('id', restauranteId)
       .single();
     if (error) { showToast('Erro ao carregar dados da marca', error.message); return; }
@@ -99,6 +99,7 @@
     document.getElementById('mkWhatsapp').value = data.whatsapp || '';
     document.getElementById('mkEndereco').value = data.endereco || '';
     document.getElementById('mkInstagram').value = data.instagram || '';
+    document.getElementById('mkNomeSecaoOfertas').value = data.nome_secao_ofertas || '';
     document.getElementById('mkPrazoEntregaMin').value = data.prazo_entrega_min_minutos == null ? '' : String(data.prazo_entrega_min_minutos);
     document.getElementById('mkPrazoEntregaMax').value = data.prazo_entrega_max_minutos == null ? '' : String(data.prazo_entrega_max_minutos);
     document.getElementById('mkAceitaPedidos24h').checked = data.aceita_pedidos_24h === true;
@@ -316,6 +317,7 @@
       whatsapp: document.getElementById('mkWhatsapp').value.trim() || null,
       endereco: document.getElementById('mkEndereco').value.trim() || null,
       instagram: document.getElementById('mkInstagram').value.trim() || null,
+      nome_secao_ofertas: document.getElementById('mkNomeSecaoOfertas').value.trim() || null,
       prazo_entrega_min_minutos: prazosEntrega.minimo,
       prazo_entrega_max_minutos: prazosEntrega.maximo,
       horarios_semana: horariosSemanaState,

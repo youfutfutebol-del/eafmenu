@@ -286,10 +286,10 @@
     transition: box-shadow .2s ease, border-color .2s ease, transform .15s ease;
   }
   .promo-etapas-card:active { transform: scale(.985); box-shadow: var(--shadow-sm); }
-  .promo-etapas-card__icone { font-size:26px; flex-shrink:0; }
-  .promo-etapas-card__info { flex:1; min-width:0; }
+  .promo-etapas-card__info { flex:1; min-width:0; display:flex; flex-direction:column; }
   .promo-etapas-card__nome { font-family: var(--font-display); font-weight:700; font-size:14.5px; margin:0 0 3px; letter-spacing:-.1px; }
-  .promo-etapas-card__desc { font-size:12px; color:var(--muted); margin:0 0 6px; line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .promo-etapas-card__desc { font-size:12px; color:var(--muted); margin:0 0 9px; line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .promo-etapas-card__preco { font-family: var(--font-display); font-weight:700; font-size:13px; margin:0 0 2px; }
   .promo-etapas-card__etapas { font-size:11.5px; font-weight:800; color:var(--accent); margin:0; }
 
   .etapa-row {
@@ -1265,6 +1265,15 @@
     return (temTamanho ? '<span class="de">a partir de</span> ' : '') + precoHtml(menor);
   }
 
+  // Preço "de/por" da vitrine de uma promoção por etapas — puramente informativo (marketing),
+  // não é usado em nenhum cálculo de carrinho/pedido. Só aparece quando o painel preencheu os dois campos.
+  function precoVitrineHtml(promo) {
+    const de = Number(promo.precoVitrineDe);
+    const por = Number(promo.precoVitrinePor);
+    if (!Number.isFinite(de) || !Number.isFinite(por) || de <= 0 || por <= 0) return '';
+    return `<span class="preco-normal-riscado">${formatMoeda(de)}</span><span class="preco-promocional">${formatMoeda(por)}</span>`;
+  }
+
   // =====================================================================
   // RENDER CARDÁPIO
   // =====================================================================
@@ -1388,13 +1397,18 @@
         <div class="cat-section__title">${escapeHtml(g.cat.nome)}</div>
         ${(g.promocoesEtapas || []).map(promo => `
           <div class="promo-etapas-card" data-action="abrir-promo-etapas" data-promo="${escapeHtml(promo.id)}">
-            <div class="promo-etapas-card__icone">🎁</div>
             <div class="promo-etapas-card__info">
-              <p class="promo-etapas-card__nome">${escapeHtml(promo.tituloVitrine || promo.nome)}</p>
+              <p class="promo-etapas-card__nome">🎁 ${escapeHtml(promo.tituloVitrine || promo.nome)}</p>
               ${promo.descricaoVitrine ? `<p class="promo-etapas-card__desc">${escapeHtml(promo.descricaoVitrine)}</p>` : ''}
-              <p class="promo-etapas-card__etapas">${promo.etapas.length} etapa${promo.etapas.length === 1 ? '' : 's'} para completar</p>
+              <div class="prod-card__footer">
+                <div>
+                  ${precoVitrineHtml(promo) ? `<p class="promo-etapas-card__preco">${precoVitrineHtml(promo)}</p>` : ''}
+                  <p class="promo-etapas-card__etapas">${promo.etapas.length} etapa${promo.etapas.length === 1 ? '' : 's'} para completar</p>
+                </div>
+                <span class="prod-card__selecionar">Montar <span aria-hidden="true">›</span></span>
+              </div>
             </div>
-            <span class="prod-card__selecionar">Montar <span aria-hidden="true">›</span></span>
+            <div class="prod-card__thumb">${validarUrlSegura(promo.imagemVitrineUrl) ? `<img src="${escapeHtml(validarUrlSegura(promo.imagemVitrineUrl))}" alt="">` : getProdutoPlaceholder(promo.tituloVitrine || promo.nome)}</div>
           </div>
         `).join('')}
         ${g.itens.map(p => `
