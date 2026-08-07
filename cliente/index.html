@@ -645,6 +645,10 @@
     document.documentElement.style.setProperty('--cliente-topbar-height', `${topbarHeight}px`);
     document.documentElement.style.setProperty('--cliente-banner-height', `${bannerHeight}px`);
     document.documentElement.style.setProperty('--cliente-categorias-height', `${categoriasHeight}px`);
+    // A régua do scroll-spy (configurarScrollSpyCategorias) depende desse mesmo offset —
+    // reajusta sempre que topbar/banner/abas mudam de altura (ex.: banner de loja fechada
+    // aparece/some), sem custo relevante já que isso é raro.
+    if (typeof configurarScrollSpyCategorias === 'function') configurarScrollSpyCategorias();
   }
 
   const observadorDimensoesNavegacaoCardapio = typeof ResizeObserver === 'function'
@@ -1366,11 +1370,109 @@
   }
 
   function irParaCategoria(catId, el) {
-    document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', t === el));
-    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    // Scroll manual (clique na aba): marca a aba na hora e suprime o scroll-spy enquanto
+    // a rolagem suave até a seção estiver em andamento, pra ele não "brigar" trocando a
+    // aba ativa no meio do caminho.
+    suprimirScrollSpyTemporariamente();
+    ativarAbaCategoria(catId);
     const target = document.getElementById('sec-' + catId);
     if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
+
+  // Marca a aba da categoria como ativa e rola a barra de abas horizontalmente pra
+  // mantê-la visível — usado tanto pelo clique manual quanto pelo scroll-spy automático.
+  function ativarAbaCategoria(catId) {
+    let alvo = null;
+    document.querySelectorAll('.cat-tab').forEach(t => {
+      const ativa = t.dataset.cat === catId;
+      t.classList.toggle('active', ativa);
+      if (ativa) alvo = t;
+    });
+    if (alvo) alvo.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }
+
+  // =====================================================================
+  // SCROLL-SPY DAS ABAS DE CATEGORIA
+  // =====================================================================
+  // Enquanto o cliente rola manualmente pelo cardápio, a aba correspondente à seção
+  // visível logo abaixo da navegação fixa (topbar + banner + abas) fica ativa sozinha.
+  let categoriaScrollObserver = null;
+  let scrollSpySuprimido = false;
+  let scrollSpySuprimidoTimeoutId = null;
+  let ultimaSecaoScrollSpy = null;
+
+  // Mesma régua usada pelo scroll-margin-top das .cat-section (CSS) — garante que a
+  // "linha" observada pelo IntersectionObserver seja exatamente onde as seções encostam
+  // depois do scrollIntoView({block:'start'}), sem duplicar o cálculo em dois lugares.
+  function obterOffsetStickyCardapio() {
+    const raiz = getComputedStyle(document.documentElement);
+    const topbar = parseFloat(raiz.getPropertyValue('--cliente-topbar-height')) || 0;
+    const banner = parseFloat(raiz.getPropertyValue('--cliente-banner-height')) || 0;
+    const categorias = parseFloat(raiz.getPropertyValue('--cliente-categorias-height')) || 0;
+    return topbar + banner + categorias;
+  }
+
+  function suprimirScrollSpyTemporariamente() {
+    scrollSpySuprimido = true;
+    clearTimeout(scrollSpySuprimidoTimeoutId);
+    // Fallback pra navegadores sem 'scrollend': tempo generoso pra cobrir o scrollIntoView
+    // suave até a seção mais distante do cardápio.
+    scrollSpySuprimidoTimeoutId = setTimeout(() => { scrollSpySuprimido = false; }, 1000);
+  }
+
+  if ('onscrollend' in window) {
+    window.addEventListener('scrollend', () => {
+      scrollSpySuprimido = false;
+      clearTimeout(scrollSpySuprimidoTimeoutId);
+    });
+  }
+
+  function configurarScrollSpyCategorias() {
+    if (categoriaScrollObserver) { categoriaScrollObserver.disconnect(); categoriaScrollObserver = null; }
+
+    const secoes = document.querySelectorAll('.cat-section');
+    if (!secoes.length) { ultimaSecaoScrollSpy = null; return; }
+    ultimaSecaoScrollSpy = secoes[secoes.length - 1].id.replace(/^sec-/, '');
+
+    if (typeof IntersectionObserver !== 'function') return;
+
+    // Encolhe a área observada a uma linha bem fina logo abaixo da navegação fixa: a
+    // seção que estiver cruzando essa linha é a "atual" (mesmo princípio de scroll-spy
+    // clássico, só que com o offset dinâmico calculado a partir do próprio CSS).
+    const offsetSticky = obterOffsetStickyCardapio();
+    const alturaRestante = Math.max(window.innerHeight - offsetSticky - 1, 0);
+
+    categoriaScrollObserver = new IntersectionObserver(entries => {
+      if (scrollSpySuprimido) return;
+      const visivel = entries.find(e => e.isIntersecting);
+      if (!visivel) return;
+      ativarAbaCategoria(visivel.target.id.replace(/^sec-/, ''));
+    }, {
+      rootMargin: `${-offsetSticky}px 0px -${alturaRestante}px 0px`,
+      threshold: 0
+    });
+
+    secoes.forEach(sec => categoriaScrollObserver.observe(sec));
+  }
+
+  // Rede de segurança: quando a última categoria é curta demais, a página pode não ter
+  // altura suficiente pra rolar até o ponto em que ela cruzaria a linha do observer acima
+  // (o scroll trava no fim antes disso). Se o cliente chegou no fim da página, a última
+  // categoria É a que está em foco, então ativa ela direto — sem esperar o IntersectionObserver.
+  function verificarFimDoCardapioParaScrollSpy() {
+    if (scrollSpySuprimido || !ultimaSecaoScrollSpy) return;
+    const chegouNoFim = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
+    if (chegouNoFim) ativarAbaCategoria(ultimaSecaoScrollSpy);
+  }
+
+  let scrollSpyFimRaf = null;
+  window.addEventListener('scroll', () => {
+    if (scrollSpyFimRaf) return;
+    scrollSpyFimRaf = requestAnimationFrame(() => {
+      scrollSpyFimRaf = null;
+      verificarFimDoCardapioParaScrollSpy();
+    });
+  }, { passive: true });
 
   function renderCardapio() {
     renderCatTabs();
@@ -1427,6 +1529,8 @@
         `).join('')}
       </div>
     `).join('');
+
+    configurarScrollSpyCategorias();
   }
 
   // =====================================================================
