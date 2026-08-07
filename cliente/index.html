@@ -276,6 +276,38 @@
   .cart-item__remove { background:none; border:none; color:var(--red); font-size:11px; font-weight:700; padding:5px 0; }
   .cart-total-row { display:flex; justify-content:space-between; align-items:center; padding:16px 0 6px; font-size:15px; font-weight:800; border-top:1px solid var(--border); margin-top:8px; font-family: var(--font-display); }
   .cart-empty { text-align:center; padding:44px 10px; color:var(--muted); font-size:13px; }
+  .cart-item__acoes-pacote { display:flex; gap:14px; margin-top:2px; }
+  .cart-item__editar { background:none; border:none; color:var(--accent); font-size:11px; font-weight:700; padding:5px 0; }
+
+  /* ---------------- Promoção por etapas (mini-cardápio guiado) ---------------- */
+  .promo-etapas-card {
+    display:flex; align-items:center; gap:13px; background:var(--surface); border:1.5px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+    border-radius:16px; padding:13px; margin-bottom:11px; box-shadow: var(--shadow-xs);
+    transition: box-shadow .2s ease, border-color .2s ease, transform .15s ease;
+  }
+  .promo-etapas-card:active { transform: scale(.985); box-shadow: var(--shadow-sm); }
+  .promo-etapas-card__icone { font-size:26px; flex-shrink:0; }
+  .promo-etapas-card__info { flex:1; min-width:0; }
+  .promo-etapas-card__nome { font-family: var(--font-display); font-weight:700; font-size:14.5px; margin:0 0 3px; letter-spacing:-.1px; }
+  .promo-etapas-card__desc { font-size:12px; color:var(--muted); margin:0 0 6px; line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .promo-etapas-card__etapas { font-size:11.5px; font-weight:800; color:var(--accent); margin:0; }
+
+  .etapa-row {
+    display:flex; align-items:center; gap:12px; border:1.5px solid var(--border); border-radius:12px;
+    padding:12px 14px; margin-bottom:9px; transition: border-color .15s ease, background .15s ease;
+  }
+  .etapa-row:last-child { margin-bottom:0; }
+  .etapa-row--concluida { border-color: var(--green); background: color-mix(in srgb, var(--green) 6%, #fff); }
+  .etapa-row__numero {
+    width:26px; height:26px; border-radius:50%; background:var(--bg); border:1.5px solid var(--border);
+    display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:800; color:var(--muted); flex-shrink:0;
+  }
+  .etapa-row--concluida .etapa-row__numero { background: var(--green); border-color: var(--green); color:#fff; }
+  .etapa-row__info { flex:1; min-width:0; }
+  .etapa-row__titulo { font-weight:700; font-size:13px; margin:0 0 2px; }
+  .etapa-row__status { font-size:12px; color:var(--muted); margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .etapa-row--concluida .etapa-row__status { color: var(--green); font-weight:600; }
+  .etapa-row__seta { color:var(--muted-soft); font-size:16px; flex-shrink:0; }
 
   /* ---------------- Checkout: steps ---------------- */
   .step-dots { display:flex; gap:5px; margin-bottom:18px; }
@@ -393,15 +425,41 @@
       <div class="sabor-opcoes" id="detSaboresOpcoes"></div>
     </div>
 
-    <div class="qtd-control">
+    <div class="qtd-control" id="detQtdControl">
       <button onclick="detAlterarQtd(-1)">−</button>
       <span class="num" id="detQtd">1</span>
       <button onclick="detAlterarQtd(1)">+</button>
     </div>
 
     <div class="btn-row">
-      <button class="btn" onclick="closeSheet('sheetProduto')">Cancelar</button>
+      <button class="btn" onclick="cancelarDetalheProduto()">Cancelar</button>
       <button class="btn primary" id="detAddBtn" onclick="confirmarAddCarrinho()">Adicionar · R$ 0,00</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SHEET: escolher produto de uma etapa (lista/categoria) ==================== -->
+<div class="sheet-bg" id="sheetEtapaEscolha">
+  <div class="sheet">
+    <div class="sheet__handle"></div>
+    <h3 id="etapaEscolhaTitulo">Escolha o produto</h3>
+    <div id="etapaEscolhaLista" style="margin-top:10px;"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="cancelarEscolhaEtapa()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SHEET: promoção por etapas (mini-cardápio guiado) ==================== -->
+<div class="sheet-bg" id="sheetPromoEtapas">
+  <div class="sheet">
+    <div class="sheet__handle"></div>
+    <h3 id="etapaPopupTitulo">Promoção</h3>
+    <p class="sub" id="etapaPopupDesc"></p>
+    <div id="etapaPopupLista" style="margin-top:6px;"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="fecharPromoEtapasPopup()">Cancelar</button>
+      <button class="btn primary" id="etapaPopupEnviarBtn" disabled onclick="enviarPacotePromocaoCarrinho()">Enviar pro carrinho</button>
     </div>
   </div>
 </div>
@@ -542,12 +600,20 @@
   let produtos = [];
   let gruposTamanho = [];
   let cliente = null; // { id, nome, telefone }
-  let cart = []; // { uid, nome, precoUnit, qtd, produtoId, opcaoTamanhoId, saboresIds:[] }
+  let cart = []; // itens normais: { uid, nome, precoUnit, qtd, produtoId, opcaoTamanhoId, saboresIds:[] }
+                 // pacotes de promoção por etapas: { uid, tipo:'pacote_promocao', nome, precoUnit, qtd:1, promocaoId, etapas:[...] }
 
   let detalheProdutoAtual = null;
   let detalheTamanhoSelecionadoId = null;
   let detalheSaboresSelecionados = [];
   let detalheQtd = 1;
+
+  // ---- Promoções por etapas (mini-cardápio guiado) ----
+  let promocoesEtapas = []; // [{ id, nome, tituloVitrine, descricaoVitrine, imagemVitrineUrl, precoVitrineDe, precoVitrinePor, etapas:[{id,ordem,titulo,ehBeneficio,percentualDesconto,itens:[{produtoId,categoriaId,opcaoTamanhoId}]}] }]
+  let etapaPopupPromocao = null;      // promoção atualmente aberta no popup guiado
+  let etapaPopupProgresso = {};       // { [etapaId]: { etapaId, produtoId, opcaoTamanhoId, saboresIds, nomeExibicao, precoOriginal, descontoUnit } }
+  let etapaPopupEditandoUid = null;   // uid do pacote no carrinho sendo editado (null = pacote novo)
+  let modoSelecaoEtapa = null;        // { etapaId } quando sheetProduto foi aberto a partir do popup de etapas
 
   let checkoutTipo = 'entrega';
   let checkoutEndereco = null;
@@ -636,7 +702,7 @@
     await carregarSessaoCliente();
     atualizarSaudacao();
 
-    await Promise.all([loadCardapio(), carregarProdutosEmPromocao()]);
+    await Promise.all([loadCardapio(), carregarProdutosEmPromocao(), carregarPromocoesEtapas()]);
     renderCardapio();
     atualizarCartFab();
     await atualizarBadgePedidos();
@@ -733,6 +799,8 @@
     closeSheet('sheetCarrinho');
     closeSheet('sheetCheckout');
     closeSheet('sheetProduto');
+    closeSheet('sheetEtapaEscolha');
+    closeSheet('sheetPromoEtapas');
 
     trackedChannels.forEach(ch => sb.removeChannel(ch));
     trackedChannels.length = 0;
@@ -751,6 +819,16 @@
     checkoutEndereco = null;
     checkoutPrecisaTroco = false;
     checkoutTipo = 'entrega';
+    etapaPopupPromocao = null;
+    etapaPopupProgresso = {};
+    etapaPopupEditandoUid = null;
+    modoSelecaoEtapa = null;
+
+    // Progresso salvo de popups de promoção por etapas (independente da identificação do cliente).
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const chave = localStorage.key(i);
+      if (chave && chave.startsWith('eaf_promo_etapas_' + restauranteSlug + '_')) localStorage.removeItem(chave);
+    }
 
     // FORMULÁRIOS
     document.getElementById('identNome').value = '';
@@ -1201,18 +1279,74 @@
     }
   }
 
+  // =====================================================================
+  // PROMOÇÕES POR ETAPAS (mini-cardápio guiado)
+  // =====================================================================
+  // Convive com produtos_em_promocao_ativa (modelo "quantidade") sem substituí-lo —
+  // os dois modelos podem coexistir na mesma aba Ofertas.
+  async function carregarPromocoesEtapas() {
+    try {
+      const { data, error } = await sb.rpc('promocoes_etapas_ativas', { p_restaurante_id: restaurante.id });
+      if (error) throw error;
+      promocoesEtapas = agruparPromocoesEtapas(data || []);
+    } catch (erro) {
+      console.warn('Não foi possível carregar promoções por etapas:', erro);
+      promocoesEtapas = [];
+    }
+  }
+
+  // A RPC devolve uma linha por (promoção × etapa × item elegível da etapa) — agrupa em
+  // promoção → etapas (ordenadas) → itens elegíveis de cada etapa.
+  function agruparPromocoesEtapas(linhas) {
+    const porPromocao = new Map();
+    for (const l of linhas) {
+      if (!porPromocao.has(l.promocao_id)) {
+        porPromocao.set(l.promocao_id, {
+          id: l.promocao_id,
+          nome: l.nome,
+          tituloVitrine: l.titulo_vitrine,
+          descricaoVitrine: l.descricao_vitrine,
+          imagemVitrineUrl: l.imagem_vitrine_url,
+          precoVitrineDe: l.preco_vitrine_de,
+          precoVitrinePor: l.preco_vitrine_por,
+          etapasMap: new Map()
+        });
+      }
+      const promo = porPromocao.get(l.promocao_id);
+      if (!promo.etapasMap.has(l.etapa_id)) {
+        promo.etapasMap.set(l.etapa_id, {
+          id: l.etapa_id,
+          ordem: l.etapa_ordem,
+          titulo: l.etapa_titulo,
+          ehBeneficio: l.etapa_eh_beneficio,
+          percentualDesconto: Number(l.etapa_percentual_desconto) || 0,
+          itens: []
+        });
+      }
+      promo.etapasMap.get(l.etapa_id).itens.push({
+        produtoId: l.item_produto_id,
+        categoriaId: l.item_categoria_id,
+        opcaoTamanhoId: l.item_opcao_tamanho_id
+      });
+    }
+    return [...porPromocao.values()].map(p => {
+      const { etapasMap, ...resto } = p;
+      return { ...resto, etapas: [...etapasMap.values()].sort((a, b) => a.ordem - b.ordem) };
+    });
+  }
+
   function nomeSecaoOfertas() {
     return (restaurante?.nome_secao_ofertas || '').trim() || 'Ofertas';
   }
 
   function renderCatTabs() {
     const wrap = document.getElementById('catTabs');
-    if (categorias.length === 0 && produtosEmPromocaoMap.size === 0) {
+    if (categorias.length === 0 && produtosEmPromocaoMap.size === 0 && promocoesEtapas.length === 0) {
       wrap.innerHTML = '';
       atualizarDimensoesNavegacaoCardapio();
       return;
     }
-    const temOfertas = produtos.some(p => produtosEmPromocaoMap.has(String(p.id)));
+    const temOfertas = produtos.some(p => produtosEmPromocaoMap.has(String(p.id))) || promocoesEtapas.length > 0;
     const tabOfertas = temOfertas
       ? `<button class="cat-tab ${'active'}" data-action="categoria" data-cat="ofertas">🔥 ${escapeHtml(nomeSecaoOfertas())}</button>`
       : '';
@@ -1244,12 +1378,25 @@
     if (semCategoria.length) grupos.push({ cat: { id: 'sem-categoria', nome: 'Outros' }, itens: semCategoria });
 
     const itensOfertas = produtos.filter(p => produtosEmPromocaoMap.has(String(p.id)));
-    const grupoOfertas = itensOfertas.length ? [{ cat: { id: 'ofertas', nome: nomeSecaoOfertas() }, itens: itensOfertas }] : [];
+    const grupoOfertas = (itensOfertas.length || promocoesEtapas.length)
+      ? [{ cat: { id: 'ofertas', nome: nomeSecaoOfertas() }, itens: itensOfertas, promocoesEtapas }]
+      : [];
     const gruposFinais = [...grupoOfertas, ...grupos];
 
     wrap.innerHTML = gruposFinais.map(g => `
       <div class="cat-section" id="sec-${escapeHtml(g.cat.id)}">
         <div class="cat-section__title">${escapeHtml(g.cat.nome)}</div>
+        ${(g.promocoesEtapas || []).map(promo => `
+          <div class="promo-etapas-card" data-action="abrir-promo-etapas" data-promo="${escapeHtml(promo.id)}">
+            <div class="promo-etapas-card__icone">🎁</div>
+            <div class="promo-etapas-card__info">
+              <p class="promo-etapas-card__nome">${escapeHtml(promo.tituloVitrine || promo.nome)}</p>
+              ${promo.descricaoVitrine ? `<p class="promo-etapas-card__desc">${escapeHtml(promo.descricaoVitrine)}</p>` : ''}
+              <p class="promo-etapas-card__etapas">${promo.etapas.length} etapa${promo.etapas.length === 1 ? '' : 's'} para completar</p>
+            </div>
+            <span class="prod-card__selecionar">Montar <span aria-hidden="true">›</span></span>
+          </div>
+        `).join('')}
         ${g.itens.map(p => `
           <div class="prod-card" data-action="produto" data-id="${escapeHtml(p.id)}">
             <div class="prod-card__info">
@@ -1282,6 +1429,9 @@
     document.getElementById('detNome').textContent = p.nome;
     document.getElementById('detDesc').textContent = p.descricao || '';
     document.getElementById('detQtd').textContent = '1';
+    // Etapa de promoção sempre entra com 1 unidade no pacote — some o controle de
+    // quantidade pra não sugerir que dá pra levar mais de uma cópia da etapa.
+    document.getElementById('detQtdControl').classList.toggle('hidden', Boolean(modoSelecaoEtapa));
     const thumb = document.getElementById('detThumb');
     const imagemSegura = validarUrlSegura(p.imagem_url);
     thumb.innerHTML = imagemSegura ? `<img src="${escapeHtml(imagemSegura)}" alt="">` : getProdutoPlaceholder(p);
@@ -1295,7 +1445,10 @@
       detalheTamanhoSelecionadoId = null;
     } else {
       document.getElementById('detTamanhoBlock').classList.remove('hidden');
-      const opcoes = precos.map(pp => pp.opcoes_tamanho).filter(Boolean).sort((a, b) => a.ordem - b.ordem);
+      let opcoes = precos.map(pp => pp.opcoes_tamanho).filter(Boolean).sort((a, b) => a.ordem - b.ordem);
+      // Dentro de uma etapa de promoção, a etapa pode restringir a um tamanho específico do produto.
+      const tamanhosPermitidos = tamanhoIdsPermitidosParaEtapa(p.id);
+      if (tamanhosPermitidos) opcoes = opcoes.filter(o => tamanhosPermitidos.has(o.id));
       document.getElementById('detTamanhoOpcoes').innerHTML = opcoes.map(o => {
         const pp = precos.find(preco => preco.opcao_tamanho_id === o.id);
         return `<div class="opcao-row" data-action="tamanho" data-tam="${escapeHtml(o.id)}">
@@ -1392,8 +1545,23 @@
   }
 
   function atualizarBotaoAdd() {
+    const btn = document.getElementById('detAddBtn');
+    if (modoSelecaoEtapa) {
+      // Preço de cardápio (sem promoção de produto) + o desconto da própria etapa, se houver —
+      // é exatamente o que vai valer no pacote, sem misturar com outra promoção do produto.
+      const p = detalheProdutoAtual;
+      const saboresIds = maxSaboresAtual > 1 ? detalheSaboresSelecionados : [p.id];
+      const produtoId = saboresIds.includes(p.id) ? p.id : saboresIds[0];
+      const etapa = etapaPopupPromocao?.etapas.find(e => e.id === modoSelecaoEtapa.etapaId);
+      const base = precoBaseProduto(produtoId, detalheTamanhoSelecionadoId);
+      const desconto = etapa?.ehBeneficio ? arred2(base * etapa.percentualDesconto / 100) : 0;
+      btn.textContent = desconto > 0
+        ? `Escolher esta opção · ${formatMoeda(base - desconto)}`
+        : `Escolher esta opção · ${formatMoeda(base)}`;
+      return;
+    }
     const unit = calcularPrecoUnitDetalhe();
-    document.getElementById('detAddBtn').textContent = `Adicionar · ${formatMoeda(unit * detalheQtd)}`;
+    btn.textContent = `Adicionar · ${formatMoeda(unit * detalheQtd)}`;
   }
 
   function confirmarAddCarrinho() {
@@ -1402,7 +1570,6 @@
       return;
     }
     const p = detalheProdutoAtual;
-    const unit = calcularPrecoUnitDetalhe();
     const tamanhoNome = detalheTamanhoSelecionadoId
       ? (p.produto_precos.find(pp => pp.opcao_tamanho_id === detalheTamanhoSelecionadoId)?.opcoes_tamanho?.nome)
       : null;
@@ -1413,6 +1580,14 @@
     }
     if (tamanhoNome) nomeExibicao += ` (${tamanhoNome})`;
 
+    // Sheet de detalhe aberta a partir do popup de promoção por etapas: não vai pro
+    // carrinho direto, volta pra trancar a etapa escolhida dentro do pacote.
+    if (modoSelecaoEtapa) {
+      confirmarEscolhaEtapa(p, nomeExibicao);
+      return;
+    }
+
+    const unit = calcularPrecoUnitDetalhe();
     cart.push({
       uid: 'c' + Date.now() + Math.random().toString(36).slice(2, 6),
       nome: nomeExibicao,
@@ -1427,6 +1602,288 @@
     atualizarCartFab();
     showToast('Adicionado ao carrinho', nomeExibicao);
   }
+
+  function cancelarDetalheProduto() {
+    closeSheet('sheetProduto');
+    if (modoSelecaoEtapa) {
+      modoSelecaoEtapa = null;
+      if (etapaPopupPromocao) openSheet('sheetPromoEtapas');
+    }
+  }
+
+  // =====================================================================
+  // PROMOÇÃO POR ETAPAS — POPUP GUIADO
+  // =====================================================================
+  function localStorageKeyEtapas(promocaoId) {
+    return 'eaf_promo_etapas_' + restauranteSlug + '_' + promocaoId;
+  }
+
+  function salvarProgressoEtapas() {
+    if (!etapaPopupPromocao) return;
+    try {
+      localStorage.setItem(localStorageKeyEtapas(etapaPopupPromocao.id), JSON.stringify(etapaPopupProgresso));
+    } catch (e) { /* localStorage indisponível: progresso só sobrevive na sessão atual da página */ }
+  }
+
+  function carregarProgressoEtapasSalvo(promocaoId) {
+    try {
+      const bruto = localStorage.getItem(localStorageKeyEtapas(promocaoId));
+      return bruto ? JSON.parse(bruto) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function limparProgressoEtapasSalvo(promocaoId) {
+    localStorage.removeItem(localStorageKeyEtapas(promocaoId));
+  }
+
+  // Preço de cardápio (sem nenhum desconto) do produto/tamanho — é exatamente o que o
+  // servidor usa como base pra calcular o desconto da etapa (adicionar_pacote_promocao_pedido
+  // sempre lê produto_precos.preco, nunca preco_promocional de outra promoção).
+  function precoBaseProduto(produtoId, opcaoTamanhoId) {
+    const produto = produtos.find(x => x.id === produtoId);
+    if (!produto) return 0;
+    const pp = (produto.produto_precos || []).find(x => x.ativo && (x.opcao_tamanho_id || null) === (opcaoTamanhoId || null));
+    return pp ? Number(pp.preco) : 0;
+  }
+
+  function arred2(n) { return Math.round(Number(n) * 100) / 100; }
+
+  // Produtos elegíveis para uma etapa, com o conjunto de tamanhos permitidos por produto
+  // (null = qualquer tamanho do produto). Espelha a checagem de elegibilidade feita no banco
+  // por adicionar_pacote_promocao_pedido: bate por produto_id direto OU por categoria_id.
+  function produtosElegiveisEtapa(etapa) {
+    const porProduto = new Map();
+    for (const item of etapa.itens) {
+      if (item.categoriaId) {
+        produtos.filter(p => p.categoria_id === item.categoriaId).forEach(p => {
+          porProduto.set(p.id, { produto: p, tamanhoIds: null });
+        });
+      } else if (item.produtoId) {
+        const p = produtos.find(x => x.id === item.produtoId);
+        if (!p) continue; // produto ficou indisponível: simplesmente não aparece como opção
+        const atual = porProduto.get(p.id);
+        if (item.opcaoTamanhoId) {
+          if (!atual) porProduto.set(p.id, { produto: p, tamanhoIds: new Set([item.opcaoTamanhoId]) });
+          else if (atual.tamanhoIds) atual.tamanhoIds.add(item.opcaoTamanhoId);
+        } else {
+          porProduto.set(p.id, { produto: p, tamanhoIds: null });
+        }
+      }
+    }
+    return [...porProduto.values()];
+  }
+
+  function tamanhoIdsPermitidosParaEtapa(produtoId) {
+    if (!modoSelecaoEtapa || !etapaPopupPromocao) return null;
+    const etapa = etapaPopupPromocao.etapas.find(e => e.id === modoSelecaoEtapa.etapaId);
+    if (!etapa) return null;
+    const elegivel = produtosElegiveisEtapa(etapa).find(e => e.produto.id === produtoId);
+    return elegivel ? elegivel.tamanhoIds : null;
+  }
+
+  function etapaEstaElegivel(etapa, produtoId, opcaoTamanhoId) {
+    return produtosElegiveisEtapa(etapa).some(e =>
+      e.produto.id === produtoId && (!e.tamanhoIds || e.tamanhoIds.has(opcaoTamanhoId))
+    );
+  }
+
+  // Descarta escolhas já travadas cujo produto/tamanho deixou de ser elegível (produto saiu
+  // do cardápio, mudou de categoria etc.) — a etapa volta a "pendente" e precisa ser refeita.
+  function revalidarProgressoEtapas() {
+    if (!etapaPopupPromocao) return;
+    let mudou = false;
+    for (const etapa of etapaPopupPromocao.etapas) {
+      const escolha = etapaPopupProgresso[etapa.id];
+      if (escolha && !etapaEstaElegivel(etapa, escolha.produtoId, escolha.opcaoTamanhoId)) {
+        delete etapaPopupProgresso[etapa.id];
+        mudou = true;
+      }
+    }
+    if (mudou) {
+      showToast('Item indisponível', 'Um dos produtos escolhidos não está mais disponível. Escolha de novo.');
+      if (!etapaPopupEditandoUid) salvarProgressoEtapas();
+    }
+  }
+
+  function abrirPromoEtapasPopup(promocaoId, uidEdicao) {
+    const promo = promocoesEtapas.find(p => p.id === promocaoId);
+    if (!promo) { showToast('Indisponível', 'Essa promoção não está mais disponível.'); return; }
+
+    etapaPopupPromocao = promo;
+    etapaPopupEditandoUid = uidEdicao || null;
+    modoSelecaoEtapa = null;
+
+    if (uidEdicao) {
+      const itemCarrinho = cart.find(i => i.uid === uidEdicao);
+      etapaPopupProgresso = {};
+      (itemCarrinho?.etapas || []).forEach(e => { etapaPopupProgresso[e.etapaId] = { ...e }; });
+    } else {
+      etapaPopupProgresso = carregarProgressoEtapasSalvo(promocaoId);
+    }
+
+    revalidarProgressoEtapas();
+    renderPromoEtapasPopup();
+    openSheet('sheetPromoEtapas');
+  }
+
+  function renderPromoEtapasPopup() {
+    const promo = etapaPopupPromocao;
+    if (!promo) return;
+    document.getElementById('etapaPopupTitulo').textContent = promo.tituloVitrine || promo.nome;
+    document.getElementById('etapaPopupDesc').textContent = promo.descricaoVitrine || '';
+
+    document.getElementById('etapaPopupLista').innerHTML = promo.etapas.map((etapa, indice) => {
+      const escolha = etapaPopupProgresso[etapa.id];
+      const concluida = Boolean(escolha);
+      return `
+        <div class="etapa-row ${concluida ? 'etapa-row--concluida' : ''}" data-action="etapa" data-etapa="${escapeHtml(etapa.id)}">
+          <div class="etapa-row__numero">${concluida ? '✓' : indice + 1}</div>
+          <div class="etapa-row__info">
+            <p class="etapa-row__titulo">${escapeHtml(etapa.titulo)}${etapa.ehBeneficio ? ' 🎁' : ''}</p>
+            <p class="etapa-row__status">${concluida ? escapeHtml(escolha.nomeExibicao) : 'Toque para escolher'}</p>
+          </div>
+          <span class="etapa-row__seta" aria-hidden="true">›</span>
+        </div>
+      `;
+    }).join('');
+
+    const todasConcluidas = promo.etapas.length > 0 && promo.etapas.every(e => etapaPopupProgresso[e.id]);
+    document.getElementById('etapaPopupEnviarBtn').disabled = !todasConcluidas;
+  }
+
+  function abrirEscolhaEtapa(etapaId) {
+    const etapa = etapaPopupPromocao?.etapas.find(e => e.id === etapaId);
+    if (!etapa) return;
+
+    const elegiveis = produtosElegiveisEtapa(etapa);
+    if (elegiveis.length === 0) {
+      showToast('Sem opções', 'Não há produtos disponíveis para esta etapa no momento.');
+      return;
+    }
+
+    modoSelecaoEtapa = { etapaId: etapa.id };
+    closeSheet('sheetPromoEtapas');
+
+    if (elegiveis.length === 1) {
+      abrirDetalheProdutoParaEtapa(elegiveis[0].produto.id);
+      return;
+    }
+
+    document.getElementById('etapaEscolhaTitulo').textContent = etapa.titulo;
+    document.getElementById('etapaEscolhaLista').innerHTML = elegiveis.map(({ produto }) => `
+      <div class="prod-card" data-action="produto-etapa" data-id="${escapeHtml(produto.id)}">
+        <div class="prod-card__info">
+          <p class="prod-card__nome">${escapeHtml(produto.nome)}</p>
+          ${produto.descricao ? `<p class="prod-card__desc">${escapeHtml(produto.descricao)}</p>` : ''}
+          <div class="prod-card__footer">
+            <p class="prod-card__preco">${precoBaseTexto(produto)}</p>
+            <span class="prod-card__selecionar">Selecionar <span aria-hidden="true">›</span></span>
+          </div>
+        </div>
+        <div class="prod-card__thumb">${validarUrlSegura(produto.imagem_url) ? `<img src="${escapeHtml(validarUrlSegura(produto.imagem_url))}" alt="">` : getProdutoPlaceholder(produto)}</div>
+      </div>
+    `).join('');
+    openSheet('sheetEtapaEscolha');
+  }
+
+  function abrirDetalheProdutoParaEtapa(produtoId) {
+    closeSheet('sheetEtapaEscolha');
+    abrirDetalheProduto(produtoId);
+  }
+
+  function cancelarEscolhaEtapa() {
+    closeSheet('sheetEtapaEscolha');
+    modoSelecaoEtapa = null;
+    if (etapaPopupPromocao) openSheet('sheetPromoEtapas');
+  }
+
+  function confirmarEscolhaEtapa(produto, nomeExibicao) {
+    const etapaId = modoSelecaoEtapa.etapaId;
+    const etapa = etapaPopupPromocao.etapas.find(e => e.id === etapaId);
+    const saboresIds = maxSaboresAtual > 1 ? [...detalheSaboresSelecionados] : [produto.id];
+    const produtoId = saboresIds.includes(produto.id) ? produto.id : saboresIds[0];
+    const precoOriginal = precoBaseProduto(produtoId, detalheTamanhoSelecionadoId);
+    const descontoUnit = etapa.ehBeneficio ? arred2(precoOriginal * etapa.percentualDesconto / 100) : 0;
+
+    etapaPopupProgresso[etapaId] = {
+      etapaId,
+      produtoId,
+      opcaoTamanhoId: detalheTamanhoSelecionadoId || null,
+      saboresIds,
+      nomeExibicao,
+      precoOriginal,
+      descontoUnit
+    };
+
+    modoSelecaoEtapa = null;
+    closeSheet('sheetProduto');
+    if (!etapaPopupEditandoUid) salvarProgressoEtapas();
+
+    renderPromoEtapasPopup();
+    openSheet('sheetPromoEtapas');
+  }
+
+  function fecharPromoEtapasPopup() {
+    closeSheet('sheetPromoEtapas');
+    etapaPopupPromocao = null;
+    etapaPopupProgresso = {};
+    etapaPopupEditandoUid = null;
+    modoSelecaoEtapa = null;
+  }
+
+  function enviarPacotePromocaoCarrinho() {
+    if (restauranteIndisponivelTemporariamente) {
+      showToast('Restaurante indisponível', 'Este restaurante não está recebendo novos pedidos no momento.');
+      return;
+    }
+    const promo = etapaPopupPromocao;
+    if (!promo) return;
+    const todasConcluidas = promo.etapas.length > 0 && promo.etapas.every(e => etapaPopupProgresso[e.id]);
+    if (!todasConcluidas) return;
+
+    const etapas = promo.etapas.map(e => ({ ...etapaPopupProgresso[e.id] }));
+    const total = arred2(etapas.reduce((soma, e) => soma + (e.precoOriginal - e.descontoUnit), 0));
+
+    const pacote = {
+      uid: etapaPopupEditandoUid || ('pk' + Date.now() + Math.random().toString(36).slice(2, 6)),
+      tipo: 'pacote_promocao',
+      nome: '🎁 ' + (promo.tituloVitrine || promo.nome),
+      precoUnit: total,
+      qtd: 1,
+      promocaoId: promo.id,
+      etapas
+    };
+
+    if (etapaPopupEditandoUid) {
+      const indice = cart.findIndex(i => i.uid === etapaPopupEditandoUid);
+      if (indice >= 0) cart[indice] = pacote; else cart.push(pacote);
+    } else {
+      cart.push(pacote);
+      limparProgressoEtapasSalvo(promo.id);
+    }
+
+    fecharPromoEtapasPopup();
+    atualizarCartFab();
+    showToast('Adicionado ao carrinho', pacote.nome);
+  }
+
+  function editarPacoteCarrinho(uid) {
+    const item = cart.find(i => i.uid === uid);
+    if (!item || item.tipo !== 'pacote_promocao') return;
+    closeSheet('sheetCarrinho');
+    abrirPromoEtapasPopup(item.promocaoId, uid);
+  }
+
+  document.getElementById('etapaPopupLista').addEventListener('click', event => {
+    const linha = event.target.closest('[data-action="etapa"][data-etapa]');
+    if (linha) abrirEscolhaEtapa(linha.dataset.etapa);
+  });
+  document.getElementById('etapaEscolhaLista').addEventListener('click', event => {
+    const card = event.target.closest('[data-action="produto-etapa"][data-id]');
+    if (card) abrirDetalheProdutoParaEtapa(card.dataset.id);
+  });
 
   // =====================================================================
   // CARRINHO
@@ -1466,7 +1923,18 @@
       document.getElementById('carrinhoTotal').textContent = formatMoeda(0);
       return;
     }
-    wrap.innerHTML = cart.map(i => `
+    wrap.innerHTML = cart.map(i => i.tipo === 'pacote_promocao' ? `
+      <div class="cart-item">
+        <div class="cart-item__info">
+          <p class="cart-item__nome">${escapeHtml(i.nome)}</p>
+          <p class="cart-item__preco">${formatMoeda(i.precoUnit)}</p>
+          <div class="cart-item__acoes-pacote">
+            <button class="cart-item__editar" data-action="editar-pacote" data-uid="${escapeHtml(i.uid)}">Editar</button>
+            <button class="cart-item__remove" data-action="remover-cart" data-uid="${escapeHtml(i.uid)}">Remover</button>
+          </div>
+        </div>
+      </div>
+    ` : `
       <div class="cart-item">
         <div class="cart-item__info">
           <p class="cart-item__nome">${escapeHtml(i.nome)}</p>
@@ -1778,6 +2246,24 @@
   function montarItensPedidoCliente() {
     if (!cart.length) throw new Error('O carrinho está vazio.');
     return cart.map(item => {
+      // Pacote de promoção por etapas: formato reconhecido por _inserir_itens_pedido_transacional,
+      // que delega para adicionar_pacote_promocao_pedido (valida elegibilidade e preço no servidor).
+      if (item.tipo === 'pacote_promocao') {
+        if (!item.promocaoId || !Array.isArray(item.etapas) || !item.etapas.length) {
+          throw new Error('Revise o pacote de promoção antes de finalizar o pedido.');
+        }
+        return {
+          tipo: 'pacote_promocao',
+          promocao_id: item.promocaoId,
+          etapas: item.etapas.map(e => {
+            const etapa = { etapa_id: e.etapaId, produto_id: e.produtoId, opcao_tamanho_id: e.opcaoTamanhoId || null };
+            if (Array.isArray(e.saboresIds) && e.saboresIds.length > 1) etapa.sabores = e.saboresIds;
+            if (e.observacoes) etapa.observacoes = e.observacoes;
+            return etapa;
+          })
+        };
+      }
+
       if (!Number.isInteger(item.qtd) || item.qtd < 1 || !Number.isFinite(Number(item.precoUnit)) || Number(item.precoUnit) <= 0
         || !Array.isArray(item.saboresIds) || item.saboresIds.length < 1
         || new Set(item.saboresIds).size !== item.saboresIds.length || !item.saboresIds.includes(item.produtoId)) {
@@ -1936,7 +2422,9 @@
   });
   document.getElementById('cardapioWrap').addEventListener('click', event => {
     const card = event.target.closest('[data-action="produto"][data-id]');
-    if (card) abrirDetalheProduto(card.dataset.id);
+    if (card) { abrirDetalheProduto(card.dataset.id); return; }
+    const promoCard = event.target.closest('[data-action="abrir-promo-etapas"][data-promo]');
+    if (promoCard) abrirPromoEtapasPopup(promoCard.dataset.promo);
   });
   document.getElementById('detTamanhoOpcoes').addEventListener('click', event => {
     const opcao = event.target.closest('[data-action="tamanho"][data-tam]');
@@ -1951,6 +2439,7 @@
     if (!botao) return;
     if (botao.dataset.action === 'remover-cart') removerDoCarrinho(botao.dataset.uid);
     if (botao.dataset.action === 'qtd-cart') alterarQtdCarrinho(botao.dataset.uid, Number(botao.dataset.delta));
+    if (botao.dataset.action === 'editar-pacote') editarPacoteCarrinho(botao.dataset.uid);
   });
 
   // =====================================================================
