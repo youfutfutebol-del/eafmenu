@@ -120,7 +120,7 @@ async function fazerLogin() {
   loginBtn.disabled = true;
   try {
     const { data, error } = await sb.functions.invoke('login-seguro', {
-      body: { identificador, senha }
+      body: { identificador, senha, contexto: 'restaurante' }
     });
     if (error || data?.ok !== true || !data?.session?.access_token || !data?.session?.refresh_token) {
       setLoginMsg('Não foi possível entrar. Confira os dados informados.', true);
