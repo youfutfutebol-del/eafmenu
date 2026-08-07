@@ -147,7 +147,7 @@
 
   async function loadGruposTamanho() {
     const { data, error } = await sb.from('grupos_tamanho')
-      .select('id, nome, max_sabores, opcoes_tamanho(id, nome, ordem)')
+      .select('id, nome, max_sabores, opcoes_tamanho(id, nome, ordem, max_sabores)')
       .eq('restaurante_id', restauranteId);
     if (!error) gruposTamanhoCache = (data || []).map(g => ({
       ...g,
@@ -308,12 +308,14 @@
     await loadProdutos();
   }
 
-  function addNovoTamanhoRow(nome, preco, promocaoAtiva, precoPromocional) {
+  function addNovoTamanhoRow(nome, preco, promocaoAtiva, precoPromocional, maxSaboresOverride) {
     novosTamanhosState.push({
       nome: nome ?? '',
       preco: preco ?? '',
       promocaoAtiva: promocaoAtiva === true,
-      precoPromocional: precoPromocional ?? ''
+      precoPromocional: precoPromocional ?? '',
+      // Limite de sabores só deste tamanho — em branco = usa o máximo do grupo (pMaxSabores).
+      maxSaboresOverride: maxSaboresOverride ?? ''
     });
     renderNovosTamanhosRows();
   }
@@ -329,6 +331,8 @@
 
   function renderNovosTamanhosRows() {
     const wrap = document.getElementById('novosTamanhosRows');
+    const permitirCombinar = document.getElementById('pPermitirCombinar')?.checked === true;
+    document.querySelectorAll('.novo-tamanho-limite-wrap').forEach(el => el.classList.toggle('hidden', !permitirCombinar));
     if (novosTamanhosState.length === 0) {
       wrap.innerHTML = `<p class="novos-tamanhos-empty">Adicione ao menos uma linha de preço.</p>`;
       return;
@@ -338,6 +342,7 @@
         <div class="novo-tamanho-principal">
           <input class="nome" aria-label="Nome do tamanho, opcional" placeholder="Ex: Grande, 30 cm, Família" value="${escapeHtml(t.nome)}" oninput="atualizarNovoTamanho(${i}, 'nome', this.value)">
           <input class="preco" aria-label="Preço normal" type="number" step="0.01" min="0" placeholder="0,00" value="${escapeHtml(t.preco)}" oninput="atualizarNovoTamanho(${i}, 'preco', this.value)">
+          <input class="limite-sabores novo-tamanho-limite-wrap ${permitirCombinar ? '' : 'hidden'}" aria-label="Limite de sabores neste tamanho, opcional" type="number" min="1" step="1" placeholder="Padrão" value="${escapeHtml(t.maxSaboresOverride)}" oninput="atualizarNovoTamanho(${i}, 'maxSaboresOverride', this.value)">
           <button type="button" class="remove" onclick="removeNovoTamanhoRow(${i})" aria-label="Remover tamanho" title="Remover">✕</button>
         </div>
         <div class="novo-tamanho-promocao">
@@ -356,6 +361,7 @@
     if (permitir && Number(document.getElementById('pMaxSabores').value) < 2) {
       document.getElementById('pMaxSabores').value = 2;
     }
+    renderNovosTamanhosRows();
   }
 
   function normalizarNomeTamanho(nome) {
@@ -368,7 +374,9 @@
   }
 
   function assinaturaTamanhos(tamanhos) {
-    return tamanhos.map(t => normalizarNomeTamanho(t.nome)).join('\u001f');
+    // Inclui o limite de sabores por tamanho na assinatura: dois produtos só reaproveitam
+    // o mesmo grupo interno se os nomes E os limites por tamanho baterem exatamente.
+    return tamanhos.map(t => normalizarNomeTamanho(t.nome) + ':' + (t.maxSaboresOverride ?? '')).join('\u001f');
   }
 
   function validarTamanhosProduto(linhas, permitirCombinar, maxSaboresValor) {
@@ -378,7 +386,8 @@
       nome: String(linha.nome ?? ''),
       preco: Number(linha.preco),
       promocaoAtiva: linha.promocaoAtiva === true,
-      precoPromocional: String(linha.precoPromocional ?? '').trim()
+      precoPromocional: String(linha.precoPromocional ?? '').trim(),
+      maxSaboresOverride: String(linha.maxSaboresOverride ?? '').trim()
     }));
     if (linhas.some(linha => String(linha.preco ?? '').trim() === '') || tamanhos.some(t => !Number.isFinite(t.preco) || t.preco <= 0)) {
       return { erro: ['Preço inválido', 'Informe um preço maior que zero em todas as linhas.'] };
@@ -417,6 +426,17 @@
     if (permitirCombinar && (!Number.isInteger(maxSabores) || maxSabores < 2)) {
       return { erro: ['Máximo inválido', 'Informe um número inteiro de sabores igual ou maior que 2.'] };
     }
+
+    // Limite por tamanho só faz sentido quando dá pra combinar sabores; fora disso, é ignorado.
+    for (const tamanho of tamanhos) {
+      if (!permitirCombinar || !tamanho.maxSaboresOverride) { tamanho.maxSaboresOverride = ''; continue; }
+      const override = Number(tamanho.maxSaboresOverride);
+      if (!Number.isInteger(override) || override < 1) {
+        return { erro: ['Limite de sabores inválido', `Informe um número inteiro de sabores igual ou maior que 1 para o tamanho "${tamanho.nome}", ou deixe em branco pra usar o máximo do grupo.`] };
+      }
+      tamanho.maxSaboresOverride = override;
+    }
+
     return { tamanhos, maxSabores };
   }
 
@@ -462,7 +482,10 @@
     if (grupoErr) throw grupoErr;
 
     const { data: opcoes, error: opcoesErr } = await sb.from('opcoes_tamanho')
-      .insert(tamanhos.map((t, ordem) => ({ grupo_id: grupo.id, nome: t.nome, ordem })))
+      .insert(tamanhos.map((t, ordem) => ({
+        grupo_id: grupo.id, nome: t.nome, ordem,
+        max_sabores: t.maxSaboresOverride || null
+      })))
       .select();
     if (opcoesErr) throw opcoesErr;
     const opcoesOrdenadas = (opcoes || []).slice().sort((a, b) => a.ordem - b.ordem);
@@ -487,7 +510,7 @@
     document.getElementById('pAtivo').checked = true;
     document.getElementById('pPermitirCombinar').checked = false;
     document.getElementById('pMaxSabores').value = 2;
-    novosTamanhosState = [{ nome: '', preco: '', promocaoAtiva: false, precoPromocional: '' }];
+    novosTamanhosState = [{ nome: '', preco: '', promocaoAtiva: false, precoPromocional: '', maxSaboresOverride: '' }];
     renderNovosTamanhosRows();
     onPermitirCombinarChange();
     document.getElementById('produtoModalBg').classList.add('show');
@@ -525,7 +548,8 @@
           nome: opcao.nome,
           preco: pp?.preco ?? '',
           promocaoAtiva: pp?.promocao_ativa === true,
-          precoPromocional: pp?.preco_promocional ?? ''
+          precoPromocional: pp?.preco_promocional ?? '',
+          maxSaboresOverride: opcao.max_sabores ?? ''
         };
       })
       : (() => {

@@ -932,6 +932,7 @@
       <div class="tamanhos-precos-cabecalho" aria-hidden="true">
         <span>Nome do tamanho, opcional</span>
         <span>Preço normal</span>
+        <span class="novo-tamanho-limite-wrap">Limite de sabores</span>
         <span></span>
       </div>
       <div id="novosTamanhosRows"></div>
@@ -941,8 +942,9 @@
         <span>Permitir combinar sabores</span>
       </label>
       <div id="pMaxSaboresWrap" class="max-sabores-wrap hidden">
-        <label for="pMaxSabores">Máximo de sabores</label>
+        <label for="pMaxSabores">Máximo de sabores (padrão do grupo)</label>
         <input id="pMaxSabores" type="number" min="2" step="1" value="2" inputmode="numeric">
+        <p class="max-sabores-hint">Vale pra todos os tamanhos, exceto os que tiverem um limite próprio definido na linha do tamanho acima.</p>
       </div>
     </div>
     <div class="field">
