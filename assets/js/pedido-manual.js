@@ -16,6 +16,16 @@
   let pedidoManualCombinacao = null;
   const CHAVE_PEDIDO_MANUAL_STORAGE = 'eaf_pedido_manual_pendente_v1';
 
+  // ---- Promoções por etapas no pedido manual ----
+  // Reaproveita o mesmo par select+sabores usado pra produto normal (mProdutoSelecionado/
+  // mSaboresBlock) pra escolher o item de cada etapa — só filtra as opções elegíveis e troca
+  // o que o botão "Adicionar" faz enquanto pedidoManualModoEtapa está setado.
+  let pedidoManualPromocoesEtapas = []; // [{ id, nome, tituloVitrine, precoVitrineDe, precoVitrinePor, etapas:[{id,ordem,titulo,ehBeneficio,percentualDesconto,itens:[{produtoId,categoriaId,opcaoTamanhoId}]}] }]
+  let pedidoManualPromocoesCarregadas = false;
+  let pedidoManualPromocoesCarregando = false;
+  let pedidoManualPacote = null;      // { promocao, progresso: { [etapaId]: {etapaId,produtoId,opcaoTamanhoId,saboresIds,nomeExibicao,precoOriginal,descontoUnit} } }
+  let pedidoManualModoEtapa = null;   // { etapaId } quando o select de produto está filtrado pra escolher o item de uma etapa
+
   function gerarChavePedidoManual() {
     if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
     return `manual-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
@@ -71,6 +81,14 @@
     if (botao.dataset.pmAction === 'qtd') alterarQtdItemManual(botao.dataset.uid, Number(botao.dataset.delta));
     if (botao.dataset.pmAction === 'remover') removerItemManual(botao.dataset.uid);
   });
+  document.getElementById('mPromoLista')?.addEventListener('click', event => {
+    const card = event.target.closest('[data-pm-promo]');
+    if (card) abrirPacotePromocaoManual(card.dataset.pmPromo);
+  });
+  document.getElementById('mPromoEtapasLista')?.addEventListener('click', event => {
+    const linha = event.target.closest('[data-pm-etapa]');
+    if (linha) selecionarEtapaManual(linha.dataset.pmEtapa);
+  });
 
   function limparCombinacaoPedidoManual() {
     pedidoManualCombinacao = null;
@@ -78,6 +96,318 @@
     if (bloco) bloco.classList.add('hidden');
     const opcoes = document.getElementById('mSaboresOpcoes');
     if (opcoes) opcoes.innerHTML = '';
+  }
+
+  // =====================================================================
+  // PROMOÇÕES POR ETAPAS NO PEDIDO MANUAL
+  // =====================================================================
+  // Espelha o popup guiado do cliente (cliente/index.html) usando os componentes que já
+  // existem nesta tela em vez de abrir modal/sheet novo: o mesmo select de produto e o mesmo
+  // bloco de sabores viram, temporariamente, o "seletor de item da etapa".
+  async function togglePromoBlockManual() {
+    const bloco = document.getElementById('mPromoBlock');
+    if (!bloco) return;
+    if (!bloco.classList.contains('hidden')) {
+      bloco.classList.add('hidden');
+      return;
+    }
+    if (pedidoManualModoEtapa) cancelarSelecaoEtapaManual();
+    bloco.classList.remove('hidden');
+    if (!pedidoManualPacote) {
+      if (!pedidoManualPromocoesCarregadas) {
+        document.getElementById('mPromoLista').innerHTML = '<p class="pm-promo-vazio">Carregando promoções...</p>';
+        await carregarPromocoesEtapasManual();
+      }
+      renderPromoListaManual();
+    }
+  }
+
+  function fecharPromoBlockManual() {
+    if (pedidoManualModoEtapa) cancelarSelecaoEtapaManual();
+    pedidoManualPacote = null;
+    document.getElementById('mPromoEtapasWrap')?.classList.add('hidden');
+    document.getElementById('mPromoLista')?.classList.remove('hidden');
+    document.getElementById('mPromoBlock')?.classList.add('hidden');
+  }
+
+  async function carregarPromocoesEtapasManual() {
+    if (pedidoManualPromocoesCarregando) return;
+    pedidoManualPromocoesCarregando = true;
+    try {
+      const { data, error } = await sb.rpc('promocoes_etapas_ativas', { p_restaurante_id: restauranteId });
+      if (error) throw error;
+      pedidoManualPromocoesEtapas = agruparPromocoesEtapasManual(data || []);
+    } catch (erro) {
+      console.warn('Não foi possível carregar promoções por etapas:', erro);
+      pedidoManualPromocoesEtapas = [];
+    } finally {
+      pedidoManualPromocoesCarregadas = true;
+      pedidoManualPromocoesCarregando = false;
+    }
+  }
+
+  // A RPC devolve uma linha por (promoção × etapa × item elegível da etapa) — agrupa em
+  // promoção → etapas (ordenadas) → itens elegíveis de cada etapa. Mesma lógica do popup
+  // guiado do cliente (cliente/index.html: agruparPromocoesEtapas).
+  function agruparPromocoesEtapasManual(linhas) {
+    const porPromocao = new Map();
+    for (const l of linhas) {
+      if (!porPromocao.has(l.promocao_id)) {
+        porPromocao.set(l.promocao_id, {
+          id: l.promocao_id,
+          nome: l.nome,
+          tituloVitrine: l.titulo_vitrine,
+          precoVitrineDe: l.preco_vitrine_de,
+          precoVitrinePor: l.preco_vitrine_por,
+          etapasMap: new Map()
+        });
+      }
+      const promo = porPromocao.get(l.promocao_id);
+      if (!promo.etapasMap.has(l.etapa_id)) {
+        promo.etapasMap.set(l.etapa_id, {
+          id: l.etapa_id,
+          ordem: l.etapa_ordem,
+          titulo: l.etapa_titulo,
+          ehBeneficio: l.etapa_eh_beneficio,
+          percentualDesconto: Number(l.etapa_percentual_desconto) || 0,
+          itens: []
+        });
+      }
+      promo.etapasMap.get(l.etapa_id).itens.push({
+        produtoId: l.item_produto_id,
+        categoriaId: l.item_categoria_id,
+        opcaoTamanhoId: l.item_opcao_tamanho_id
+      });
+    }
+    return [...porPromocao.values()].map(p => {
+      const { etapasMap, ...resto } = p;
+      return { ...resto, etapas: [...etapasMap.values()].sort((a, b) => a.ordem - b.ordem) };
+    });
+  }
+
+  // Produtos elegíveis pra uma etapa (com os tamanhos permitidos por produto; null = qualquer
+  // tamanho do produto). Espelha a checagem de elegibilidade feita no banco por
+  // adicionar_pacote_promocao_pedido: bate por produto_id direto OU por categoria_id.
+  function produtosElegiveisEtapaManual(etapa) {
+    const porProduto = new Map();
+    for (const item of etapa.itens) {
+      if (item.categoriaId) {
+        produtosCache.filter(p => p.categoria_id === item.categoriaId).forEach(p => {
+          porProduto.set(p.id, { produto: p, tamanhoIds: null });
+        });
+      } else if (item.produtoId) {
+        const p = produtosCache.find(x => x.id === item.produtoId);
+        if (!p) continue; // produto ficou indisponível: simplesmente não aparece como opção
+        const atual = porProduto.get(p.id);
+        if (item.opcaoTamanhoId) {
+          if (!atual) porProduto.set(p.id, { produto: p, tamanhoIds: new Set([item.opcaoTamanhoId]) });
+          else if (atual.tamanhoIds) atual.tamanhoIds.add(item.opcaoTamanhoId);
+        } else {
+          porProduto.set(p.id, { produto: p, tamanhoIds: null });
+        }
+      }
+    }
+    return [...porProduto.values()];
+  }
+
+  // Preço de cardápio (sem nenhum desconto) do produto/tamanho — é exatamente o que o
+  // servidor usa como base pra calcular o desconto da etapa (adicionar_pacote_promocao_pedido
+  // sempre lê produto_precos.preco, nunca preco_promocional de outra promoção).
+  function precoBaseProdutoManual(produtoId, opcaoTamanhoId) {
+    const produto = produtosCache.find(x => x.id === produtoId);
+    if (!produto) return 0;
+    const pp = (produto.produto_precos || []).find(x => x.ativo && (x.opcao_tamanho_id || null) === (opcaoTamanhoId || null));
+    return pp ? Number(pp.preco) : 0;
+  }
+
+  // Preço "a partir de" mostrado na lista compacta, antes de montar o pacote: soma, pra cada
+  // etapa, o menor preço elegível já com o desconto da própria etapa aplicado. Puramente
+  // informativo — o preço real é sempre recalculado etapa a etapa conforme o item escolhido.
+  function precoEstimadoPromocaoManual(promo) {
+    try {
+      const de = Number(promo.precoVitrineDe);
+      const por = Number(promo.precoVitrinePor);
+      if (de > 0 && por > 0) return { de, por };
+
+      let total = 0;
+      for (const etapa of promo.etapas) {
+        let menor = null;
+        for (const { produto, tamanhoIds } of produtosElegiveisEtapaManual(etapa)) {
+          const tamanhos = tamanhoIds ? [...tamanhoIds] : (produto.produto_precos || []).filter(pp => pp.ativo).map(pp => pp.opcao_tamanho_id || null);
+          for (const tamanhoId of tamanhos) {
+            const preco = precoBaseProdutoManual(produto.id, tamanhoId);
+            if (preco > 0 && (menor === null || preco < menor)) menor = preco;
+          }
+        }
+        if (menor === null) return null;
+        const desconto = etapa.ehBeneficio ? arredondarMoedaManual(menor * etapa.percentualDesconto / 100) : 0;
+        total += menor - desconto;
+      }
+      return { aPartir: arredondarMoedaManual(total) };
+    } catch (erro) {
+      console.warn('Não foi possível estimar o preço da promoção:', erro);
+      return null;
+    }
+  }
+
+  function renderPromoListaManual() {
+    const wrap = document.getElementById('mPromoLista');
+    if (!wrap) return;
+    if (!pedidoManualPromocoesEtapas.length) {
+      wrap.innerHTML = '<p class="pm-promo-vazio">Nenhuma promoção por etapas ativa no momento.</p>';
+      return;
+    }
+    wrap.innerHTML = pedidoManualPromocoesEtapas.map(promo => {
+      const preco = precoEstimadoPromocaoManual(promo);
+      let precoTexto = '';
+      if (preco?.de && preco?.por) {
+        precoTexto = `<span class="pm-promo-preco-de">${formatMoeda(preco.de)}</span><span class="pm-promo-preco-por">${formatMoeda(preco.por)}</span>`;
+      } else if (Number.isFinite(preco?.aPartir)) {
+        precoTexto = `<span class="pm-promo-preco-apartir">a partir de ${formatMoeda(preco.aPartir)}</span>`;
+      }
+      return `<button type="button" class="pm-promo-card" data-pm-promo="${escapeHtml(promo.id)}">
+        <span class="pm-promo-card__nome">${escapeHtml(promo.tituloVitrine || promo.nome)}</span>
+        <span class="pm-promo-card__preco">${precoTexto}</span>
+      </button>`;
+    }).join('');
+  }
+
+  function abrirPacotePromocaoManual(promocaoId) {
+    const promo = pedidoManualPromocoesEtapas.find(p => p.id === promocaoId);
+    if (!promo) { showToast('Indisponível', 'Essa promoção não está mais disponível.'); return; }
+    pedidoManualPacote = { promocao: promo, progresso: {} };
+    document.getElementById('mPromoLista').classList.add('hidden');
+    document.getElementById('mPromoEtapasWrap').classList.remove('hidden');
+    document.getElementById('mPromoEtapasTitulo').textContent = promo.tituloVitrine || promo.nome;
+    renderPacoteEtapasManual();
+  }
+
+  function renderPacoteEtapasManual() {
+    const pacote = pedidoManualPacote;
+    if (!pacote) return;
+    document.getElementById('mPromoEtapasLista').innerHTML = pacote.promocao.etapas.map((etapa, indice) => {
+      const escolha = pacote.progresso[etapa.id];
+      const concluida = Boolean(escolha);
+      return `
+        <div class="pm-etapa-row ${concluida ? 'pm-etapa-row--concluida' : ''}" data-pm-etapa="${escapeHtml(etapa.id)}">
+          <div class="pm-etapa-row__numero">${concluida ? '✓' : indice + 1}</div>
+          <div class="pm-etapa-row__info">
+            <p class="pm-etapa-row__titulo">${escapeHtml(etapa.titulo)}${etapa.ehBeneficio ? ' 🎁' : ''}</p>
+            <p class="pm-etapa-row__status">${concluida ? escapeHtml(escolha.nomeExibicao) : 'Toque para escolher'}</p>
+          </div>
+          <span class="pm-etapa-row__seta" aria-hidden="true">›</span>
+        </div>
+      `;
+    }).join('');
+
+    const todasConcluidas = pacote.promocao.etapas.length > 0 && pacote.promocao.etapas.every(e => pacote.progresso[e.id]);
+    const btn = document.getElementById('mPromoConfirmarBtn');
+    btn.disabled = !todasConcluidas;
+    btn.textContent = todasConcluidas
+      ? `Adicionar pacote aos itens · ${formatMoeda(precoTotalPacoteManual(pacote))}`
+      : 'Adicionar pacote aos itens';
+  }
+
+  function precoTotalPacoteManual(pacote) {
+    return arredondarMoedaManual(
+      pacote.promocao.etapas.reduce((soma, e) => {
+        const escolha = pacote.progresso[e.id];
+        return soma + (escolha ? escolha.precoOriginal - escolha.descontoUnit : 0);
+      }, 0)
+    );
+  }
+
+  function selecionarEtapaManual(etapaId) {
+    const pacote = pedidoManualPacote;
+    if (!pacote) return;
+    const etapa = pacote.promocao.etapas.find(e => e.id === etapaId);
+    if (!etapa) return;
+    if (!produtosElegiveisEtapaManual(etapa).length) {
+      showToast('Sem opções', 'Não há produtos disponíveis para esta etapa no momento.');
+      return;
+    }
+
+    pedidoManualModoEtapa = { etapaId };
+    document.getElementById('mModoEtapaAviso').classList.remove('hidden');
+    document.getElementById('mModoEtapaTitulo').textContent = etapa.titulo;
+    document.getElementById('mQtdAdicionar').classList.add('hidden');
+    document.getElementById('mAdicionarProdutoBtn').textContent = 'Escolher esta opção';
+    document.getElementById('mBuscaProduto').value = '';
+    limparCombinacaoPedidoManual();
+    filtrarProdutosBusca();
+    document.getElementById('mProdutoSelecionado').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function cancelarSelecaoEtapaManual() {
+    pedidoManualModoEtapa = null;
+    document.getElementById('mModoEtapaAviso').classList.add('hidden');
+    document.getElementById('mQtdAdicionar').classList.remove('hidden');
+    document.getElementById('mAdicionarProdutoBtn').textContent = 'Adicionar';
+    document.getElementById('mBuscaProduto').value = '';
+    limparCombinacaoPedidoManual();
+    filtrarProdutosBusca();
+  }
+
+  function confirmarEscolhaEtapaManual() {
+    const pacote = pedidoManualPacote;
+    const modo = pedidoManualModoEtapa;
+    const estado = pedidoManualCombinacao;
+    if (!pacote || !modo || !estado) return;
+    const etapa = pacote.promocao.etapas.find(e => e.id === modo.etapaId);
+    if (!etapa) return;
+
+    const produtoBase = produtosCache.find(p => p.id === estado.produtoBaseId);
+    if (!produtoBase) { showToast('Produto inválido', 'Selecione um produto antes de continuar.'); return; }
+
+    const saboresIds = estado.maxSabores > 1 && estado.saboresIds.length ? [...estado.saboresIds] : [estado.produtoBaseId];
+    const produtoId = saboresIds.includes(estado.produtoBaseId) ? estado.produtoBaseId : saboresIds[0];
+    const precoOriginal = precoBaseProdutoManual(produtoId, estado.opcaoTamanhoId);
+    if (!Number.isFinite(precoOriginal) || precoOriginal <= 0) {
+      showToast('Produto indisponível', 'Esse produto não tem preço válido para este tamanho.');
+      return;
+    }
+    const descontoUnit = etapa.ehBeneficio ? arredondarMoedaManual(precoOriginal * etapa.percentualDesconto / 100) : 0;
+
+    const nomeSabores = saboresIds.map(id => produtosCache.find(p => p.id === id)?.nome).filter(Boolean).join(' + ');
+    const tamNome = estado.opcaoTamanhoId
+      ? (produtoBase.produto_precos || []).find(pp => pp.opcao_tamanho_id === estado.opcaoTamanhoId)?.opcoes_tamanho?.nome
+      : null;
+    const nomeExibicao = (nomeSabores || produtoBase.nome) + (tamNome ? ` (${tamNome})` : '');
+
+    pacote.progresso[etapa.id] = { etapaId: etapa.id, produtoId, opcaoTamanhoId: estado.opcaoTamanhoId || null, saboresIds, nomeExibicao, precoOriginal, descontoUnit };
+
+    cancelarSelecaoEtapaManual();
+    renderPacoteEtapasManual();
+  }
+
+  function cancelarPacotePromocaoManual() {
+    if (pedidoManualModoEtapa) cancelarSelecaoEtapaManual();
+    pedidoManualPacote = null;
+    document.getElementById('mPromoEtapasWrap').classList.add('hidden');
+    document.getElementById('mPromoLista').classList.remove('hidden');
+  }
+
+  function confirmarPacotePromocaoManual() {
+    const pacote = pedidoManualPacote;
+    if (!pacote) return;
+    const todasConcluidas = pacote.promocao.etapas.length > 0 && pacote.promocao.etapas.every(e => pacote.progresso[e.id]);
+    if (!todasConcluidas) return;
+
+    const etapas = pacote.promocao.etapas.map(e => ({ ...pacote.progresso[e.id] }));
+    const nome = pacote.promocao.tituloVitrine || pacote.promocao.nome;
+    pedidoManualItens.push({
+      uid: 'pmk' + Date.now() + Math.random().toString(36).slice(2, 6),
+      tipo: 'pacote_promocao',
+      nomeExibicao: '🎁 ' + nome,
+      precoUnit: precoTotalPacoteManual(pacote),
+      qtd: 1,
+      promocaoId: pacote.promocao.id,
+      etapas
+    });
+
+    fecharPromoBlockManual();
+    renderItensManualLista();
+    showToast('Pacote adicionado', nome);
   }
 
   function mostrarErroPedidoManual(titulo, mensagem) {
@@ -144,6 +474,11 @@
     pedidoManualEquipe = [];
     pedidoManualEquipeErro = null;
     limparCombinacaoPedidoManual();
+    // Promoções por etapas recarregam do zero a cada abertura (ativação pode ter mudado
+    // desde o último pedido lançado nesta sessão do painel).
+    pedidoManualPromocoesEtapas = [];
+    pedidoManualPromocoesCarregadas = false;
+    fecharPromoBlockManual();
     clearTimeout(buscaTelefoneTimer);
     buscaTelefoneTimer = null;
 
@@ -186,6 +521,7 @@
     if (pedidoManualSubmetendo) return;
     limparSenhaAutorizadorManual();
     limparCombinacaoPedidoManual();
+    fecharPromoBlockManual();
     document.getElementById('manualModalBg').classList.remove('show');
   }
 
@@ -326,14 +662,26 @@
 
   function filtrarProdutosBusca() {
     const termo = document.getElementById('mBuscaProduto').value.trim().toLowerCase();
-    const todas = obterOpcoesProdutoFlat();
+    let todas = obterOpcoesProdutoFlat();
+
+    // Dentro de uma etapa de promoção, o select só pode oferecer produto/tamanho elegíveis
+    // pra ESSA etapa — mesma restrição aplicada no popup guiado do cliente.
+    if (pedidoManualModoEtapa) {
+      const etapa = pedidoManualPacote?.promocao.etapas.find(e => e.id === pedidoManualModoEtapa.etapaId);
+      const elegiveis = etapa ? produtosElegiveisEtapaManual(etapa) : [];
+      todas = todas.filter(o => {
+        const eleg = elegiveis.find(e => e.produto.id === o.produtoId);
+        return eleg && (!eleg.tamanhoIds || eleg.tamanhoIds.has(o.opcaoTamanhoId));
+      });
+    }
+
     const filtradas = termo
       ? todas.filter(o => o.nomeProduto.toLowerCase().includes(termo) || (o.nomeTamanho || '').toLowerCase().includes(termo))
       : todas;
     const sel = document.getElementById('mProdutoSelecionado');
     sel.innerHTML = filtradas.length
       ? filtradas.map(o => `<option value="${escapeHtml(o.precoId)}">${escapeHtml(o.nomeProduto)}${o.nomeTamanho ? ' - ' + escapeHtml(o.nomeTamanho) : ''} — ${o.promocaoAtiva ? `de ${formatMoeda(o.precoNormal)} por ${formatMoeda(o.preco)}` : formatMoeda(o.preco)}</option>`).join('')
-      : '<option value="">Nenhum produto encontrado</option>';
+      : `<option value="">${pedidoManualModoEtapa ? 'Nenhum produto elegível disponível' : 'Nenhum produto encontrado'}</option>`;
     onProdutoManualChange();
   }
 
@@ -430,6 +778,9 @@
   }
 
   function adicionarItemManual() {
+    // Select de produto reaproveitado pra escolher o item de uma etapa de promoção: "Adicionar"
+    // trava a etapa em vez de ir direto pra lista de itens do pedido.
+    if (pedidoManualModoEtapa) { confirmarEscolhaEtapaManual(); return; }
     const precoId = document.getElementById('mProdutoSelecionado').value;
     if (!precoId) { showToast('Selecione um produto', 'Pesquise e escolha um produto antes de adicionar.'); return; }
     const qtdInput = document.getElementById('mQtdAdicionar');
@@ -489,7 +840,9 @@
 
   function alterarQtdItemManual(uid, delta) {
     const item = pedidoManualItens.find(i => i.uid === uid);
-    if (!item) return;
+    // Pacote de promoção por etapas é sempre 1 unidade (mesma regra do popup guiado do
+    // cliente) — a lista nem renderiza o seletor de quantidade pra esse tipo de item.
+    if (!item || item.tipo === 'pacote_promocao') return;
     item.qtd = Math.max(1, item.qtd + delta);
     renderItensManualLista();
   }
@@ -504,7 +857,16 @@
       wrap.innerHTML = '<p class="pm-itens-vazio">Nenhum item adicionado ainda. Pesquise um produto acima.</p>';
     } else {
       wrap.innerHTML = pedidoManualItens.map(item => {
-        const uidArg = escapeHtml(JSON.stringify(item.uid));
+        if (item.tipo === 'pacote_promocao') {
+          return `<div class="pm-item-row">
+            <div class="pm-item-info">
+              <p class="pm-item-nome">${escapeHtml(item.nomeExibicao)}</p>
+              <p class="pm-item-preco">${(item.etapas || []).map(e => escapeHtml(e.nomeExibicao)).join(' + ')}</p>
+            </div>
+            <div class="pm-item-subtotal">${formatMoeda(item.precoUnit)}</div>
+            <button type="button" class="pm-item-remover" data-pm-action="remover" data-uid="${escapeHtml(item.uid)}" title="Remover">🗑</button>
+          </div>`;
+        }
         return `<div class="pm-item-row">
           <div class="pm-item-info">
             <p class="pm-item-nome">${escapeHtml(item.nomeExibicao || item.nomeProduto)}${item.nomeTamanho ? ` <span class="pm-item-tamanho">(${escapeHtml(item.nomeTamanho)})</span>` : ''}</p>
@@ -773,6 +1135,24 @@
 
   function montarItensParaInserirManual() {
     return pedidoManualItens.map(item => {
+      // Pacote de promoção por etapas: formato reconhecido por _inserir_itens_pedido_transacional,
+      // que delega para adicionar_pacote_promocao_pedido (valida elegibilidade e preço no servidor) —
+      // mesmo payload {tipo:'pacote_promocao', promocao_id, etapas} que o checkout do cliente já usa.
+      if (item.tipo === 'pacote_promocao') {
+        if (!item.promocaoId || !Array.isArray(item.etapas) || !item.etapas.length) {
+          throw erroFluxoPedidoManual('Pacote inválido', 'Revise o pacote de promoção antes de continuar.');
+        }
+        return {
+          tipo: 'pacote_promocao',
+          promocao_id: item.promocaoId,
+          etapas: item.etapas.map(e => {
+            const etapa = { etapa_id: e.etapaId, produto_id: e.produtoId, opcao_tamanho_id: e.opcaoTamanhoId || null };
+            if (Array.isArray(e.saboresIds) && e.saboresIds.length > 1) etapa.sabores = e.saboresIds;
+            return etapa;
+          })
+        };
+      }
+
       if (!Number.isInteger(item.qtd) || item.qtd < 1 || !Array.isArray(item.saboresIds) || item.saboresIds.length < 1
         || new Set(item.saboresIds).size !== item.saboresIds.length || !item.saboresIds.includes(item.produtoId)) {
         throw erroFluxoPedidoManual('Itens inválidos', 'Revise a quantidade e os sabores dos itens antes de continuar.');
@@ -901,6 +1281,7 @@
       document.getElementById('manualModalBg').classList.remove('show');
       pedidoManualItens = [];
       limparCombinacaoPedidoManual();
+      fecharPromoBlockManual();
       limparSenhaAutorizadorManual();
       const numero = resultado.numero_diario || resultado.pedido_id;
       showToast(`Pedido #${numero} confirmado`, resultado.reutilizado

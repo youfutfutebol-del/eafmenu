@@ -728,13 +728,31 @@
       </div>
 
       <p class="pm-section-label">Adicionar produto</p>
+      <button type="button" class="pm-btn-promocoes" id="mPromoToggleBtn" onclick="togglePromoBlockManual()">🎁 Promoções</button>
+      <div id="mPromoBlock" class="pm-promo-block hidden">
+        <div id="mPromoLista" class="pm-promo-lista"></div>
+        <div id="mPromoEtapasWrap" class="pm-promo-etapas hidden">
+          <div class="pm-promo-etapas-topo">
+            <b id="mPromoEtapasTitulo"></b>
+            <button type="button" class="pm-link-btn" onclick="cancelarPacotePromocaoManual()">‹ Voltar às promoções</button>
+          </div>
+          <div id="mPromoEtapasLista" class="pm-promo-etapas-lista"></div>
+          <button type="button" class="btn primary pm-btn-add pm-promo-confirmar" id="mPromoConfirmarBtn" disabled onclick="confirmarPacotePromocaoManual()">Adicionar pacote aos itens</button>
+        </div>
+      </div>
+
+      <div id="mModoEtapaAviso" class="pm-modo-etapa-aviso hidden">
+        <span>Escolhendo para a etapa: <b id="mModoEtapaTitulo"></b></span>
+        <button type="button" class="pm-link-btn" onclick="cancelarSelecaoEtapaManual()">Cancelar</button>
+      </div>
+
       <div class="pm-busca-row">
         <input id="mBuscaProduto" placeholder="Pesquisar produto..." oninput="filtrarProdutosBusca()">
       </div>
       <div class="pm-add-row">
         <select id="mProdutoSelecionado" class="pm-select-produto" onchange="onProdutoManualChange()"></select>
         <input type="number" id="mQtdAdicionar" min="1" step="1" value="1" class="pm-qtd-add">
-        <button type="button" class="btn primary pm-btn-add" onclick="adicionarItemManual()">Adicionar</button>
+        <button type="button" class="btn primary pm-btn-add" id="mAdicionarProdutoBtn" onclick="adicionarItemManual()">Adicionar</button>
       </div>
       <div id="mSaboresBlock" class="pm-sabores hidden">
         <div class="pm-sabores-topo">
@@ -1472,7 +1490,9 @@
   async function loadProdutos() {
     const { data, error } = await sb
       .from('produtos')
-      .select('id, nome, grupo_tamanho_id, produto_precos(id, preco, preco_promocional, promocao_ativa, ativo, opcao_tamanho_id, opcoes_tamanho(nome))')
+      // categoria_id entra aqui só pra promoções por etapas com escopo por categoria
+      // (produtosElegiveisEtapaManual, em pedido-manual.js) — nada mais na tela usa esse cache por categoria.
+      .select('id, nome, categoria_id, grupo_tamanho_id, produto_precos(id, preco, preco_promocional, promocao_ativa, ativo, opcao_tamanho_id, opcoes_tamanho(nome))')
       .eq('restaurante_id', restauranteId)
       .eq('ativo', true);
     if (!error) produtosCache = data || [];
