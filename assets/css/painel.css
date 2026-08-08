@@ -561,6 +561,36 @@
 .pm-item-subtotal { font-weight:800; font-size:12.5px; min-width:64px; text-align:right; flex-shrink:0; }
 .pm-item-remover { background:none; border:none; color: var(--red); font-size:14px; padding:4px; flex-shrink:0; }
 .pm-total-row { display:flex; justify-content:space-between; align-items:center; font-size:15px; font-weight:800; border-top:1px solid var(--border); padding-top:12px; margin-top:4px; }
+
+/* ===== Pedido Manual — pacote de promoção por etapas ===== */
+.pm-link-btn { background:none; border:none; color:var(--ink); font-size:11.5px; font-weight:700; text-decoration:underline; padding:2px 0; flex-shrink:0; }
+.pm-btn-promocoes { display:block; width:100%; margin-bottom:10px; padding:9px 10px; border:1px dashed var(--border); border-radius:8px; background:#fff; color:var(--ink); font-size:12.5px; font-weight:800; text-align:center; }
+.pm-btn-promocoes:hover { background:#FAFAFA; }
+.pm-promo-block { margin:0 0 12px; padding:11px 12px; border:1px solid var(--border); border-radius:10px; background:#FAFAFA; }
+.pm-promo-vazio { font-size:12px; color:var(--muted); text-align:center; padding:10px 4px; margin:0; }
+.pm-promo-lista { display:flex; flex-direction:column; gap:7px; }
+.pm-promo-card { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; padding:10px 11px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--ink); font-size:12.5px; text-align:left; }
+.pm-promo-card:hover { border-color:var(--ink); }
+.pm-promo-card__nome { font-weight:700; min-width:0; overflow-wrap:anywhere; }
+.pm-promo-card__preco { flex-shrink:0; font-size:11.5px; text-align:right; }
+.pm-promo-preco-de { text-decoration:line-through; color:var(--muted); margin-right:5px; }
+.pm-promo-preco-por { font-weight:800; color:var(--green); }
+.pm-promo-preco-apartir { color:var(--muted); font-weight:700; }
+.pm-promo-etapas-topo { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+.pm-promo-etapas-topo b { font-size:13px; overflow-wrap:anywhere; }
+.pm-promo-etapas-lista { display:flex; flex-direction:column; gap:7px; margin-bottom:10px; }
+.pm-etapa-row { display:flex; align-items:center; gap:10px; width:100%; padding:9px 10px; border:1px solid var(--border); border-radius:8px; background:#fff; text-align:left; }
+.pm-etapa-row--concluida { border-color:var(--green); background:#F0FDF4; }
+.pm-etapa-row__numero { flex-shrink:0; display:flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:#F4F4F5; font-size:11px; font-weight:800; }
+.pm-etapa-row--concluida .pm-etapa-row__numero { background:var(--green); color:#fff; }
+.pm-etapa-row__info { flex:1; min-width:0; }
+.pm-etapa-row__titulo { margin:0; font-weight:700; font-size:12.5px; }
+.pm-etapa-row__status { margin:2px 0 0; font-size:11px; color:var(--muted); overflow-wrap:anywhere; }
+.pm-etapa-row__seta { flex-shrink:0; color:var(--muted); }
+.pm-promo-confirmar { width:100%; }
+.pm-modo-etapa-aviso { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; padding:8px 10px; border:1px solid var(--ink); border-radius:8px; background:var(--ink); color:#fff; font-size:12px; }
+.pm-modo-etapa-aviso b { font-weight:800; }
+.pm-modo-etapa-aviso .pm-link-btn { color:#fff; }
 .pm-checkout-modal { width:620px; max-width:calc(100vw - 28px); }
 .recurso-indisponivel-modal { width:460px; max-width:calc(100vw - 28px); }
 .recurso-indisponivel-mensagem { margin:0 0 10px; color:var(--ink); font-size:14px; line-height:1.55; }
