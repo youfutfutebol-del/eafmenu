@@ -11,7 +11,7 @@
 
   function novoEstadoForm() {
     return {
-      modelo: 'quantidade',
+      modelo: 'etapas',
       condicao: { tipo: 'produto', categoriaId: '', itens: [{ produtoId: '', tamanhoId: '' }] },
       beneficio: { tipo: 'produto', categoriaId: '', itens: [{ produtoId: '', tamanhoId: '' }] },
       etapas: [novaEtapaVazia()],
@@ -455,7 +455,7 @@ if (existente?.imagem_vitrine_url) {
   el('promoImagemPlaceholder').style.display = 'flex';
 }
     if (existente) { promoForm.condicao = estadoDoEscopo(encontrarEscopo(existente, 'condicao')); promoForm.beneficio = estadoDoEscopo(encontrarEscopo(existente, 'beneficio')); }
-    promoForm.modelo = existente?.modelo || 'quantidade';
+    promoForm.modelo = existente?.modelo || 'etapas';
     if (existente?.modelo === 'etapas' && existente.promocao_etapas?.length) {
       promoForm.etapas = existente.promocao_etapas.map(et => {
         const itens = et.promocao_etapa_itens || [];
